@@ -1,0 +1,2362 @@
+{
+  "total_files": 261,
+  "total_directories": 5,
+  "files_by_extension": {
+    ".html": 16,
+    ".download": 214,
+    ".png": 15,
+    ".css": 15,
+    "no_extension": 1
+  },
+  "file_details": [
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx.html",
+      "name": "instrumentation_control_systems_standards.docx.html",
+      "extension": ".html",
+      "size_bytes": 249751,
+      "line_count": 1488,
+      "content_analysis": "Markup language file\n  - Lines with tags: 39\n\n  Total lines: 1488\n  Non-empty lines: 1453\n  Empty lines: 35\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0240)https://ensarsolutions.sharepoint.com/:w:/r/sites/EnGenie/_layouts/15/Doc2...\n    Line 3: <html lang=\"en-us\" dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8...\n    Line 4: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...\n    Line 5: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx.html",
+      "name": "instrumentation_pressure_standards.docx.html",
+      "extension": ".html",
+      "size_bytes": 249648,
+      "line_count": 1488,
+      "content_analysis": "Markup language file\n  - Lines with tags: 39\n\n  Total lines: 1488\n  Non-empty lines: 1453\n  Empty lines: 35\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0240)https://ensarsolutions.sharepoint.com/:w:/r/sites/EnGenie/_layouts/15/Doc2...\n    Line 3: <html lang=\"en-us\" dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8...\n    Line 4: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...\n    Line 5: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx.html",
+      "name": "instrumentation_safety_standards.docx.html",
+      "extension": ".html",
+      "size_bytes": 248894,
+      "line_count": 1488,
+      "content_analysis": "Markup language file\n  - Lines with tags: 39\n\n  Total lines: 1488\n  Non-empty lines: 1453\n  Empty lines: 35\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0240)https://ensarsolutions.sharepoint.com/:w:/r/sites/EnGenie/_layouts/15/Doc2...\n    Line 3: <html lang=\"en-us\" dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8...\n    Line 4: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...\n    Line 5: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx.html",
+      "name": "instrumentation_temperature_standards.docx.html",
+      "extension": ".html",
+      "size_bytes": 249694,
+      "line_count": 1488,
+      "content_analysis": "Markup language file\n  - Lines with tags: 39\n\n  Total lines: 1488\n  Non-empty lines: 1453\n  Empty lines: 35\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0240)https://ensarsolutions.sharepoint.com/:w:/r/sites/EnGenie/_layouts/15/Doc2...\n    Line 3: <html lang=\"en-us\" dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8...\n    Line 4: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...\n    Line 5: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx.html",
+      "name": "instrumentation_valves_actuators_standards.docx.html",
+      "extension": ".html",
+      "size_bytes": 249762,
+      "line_count": 1488,
+      "content_analysis": "Markup language file\n  - Lines with tags: 39\n\n  Total lines: 1488\n  Non-empty lines: 1453\n  Empty lines: 35\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0240)https://ensarsolutions.sharepoint.com/:w:/r/sites/EnGenie/_layouts/15/Doc2...\n    Line 3: <html lang=\"en-us\" dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8...\n    Line 4: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...\n    Line 5: /*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uLy...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\appresourceloader.min.js.download",
+      "name": "appresourceloader.min.js.download",
+      "extension": ".download",
+      "size_bytes": 71737,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\box4-strings.min.js.download",
+      "name": "box4-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76236,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\box42.png",
+      "name": "box42.png",
+      "extension": ".png",
+      "size_bytes": 6336,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\box43.png",
+      "name": "box43.png",
+      "extension": ".png",
+      "size_bytes": 1922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\codecoverage.min.js.download",
+      "name": "codecoverage.min.js.download",
+      "extension": ".download",
+      "size_bytes": 9079,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\comment-pane-strings.min.js.download",
+      "name": "comment-pane-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 12847,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\common-intl.min.js.download",
+      "name": "common-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 205988,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\compatparentelementfix.js.download",
+      "name": "compatparentelementfix.js.download",
+      "extension": ".download",
+      "size_bytes": 6193,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\editsurface.min.css",
+      "name": "editsurface.min.css",
+      "extension": ".css",
+      "size_bytes": 39062,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 39062\n  - Total words: 380\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: FocusedContentControl*{margin:0;padding:0}.EditingSurfaceBody{background-color:transparent;border:no...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\hammer.min.js.download",
+      "name": "hammer.min.js.download",
+      "extension": ".download",
+      "size_bytes": 24372,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\jquery.min.js.download",
+      "name": "jquery.min.js.download",
+      "extension": ".download",
+      "size_bytes": 90048,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\jquery.signalr2.1.1.min.js.download",
+      "name": "jquery.signalr2.1.1.min.js.download",
+      "extension": ".download",
+      "size_bytes": 62133,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\jsanity.js.download",
+      "name": "jsanity.js.download",
+      "extension": ".download",
+      "size_bytes": 14846,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "name": "livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "extension": ".download",
+      "size_bytes": 255260,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "name": "livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "extension": ".download",
+      "size_bytes": 1684188,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\microsoftajaxds.js.download",
+      "name": "microsoftajaxds.js.download",
+      "extension": ".download",
+      "size_bytes": 131432,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\midgardbootstrapper.js.download",
+      "name": "midgardbootstrapper.js.download",
+      "extension": ".download",
+      "size_bytes": 49416,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\moeerrorux.css",
+      "name": "moeerrorux.css",
+      "extension": ".css",
+      "size_bytes": 10290,
+      "line_count": 507,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 9783\n  - Total words: 790\n\n  Total lines: 507\n  Non-empty lines: 416\n  Empty lines: 91\n\n  First few lines:\n    Line 1: .moe-infobar-body {\n    Line 2:     background-color:#FCF7B6;\n    Line 3:     border:1px solid #D9D98B;\n    Line 4:     position:relative;\n    Line 5:     max-height:110px;",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\odsp.react.lib-98e3cf56.js.download",
+      "name": "odsp.react.lib-98e3cf56.js.download",
+      "extension": ".download",
+      "size_bytes": 130259,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\officeextension.wacruntime.js.download",
+      "name": "officeextension.wacruntime.js.download",
+      "extension": ".download",
+      "size_bytes": 72082,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\onedrive.js.download",
+      "name": "onedrive.js.download",
+      "extension": ".download",
+      "size_bytes": 60037,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\osfruntimewordwac.js.download",
+      "name": "osfruntimewordwac.js.download",
+      "extension": ".download",
+      "size_bytes": 803397,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\osfruntime_strings.js.download",
+      "name": "osfruntime_strings.js.download",
+      "extension": ".download",
+      "size_bytes": 11712,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\owl.slim.97111de42b5453a50ce1.js.download",
+      "name": "owl.slim.97111de42b5453a50ce1.js.download",
+      "extension": ".download",
+      "size_bytes": 219245,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\photo-picker_with-react_0cd9efb83d50d58257b0.js.download",
+      "name": "photo-picker_with-react_0cd9efb83d50d58257b0.js.download",
+      "extension": ".download",
+      "size_bytes": 43723,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\require-2495d64e.js.download",
+      "name": "require-2495d64e.js.download",
+      "extension": ".download",
+      "size_bytes": 29183,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\saved_resource.html",
+      "name": "saved_resource.html",
+      "extension": ".html",
+      "size_bytes": 1935405,
+      "line_count": 2890,
+      "content_analysis": "Markup language file\n  - Lines with tags: 27\n\n  Total lines: 2890\n  Non-empty lines: 2864\n  Empty lines: 26\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0839)https://usc-word-edit.officeapps.live.com/we/wordeditorframe.aspx?ui=en-US...\n    Line 3: <html dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><style data...\n    Line 4: _bB.init();_bB.sendBeacon(\"SessionStarted\",\"SessionBoundary\");_bB.postBootState(\"SessionStarted\");wi...\n    Line 5: </script><script type=\"text/javascript\" nonce=\"\">window._wBc || (window._wBc ={ });_wBc.a=180;_wBc.b...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "name": "sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "extension": ".download",
+      "size_bytes": 524352,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\staticRibbon.min.js.download",
+      "name": "staticRibbon.min.js.download",
+      "extension": ".download",
+      "size_bytes": 271527,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\suiteux.shell.core.js.download",
+      "name": "suiteux.shell.core.js.download",
+      "extension": ".download",
+      "size_bytes": 309744,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\suiteux.shell.mast.js.download",
+      "name": "suiteux.shell.mast.js.download",
+      "extension": ".download",
+      "size_bytes": 149009,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\suiteux.shell.plus.js.download",
+      "name": "suiteux.shell.plus.js.download",
+      "extension": ".download",
+      "size_bytes": 200927,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wac-wonca-strings.min.js.download",
+      "name": "wac-wonca-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 22870,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wac-wordeditor-strings.min.js.download",
+      "name": "wac-wordeditor-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 88262,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wacairspaceanimationlibrary.js.download",
+      "name": "wacairspaceanimationlibrary.js.download",
+      "extension": ".download",
+      "size_bytes": 46689,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wacboot.min.js.download",
+      "name": "wacboot.min.js.download",
+      "extension": ".download",
+      "size_bytes": 220761,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wacbox4actionids.min.js.download",
+      "name": "wacbox4actionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 117987,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\WacOAuth.html",
+      "name": "WacOAuth.html",
+      "extension": ".html",
+      "size_bytes": 7100,
+      "line_count": 129,
+      "content_analysis": "Markup language file\n  - Lines with tags: 10\n\n  Total lines: 129\n  Non-empty lines: 117\n  Empty lines: 12\n\n  First few lines:\n    Line 1: <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtm...\n    Line 2: <!-- saved from url=(0188)https://oauth.officeapps.live.com/oa/WacOAuth.aspx?replyUrl=https://usc-wo...\n    Line 3: <html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta http-equiv=\"Content-Type\" content=\"text/html;...\n    Line 4: \n    Line 5: </title>",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wacowlhostwebpack.js.download",
+      "name": "wacowlhostwebpack.js.download",
+      "extension": ".download",
+      "size_bytes": 533749,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wacwordeditoractionids.min.js.download",
+      "name": "wacwordeditoractionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 74911,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\we_version2.png",
+      "name": "we_version2.png",
+      "extension": ".png",
+      "size_bytes": 24960,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\word-app-intl-fluent.min.js.download",
+      "name": "word-app-intl-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 737879,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\word-app-intl-lazy-fluent.min.js.download",
+      "name": "word-app-intl-lazy-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 1196937,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\word-catchup-activity-intl.min.js.download",
+      "name": "word-catchup-activity-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 20034,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\word.boot.f8592d039bea1c6d6278.js.download",
+      "name": "word.boot.f8592d039bea1c6d6278.js.download",
+      "extension": ".download",
+      "size_bytes": 166801,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wordeditords.js.download",
+      "name": "wordeditords.js.download",
+      "extension": ".download",
+      "size_bytes": 5036614,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "name": "wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 168666,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "name": "wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 271970,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_control_systems_standards.docx_files\\wordeditor_version4.min.css",
+      "name": "wordeditor_version4.min.css",
+      "extension": ".css",
+      "size_bytes": 406825,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 406825\n  - Total words: 5093\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: .headBrand{cursor:default;font-family:SegoeUI-SemiLight-final,Segoe UI SemiLight,Segoe UI WPC Semili...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\appresourceloader.min.js.download",
+      "name": "appresourceloader.min.js.download",
+      "extension": ".download",
+      "size_bytes": 71737,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\box4-strings.min.js.download",
+      "name": "box4-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76236,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\box42.png",
+      "name": "box42.png",
+      "extension": ".png",
+      "size_bytes": 6336,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\box43.png",
+      "name": "box43.png",
+      "extension": ".png",
+      "size_bytes": 1922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\codecoverage.min.js.download",
+      "name": "codecoverage.min.js.download",
+      "extension": ".download",
+      "size_bytes": 9079,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\comment-pane-strings.min.js.download",
+      "name": "comment-pane-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 12847,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\common-intl.min.js.download",
+      "name": "common-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 205988,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\compatparentelementfix.js.download",
+      "name": "compatparentelementfix.js.download",
+      "extension": ".download",
+      "size_bytes": 6193,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\editsurface.min.css",
+      "name": "editsurface.min.css",
+      "extension": ".css",
+      "size_bytes": 39062,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 39062\n  - Total words: 380\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: FocusedContentControl*{margin:0;padding:0}.EditingSurfaceBody{background-color:transparent;border:no...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\floodgate_ecs_client_es5.min.js.download",
+      "name": "floodgate_ecs_client_es5.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76571,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\hammer.min.js.download",
+      "name": "hammer.min.js.download",
+      "extension": ".download",
+      "size_bytes": 24372,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\jquery.min.js.download",
+      "name": "jquery.min.js.download",
+      "extension": ".download",
+      "size_bytes": 90048,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\jquery.signalr2.1.1.min.js.download",
+      "name": "jquery.signalr2.1.1.min.js.download",
+      "extension": ".download",
+      "size_bytes": 62133,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\jsanity.js.download",
+      "name": "jsanity.js.download",
+      "extension": ".download",
+      "size_bytes": 14846,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "name": "livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "extension": ".download",
+      "size_bytes": 255260,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "name": "livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "extension": ".download",
+      "size_bytes": 1684188,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\microsoftajaxds.js.download",
+      "name": "microsoftajaxds.js.download",
+      "extension": ".download",
+      "size_bytes": 131432,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\midgardbootstrapper.js.download",
+      "name": "midgardbootstrapper.js.download",
+      "extension": ".download",
+      "size_bytes": 49416,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\moeerrorux.css",
+      "name": "moeerrorux.css",
+      "extension": ".css",
+      "size_bytes": 10290,
+      "line_count": 507,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 9783\n  - Total words: 790\n\n  Total lines: 507\n  Non-empty lines: 416\n  Empty lines: 91\n\n  First few lines:\n    Line 1: .moe-infobar-body {\n    Line 2:     background-color:#FCF7B6;\n    Line 3:     border:1px solid #D9D98B;\n    Line 4:     position:relative;\n    Line 5:     max-height:110px;",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\odsp.react.lib-98e3cf56.js.download",
+      "name": "odsp.react.lib-98e3cf56.js.download",
+      "extension": ".download",
+      "size_bytes": 130259,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\officebrowserfeedback_floodgate.min.js.download",
+      "name": "officebrowserfeedback_floodgate.min.js.download",
+      "extension": ".download",
+      "size_bytes": 699729,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\officeextension.wacruntime.js.download",
+      "name": "officeextension.wacruntime.js.download",
+      "extension": ".download",
+      "size_bytes": 72082,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\onedrive.js.download",
+      "name": "onedrive.js.download",
+      "extension": ".download",
+      "size_bytes": 60037,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\osfruntimewordwac.js.download",
+      "name": "osfruntimewordwac.js.download",
+      "extension": ".download",
+      "size_bytes": 803397,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\osfruntime_strings.js.download",
+      "name": "osfruntime_strings.js.download",
+      "extension": ".download",
+      "size_bytes": 11712,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\owl.slim.97111de42b5453a50ce1.js.download",
+      "name": "owl.slim.97111de42b5453a50ce1.js.download",
+      "extension": ".download",
+      "size_bytes": 219245,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\require-2495d64e.js.download",
+      "name": "require-2495d64e.js.download",
+      "extension": ".download",
+      "size_bytes": 29183,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\saved_resource.html",
+      "name": "saved_resource.html",
+      "extension": ".html",
+      "size_bytes": 1951012,
+      "line_count": 2890,
+      "content_analysis": "Markup language file\n  - Lines with tags: 27\n\n  Total lines: 2890\n  Non-empty lines: 2864\n  Empty lines: 26\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0839)https://usc-word-edit.officeapps.live.com/we/wordeditorframe.aspx?ui=en-US...\n    Line 3: <html dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><style data...\n    Line 4: _bB.init();_bB.sendBeacon(\"SessionStarted\",\"SessionBoundary\");_bB.postBootState(\"SessionStarted\");wi...\n    Line 5: </script><script type=\"text/javascript\" nonce=\"\">window._wBc || (window._wBc ={ });_wBc.a=180;_wBc.b...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "name": "sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "extension": ".download",
+      "size_bytes": 524352,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\staticRibbon.min.js.download",
+      "name": "staticRibbon.min.js.download",
+      "extension": ".download",
+      "size_bytes": 271527,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\suiteux.shell.core.js.download",
+      "name": "suiteux.shell.core.js.download",
+      "extension": ".download",
+      "size_bytes": 309744,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\suiteux.shell.mast.js.download",
+      "name": "suiteux.shell.mast.js.download",
+      "extension": ".download",
+      "size_bytes": 149009,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\suiteux.shell.plus.js.download",
+      "name": "suiteux.shell.plus.js.download",
+      "extension": ".download",
+      "size_bytes": 200927,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wac-wonca-strings.min.js.download",
+      "name": "wac-wonca-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 22870,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wac-wordeditor-strings.min.js.download",
+      "name": "wac-wordeditor-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 88262,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wacairspaceanimationlibrary.js.download",
+      "name": "wacairspaceanimationlibrary.js.download",
+      "extension": ".download",
+      "size_bytes": 46689,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wacboot.min.js.download",
+      "name": "wacboot.min.js.download",
+      "extension": ".download",
+      "size_bytes": 220761,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wacbox4actionids.min.js.download",
+      "name": "wacbox4actionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 117987,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\WacOAuth.html",
+      "name": "WacOAuth.html",
+      "extension": ".html",
+      "size_bytes": 7097,
+      "line_count": 129,
+      "content_analysis": "Markup language file\n  - Lines with tags: 10\n\n  Total lines: 129\n  Non-empty lines: 117\n  Empty lines: 12\n\n  First few lines:\n    Line 1: <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtm...\n    Line 2: <!-- saved from url=(0188)https://oauth.officeapps.live.com/oa/WacOAuth.aspx?replyUrl=https://usc-wo...\n    Line 3: <html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta http-equiv=\"Content-Type\" content=\"text/html;...\n    Line 4: \n    Line 5: </title>",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wacowlhostwebpack.js.download",
+      "name": "wacowlhostwebpack.js.download",
+      "extension": ".download",
+      "size_bytes": 533749,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wacwordeditoractionids.min.js.download",
+      "name": "wacwordeditoractionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 74911,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\we_version2.png",
+      "name": "we_version2.png",
+      "extension": ".png",
+      "size_bytes": 24960,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\word-app-intl-fluent.min.js.download",
+      "name": "word-app-intl-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 737879,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\word-app-intl-lazy-fluent.min.js.download",
+      "name": "word-app-intl-lazy-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 1196937,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\word-catchup-activity-intl.min.js.download",
+      "name": "word-catchup-activity-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 20034,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\word.boot.f8592d039bea1c6d6278.js.download",
+      "name": "word.boot.f8592d039bea1c6d6278.js.download",
+      "extension": ".download",
+      "size_bytes": 166801,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wordeditords.js.download",
+      "name": "wordeditords.js.download",
+      "extension": ".download",
+      "size_bytes": 5036614,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "name": "wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 168666,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "name": "wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 271970,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_pressure_standards.docx_files\\wordeditor_version4.min.css",
+      "name": "wordeditor_version4.min.css",
+      "extension": ".css",
+      "size_bytes": 406825,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 406825\n  - Total words: 5093\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: .headBrand{cursor:default;font-family:SegoeUI-SemiLight-final,Segoe UI SemiLight,Segoe UI WPC Semili...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\appresourceloader.min.js.download",
+      "name": "appresourceloader.min.js.download",
+      "extension": ".download",
+      "size_bytes": 71737,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\box4-strings.min.js.download",
+      "name": "box4-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76236,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\box42.png",
+      "name": "box42.png",
+      "extension": ".png",
+      "size_bytes": 6336,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\box43.png",
+      "name": "box43.png",
+      "extension": ".png",
+      "size_bytes": 1922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\codecoverage.min.js.download",
+      "name": "codecoverage.min.js.download",
+      "extension": ".download",
+      "size_bytes": 9079,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\comment-pane-strings.min.js.download",
+      "name": "comment-pane-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 12847,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\common-intl.min.js.download",
+      "name": "common-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 205988,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\compatparentelementfix.js.download",
+      "name": "compatparentelementfix.js.download",
+      "extension": ".download",
+      "size_bytes": 6193,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\editsurface.min.css",
+      "name": "editsurface.min.css",
+      "extension": ".css",
+      "size_bytes": 39062,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 39062\n  - Total words: 380\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: FocusedContentControl*{margin:0;padding:0}.EditingSurfaceBody{background-color:transparent;border:no...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\floodgate_ecs_client_es5.min.js.download",
+      "name": "floodgate_ecs_client_es5.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76571,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\hammer.min.js.download",
+      "name": "hammer.min.js.download",
+      "extension": ".download",
+      "size_bytes": 24372,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\jquery.min.js.download",
+      "name": "jquery.min.js.download",
+      "extension": ".download",
+      "size_bytes": 90048,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\jquery.signalr2.1.1.min.js.download",
+      "name": "jquery.signalr2.1.1.min.js.download",
+      "extension": ".download",
+      "size_bytes": 62133,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\jsanity.js.download",
+      "name": "jsanity.js.download",
+      "extension": ".download",
+      "size_bytes": 14846,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "name": "livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "extension": ".download",
+      "size_bytes": 255260,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "name": "livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "extension": ".download",
+      "size_bytes": 1684188,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\microsoftajaxds.js.download",
+      "name": "microsoftajaxds.js.download",
+      "extension": ".download",
+      "size_bytes": 131432,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\midgardbootstrapper.js.download",
+      "name": "midgardbootstrapper.js.download",
+      "extension": ".download",
+      "size_bytes": 49416,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\moeerrorux.css",
+      "name": "moeerrorux.css",
+      "extension": ".css",
+      "size_bytes": 10290,
+      "line_count": 507,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 9783\n  - Total words: 790\n\n  Total lines: 507\n  Non-empty lines: 416\n  Empty lines: 91\n\n  First few lines:\n    Line 1: .moe-infobar-body {\n    Line 2:     background-color:#FCF7B6;\n    Line 3:     border:1px solid #D9D98B;\n    Line 4:     position:relative;\n    Line 5:     max-height:110px;",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\odsp.react.lib-98e3cf56.js.download",
+      "name": "odsp.react.lib-98e3cf56.js.download",
+      "extension": ".download",
+      "size_bytes": 130259,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\officebrowserfeedback_floodgate.min.js.download",
+      "name": "officebrowserfeedback_floodgate.min.js.download",
+      "extension": ".download",
+      "size_bytes": 699729,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\officeextension.wacruntime.js.download",
+      "name": "officeextension.wacruntime.js.download",
+      "extension": ".download",
+      "size_bytes": 72082,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\onedrive.js.download",
+      "name": "onedrive.js.download",
+      "extension": ".download",
+      "size_bytes": 60037,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\osfruntimewordwac.js.download",
+      "name": "osfruntimewordwac.js.download",
+      "extension": ".download",
+      "size_bytes": 803397,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\osfruntime_strings.js.download",
+      "name": "osfruntime_strings.js.download",
+      "extension": ".download",
+      "size_bytes": 11712,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\owl.slim.97111de42b5453a50ce1.js.download",
+      "name": "owl.slim.97111de42b5453a50ce1.js.download",
+      "extension": ".download",
+      "size_bytes": 219245,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\require-2495d64e.js.download",
+      "name": "require-2495d64e.js.download",
+      "extension": ".download",
+      "size_bytes": 29183,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\saved_resource.html",
+      "name": "saved_resource.html",
+      "extension": ".html",
+      "size_bytes": 1951434,
+      "line_count": 2890,
+      "content_analysis": "Markup language file\n  - Lines with tags: 27\n\n  Total lines: 2890\n  Non-empty lines: 2864\n  Empty lines: 26\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0839)https://usc-word-edit.officeapps.live.com/we/wordeditorframe.aspx?ui=en-US...\n    Line 3: <html dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><style data...\n    Line 4: _bB.init();_bB.sendBeacon(\"SessionStarted\",\"SessionBoundary\");_bB.postBootState(\"SessionStarted\");wi...\n    Line 5: </script><script type=\"text/javascript\" nonce=\"\">window._wBc || (window._wBc ={ });_wBc.a=180;_wBc.b...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "name": "sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "extension": ".download",
+      "size_bytes": 524352,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\staticRibbon.min.js.download",
+      "name": "staticRibbon.min.js.download",
+      "extension": ".download",
+      "size_bytes": 271527,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\suiteux.shell.core.js.download",
+      "name": "suiteux.shell.core.js.download",
+      "extension": ".download",
+      "size_bytes": 309744,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\suiteux.shell.mast.js.download",
+      "name": "suiteux.shell.mast.js.download",
+      "extension": ".download",
+      "size_bytes": 149009,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\suiteux.shell.plus.js.download",
+      "name": "suiteux.shell.plus.js.download",
+      "extension": ".download",
+      "size_bytes": 200927,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wac-wonca-strings.min.js.download",
+      "name": "wac-wonca-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 22870,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wac-wordeditor-strings.min.js.download",
+      "name": "wac-wordeditor-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 88262,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wacairspaceanimationlibrary.js.download",
+      "name": "wacairspaceanimationlibrary.js.download",
+      "extension": ".download",
+      "size_bytes": 46689,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wacboot.min.js.download",
+      "name": "wacboot.min.js.download",
+      "extension": ".download",
+      "size_bytes": 220761,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wacbox4actionids.min.js.download",
+      "name": "wacbox4actionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 117987,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\WacOAuth.html",
+      "name": "WacOAuth.html",
+      "extension": ".html",
+      "size_bytes": 7103,
+      "line_count": 129,
+      "content_analysis": "Markup language file\n  - Lines with tags: 10\n\n  Total lines: 129\n  Non-empty lines: 117\n  Empty lines: 12\n\n  First few lines:\n    Line 1: <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtm...\n    Line 2: <!-- saved from url=(0188)https://oauth.officeapps.live.com/oa/WacOAuth.aspx?replyUrl=https://usc-wo...\n    Line 3: <html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta http-equiv=\"Content-Type\" content=\"text/html;...\n    Line 4: \n    Line 5: </title>",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wacowlhostwebpack.js.download",
+      "name": "wacowlhostwebpack.js.download",
+      "extension": ".download",
+      "size_bytes": 533749,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wacwordeditoractionids.min.js.download",
+      "name": "wacwordeditoractionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 74911,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\we_version2.png",
+      "name": "we_version2.png",
+      "extension": ".png",
+      "size_bytes": 24960,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\word-app-intl-fluent.min.js.download",
+      "name": "word-app-intl-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 737879,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\word-app-intl-lazy-fluent.min.js.download",
+      "name": "word-app-intl-lazy-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 1196937,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\word-catchup-activity-intl.min.js.download",
+      "name": "word-catchup-activity-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 20034,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\word.boot.f8592d039bea1c6d6278.js.download",
+      "name": "word.boot.f8592d039bea1c6d6278.js.download",
+      "extension": ".download",
+      "size_bytes": 166801,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wordeditords.js.download",
+      "name": "wordeditords.js.download",
+      "extension": ".download",
+      "size_bytes": 5036614,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "name": "wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 168666,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "name": "wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 271970,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_safety_standards.docx_files\\wordeditor_version4.min.css",
+      "name": "wordeditor_version4.min.css",
+      "extension": ".css",
+      "size_bytes": 406825,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 406825\n  - Total words: 5093\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: .headBrand{cursor:default;font-family:SegoeUI-SemiLight-final,Segoe UI SemiLight,Segoe UI WPC Semili...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\appresourceloader.min.js.download",
+      "name": "appresourceloader.min.js.download",
+      "extension": ".download",
+      "size_bytes": 71737,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\box4-strings.min.js.download",
+      "name": "box4-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76236,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\box42.png",
+      "name": "box42.png",
+      "extension": ".png",
+      "size_bytes": 6336,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\box43.png",
+      "name": "box43.png",
+      "extension": ".png",
+      "size_bytes": 1922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\codecoverage.min.js.download",
+      "name": "codecoverage.min.js.download",
+      "extension": ".download",
+      "size_bytes": 9079,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\comment-pane-strings.min.js.download",
+      "name": "comment-pane-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 12847,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\common-intl.min.js.download",
+      "name": "common-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 205988,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\compatparentelementfix.js.download",
+      "name": "compatparentelementfix.js.download",
+      "extension": ".download",
+      "size_bytes": 6193,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\editsurface.min.css",
+      "name": "editsurface.min.css",
+      "extension": ".css",
+      "size_bytes": 39062,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 39062\n  - Total words: 380\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: FocusedContentControl*{margin:0;padding:0}.EditingSurfaceBody{background-color:transparent;border:no...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\floodgate_ecs_client_es5.min.js.download",
+      "name": "floodgate_ecs_client_es5.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76571,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\hammer.min.js.download",
+      "name": "hammer.min.js.download",
+      "extension": ".download",
+      "size_bytes": 24372,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\jquery.min.js.download",
+      "name": "jquery.min.js.download",
+      "extension": ".download",
+      "size_bytes": 90048,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\jquery.signalr2.1.1.min.js.download",
+      "name": "jquery.signalr2.1.1.min.js.download",
+      "extension": ".download",
+      "size_bytes": 62133,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\jsanity.js.download",
+      "name": "jsanity.js.download",
+      "extension": ".download",
+      "size_bytes": 14846,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "name": "livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "extension": ".download",
+      "size_bytes": 255260,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "name": "livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "extension": ".download",
+      "size_bytes": 1684188,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\microsoftajaxds.js.download",
+      "name": "microsoftajaxds.js.download",
+      "extension": ".download",
+      "size_bytes": 131432,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\midgardbootstrapper.js.download",
+      "name": "midgardbootstrapper.js.download",
+      "extension": ".download",
+      "size_bytes": 49416,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\moeerrorux.css",
+      "name": "moeerrorux.css",
+      "extension": ".css",
+      "size_bytes": 10290,
+      "line_count": 507,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 9783\n  - Total words: 790\n\n  Total lines: 507\n  Non-empty lines: 416\n  Empty lines: 91\n\n  First few lines:\n    Line 1: .moe-infobar-body {\n    Line 2:     background-color:#FCF7B6;\n    Line 3:     border:1px solid #D9D98B;\n    Line 4:     position:relative;\n    Line 5:     max-height:110px;",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\odsp.react.lib-98e3cf56.js.download",
+      "name": "odsp.react.lib-98e3cf56.js.download",
+      "extension": ".download",
+      "size_bytes": 130259,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\officebrowserfeedback_floodgate.min.js.download",
+      "name": "officebrowserfeedback_floodgate.min.js.download",
+      "extension": ".download",
+      "size_bytes": 699729,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\officeextension.wacruntime.js.download",
+      "name": "officeextension.wacruntime.js.download",
+      "extension": ".download",
+      "size_bytes": 72082,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\onedrive.js.download",
+      "name": "onedrive.js.download",
+      "extension": ".download",
+      "size_bytes": 60037,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\osfruntimewordwac.js.download",
+      "name": "osfruntimewordwac.js.download",
+      "extension": ".download",
+      "size_bytes": 803397,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\osfruntime_strings.js.download",
+      "name": "osfruntime_strings.js.download",
+      "extension": ".download",
+      "size_bytes": 11712,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\owl.slim.97111de42b5453a50ce1.js.download",
+      "name": "owl.slim.97111de42b5453a50ce1.js.download",
+      "extension": ".download",
+      "size_bytes": 219245,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\require-2495d64e.js.download",
+      "name": "require-2495d64e.js.download",
+      "extension": ".download",
+      "size_bytes": 29183,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\saved_resource.html",
+      "name": "saved_resource.html",
+      "extension": ".html",
+      "size_bytes": 1952880,
+      "line_count": 2890,
+      "content_analysis": "Markup language file\n  - Lines with tags: 27\n\n  Total lines: 2890\n  Non-empty lines: 2864\n  Empty lines: 26\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0839)https://usc-word-edit.officeapps.live.com/we/wordeditorframe.aspx?ui=en-US...\n    Line 3: <html dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><style data...\n    Line 4: _bB.init();_bB.sendBeacon(\"SessionStarted\",\"SessionBoundary\");_bB.postBootState(\"SessionStarted\");wi...\n    Line 5: </script><script type=\"text/javascript\" nonce=\"\">window._wBc || (window._wBc ={ });_wBc.a=180;_wBc.b...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "name": "sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "extension": ".download",
+      "size_bytes": 524352,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\staticRibbon.min.js.download",
+      "name": "staticRibbon.min.js.download",
+      "extension": ".download",
+      "size_bytes": 271527,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\suiteux.shell.core.js.download",
+      "name": "suiteux.shell.core.js.download",
+      "extension": ".download",
+      "size_bytes": 309744,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\suiteux.shell.mast.js.download",
+      "name": "suiteux.shell.mast.js.download",
+      "extension": ".download",
+      "size_bytes": 149009,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\suiteux.shell.plus.js.download",
+      "name": "suiteux.shell.plus.js.download",
+      "extension": ".download",
+      "size_bytes": 200927,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wac-wonca-strings.min.js.download",
+      "name": "wac-wonca-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 22870,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wac-wordeditor-strings.min.js.download",
+      "name": "wac-wordeditor-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 88262,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wacairspaceanimationlibrary.js.download",
+      "name": "wacairspaceanimationlibrary.js.download",
+      "extension": ".download",
+      "size_bytes": 46689,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wacboot.min.js.download",
+      "name": "wacboot.min.js.download",
+      "extension": ".download",
+      "size_bytes": 220761,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wacbox4actionids.min.js.download",
+      "name": "wacbox4actionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 117987,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\WacOAuth.html",
+      "name": "WacOAuth.html",
+      "extension": ".html",
+      "size_bytes": 7100,
+      "line_count": 129,
+      "content_analysis": "Markup language file\n  - Lines with tags: 10\n\n  Total lines: 129\n  Non-empty lines: 117\n  Empty lines: 12\n\n  First few lines:\n    Line 1: <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtm...\n    Line 2: <!-- saved from url=(0188)https://oauth.officeapps.live.com/oa/WacOAuth.aspx?replyUrl=https://usc-wo...\n    Line 3: <html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta http-equiv=\"Content-Type\" content=\"text/html;...\n    Line 4: \n    Line 5: </title>",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wacowlhostwebpack.js.download",
+      "name": "wacowlhostwebpack.js.download",
+      "extension": ".download",
+      "size_bytes": 533749,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wacwordeditoractionids.min.js.download",
+      "name": "wacwordeditoractionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 74911,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\we_version2.png",
+      "name": "we_version2.png",
+      "extension": ".png",
+      "size_bytes": 24960,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\word-app-intl-fluent.min.js.download",
+      "name": "word-app-intl-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 737879,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\word-app-intl-lazy-fluent.min.js.download",
+      "name": "word-app-intl-lazy-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 1196937,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\word.boot.f8592d039bea1c6d6278.js.download",
+      "name": "word.boot.f8592d039bea1c6d6278.js.download",
+      "extension": ".download",
+      "size_bytes": 166801,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wordeditords.js.download",
+      "name": "wordeditords.js.download",
+      "extension": ".download",
+      "size_bytes": 5036614,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "name": "wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 168666,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "name": "wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 271970,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_temperature_standards.docx_files\\wordeditor_version4.min.css",
+      "name": "wordeditor_version4.min.css",
+      "extension": ".css",
+      "size_bytes": 406825,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 406825\n  - Total words: 5093\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: .headBrand{cursor:default;font-family:SegoeUI-SemiLight-final,Segoe UI SemiLight,Segoe UI WPC Semili...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\appresourceloader.min.js.download",
+      "name": "appresourceloader.min.js.download",
+      "extension": ".download",
+      "size_bytes": 71737,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\box4-strings.min.js.download",
+      "name": "box4-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76236,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\box42.png",
+      "name": "box42.png",
+      "extension": ".png",
+      "size_bytes": 6336,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\box43.png",
+      "name": "box43.png",
+      "extension": ".png",
+      "size_bytes": 1922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\codecoverage.min.js.download",
+      "name": "codecoverage.min.js.download",
+      "extension": ".download",
+      "size_bytes": 9079,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\comment-pane-strings.min.js.download",
+      "name": "comment-pane-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 12847,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\common-intl.min.js.download",
+      "name": "common-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 205988,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\compatparentelementfix.js.download",
+      "name": "compatparentelementfix.js.download",
+      "extension": ".download",
+      "size_bytes": 6193,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\editsurface.min.css",
+      "name": "editsurface.min.css",
+      "extension": ".css",
+      "size_bytes": 39062,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 39062\n  - Total words: 380\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: FocusedContentControl*{margin:0;padding:0}.EditingSurfaceBody{background-color:transparent;border:no...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\floodgate.en.bundle.js.download",
+      "name": "floodgate.en.bundle.js.download",
+      "extension": ".download",
+      "size_bytes": 1308532,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\floodgate_ecs_client_es5.min.js.download",
+      "name": "floodgate_ecs_client_es5.min.js.download",
+      "extension": ".download",
+      "size_bytes": 76571,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\hammer.min.js.download",
+      "name": "hammer.min.js.download",
+      "extension": ".download",
+      "size_bytes": 24372,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\jquery.min.js.download",
+      "name": "jquery.min.js.download",
+      "extension": ".download",
+      "size_bytes": 90048,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\jquery.signalr2.1.1.min.js.download",
+      "name": "jquery.signalr2.1.1.min.js.download",
+      "extension": ".download",
+      "size_bytes": 62133,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\jsanity.js.download",
+      "name": "jsanity.js.download",
+      "extension": ".download",
+      "size_bytes": 14846,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "name": "livepersonacardstrings_23bb4cd4bca2ca6c9383e3dd7ce322ce0474df50.js.download",
+      "extension": ".download",
+      "size_bytes": 255260,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "name": "livepersonacard_with-react_87fb7049bfa63de73494.js.download",
+      "extension": ".download",
+      "size_bytes": 1684188,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\me",
+      "name": "me",
+      "extension": "",
+      "size_bytes": 30851,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file ()",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\microsoftajaxds.js.download",
+      "name": "microsoftajaxds.js.download",
+      "extension": ".download",
+      "size_bytes": 131432,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\midgardbootstrapper.js.download",
+      "name": "midgardbootstrapper.js.download",
+      "extension": ".download",
+      "size_bytes": 49416,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\moeerrorux.css",
+      "name": "moeerrorux.css",
+      "extension": ".css",
+      "size_bytes": 10290,
+      "line_count": 507,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 9783\n  - Total words: 790\n\n  Total lines: 507\n  Non-empty lines: 416\n  Empty lines: 91\n\n  First few lines:\n    Line 1: .moe-infobar-body {\n    Line 2:     background-color:#FCF7B6;\n    Line 3:     border:1px solid #D9D98B;\n    Line 4:     position:relative;\n    Line 5:     max-height:110px;",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\ms.shared.analytics.mectrl-3.gbl.min.js.download",
+      "name": "ms.shared.analytics.mectrl-3.gbl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 91802,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\odsp.react.lib-98e3cf56.js.download",
+      "name": "odsp.react.lib-98e3cf56.js.download",
+      "extension": ".download",
+      "size_bytes": 130259,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\officebrowserfeedbackstrings.js.download",
+      "name": "officebrowserfeedbackstrings.js.download",
+      "extension": ".download",
+      "size_bytes": 2224,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\officebrowserfeedback_floodgate.min.js.download",
+      "name": "officebrowserfeedback_floodgate.min.js.download",
+      "extension": ".download",
+      "size_bytes": 699729,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\officeextension.wacruntime.js.download",
+      "name": "officeextension.wacruntime.js.download",
+      "extension": ".download",
+      "size_bytes": 72082,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\onedrive.js.download",
+      "name": "onedrive.js.download",
+      "extension": ".download",
+      "size_bytes": 60037,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\osfruntimewordwac.js.download",
+      "name": "osfruntimewordwac.js.download",
+      "extension": ".download",
+      "size_bytes": 803397,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\osfruntime_strings.js.download",
+      "name": "osfruntime_strings.js.download",
+      "extension": ".download",
+      "size_bytes": 11712,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\owl.slim.97111de42b5453a50ce1.js.download",
+      "name": "owl.slim.97111de42b5453a50ce1.js.download",
+      "extension": ".download",
+      "size_bytes": 219245,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\require-2495d64e.js.download",
+      "name": "require-2495d64e.js.download",
+      "extension": ".download",
+      "size_bytes": 29183,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\saved_resource.html",
+      "name": "saved_resource.html",
+      "extension": ".html",
+      "size_bytes": 1974199,
+      "line_count": 2890,
+      "content_analysis": "Markup language file\n  - Lines with tags: 27\n\n  Total lines: 2890\n  Non-empty lines: 2864\n  Empty lines: 26\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0839)https://usc-word-edit.officeapps.live.com/we/wordeditorframe.aspx?ui=en-US...\n    Line 3: <html dir=\"ltr\"><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"><style data...\n    Line 4: _bB.init();_bB.sendBeacon(\"SessionStarted\",\"SessionBoundary\");_bB.postBootState(\"SessionStarted\");wi...\n    Line 5: </script><script type=\"text/javascript\" nonce=\"\">window._wBc || (window._wBc ={ });_wBc.a=180;_wBc.b...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "name": "sharedauthclientmsal.5b14fac77055875d27e0.js.download",
+      "extension": ".download",
+      "size_bytes": 524352,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\staticRibbon.min.js.download",
+      "name": "staticRibbon.min.js.download",
+      "extension": ".download",
+      "size_bytes": 271527,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.core.js.download",
+      "name": "suiteux.shell.core.js.download",
+      "extension": ".download",
+      "size_bytes": 309744,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.mast.js.download",
+      "name": "suiteux.shell.mast.js.download",
+      "extension": ".download",
+      "size_bytes": 149009,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.msaltokenfactoryiframe.c790eea15c3d35158533.js.download",
+      "name": "suiteux.shell.msaltokenfactoryiframe.c790eea15c3d35158533.js.download",
+      "extension": ".download",
+      "size_bytes": 427054,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.otellogging.js.download",
+      "name": "suiteux.shell.otellogging.js.download",
+      "extension": ".download",
+      "size_bytes": 107844,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.plus.js.download",
+      "name": "suiteux.shell.plus.js.download",
+      "extension": ".download",
+      "size_bytes": 200927,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\suiteux.shell.umc_mecontrol.js.download",
+      "name": "suiteux.shell.umc_mecontrol.js.download",
+      "extension": ".download",
+      "size_bytes": 22922,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\TokenFactoryIframe.html",
+      "name": "TokenFactoryIframe.html",
+      "extension": ".html",
+      "size_bytes": 4483,
+      "line_count": 31,
+      "content_analysis": "Markup language file\n  - Lines with tags: 9\n\n  Total lines: 31\n  Non-empty lines: 26\n  Empty lines: 5\n\n  First few lines:\n    Line 1: <!DOCTYPE html>\n    Line 2: <!-- saved from url=(0233)https://webshell.suite.office.com/iframe/TokenFactoryIframe?origin=https%3...\n    Line 3: <html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">\n    Line 4:     <script type=\"text/javascript\" src=\"./suiteux.shell.msaltokenfactoryiframe.c790eea15c3d35158533....\n    Line 5: <meta name=\"ot\" http-equiv=\"origin-trial\" content=\"A4NLtNK3HuEopD6nNE9UU2It7671fXHbApv7lBzJZrAAYgsPD...",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wac-wonca-strings.min.js.download",
+      "name": "wac-wonca-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 22870,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wac-wordeditor-strings.min.js.download",
+      "name": "wac-wordeditor-strings.min.js.download",
+      "extension": ".download",
+      "size_bytes": 88262,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wacairspaceanimationlibrary.js.download",
+      "name": "wacairspaceanimationlibrary.js.download",
+      "extension": ".download",
+      "size_bytes": 46689,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wacboot.min.js.download",
+      "name": "wacboot.min.js.download",
+      "extension": ".download",
+      "size_bytes": 220761,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wacbox4actionids.min.js.download",
+      "name": "wacbox4actionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 117987,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\WacOAuth.html",
+      "name": "WacOAuth.html",
+      "extension": ".html",
+      "size_bytes": 7100,
+      "line_count": 129,
+      "content_analysis": "Markup language file\n  - Lines with tags: 10\n\n  Total lines: 129\n  Non-empty lines: 117\n  Empty lines: 12\n\n  First few lines:\n    Line 1: <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtm...\n    Line 2: <!-- saved from url=(0188)https://oauth.officeapps.live.com/oa/WacOAuth.aspx?replyUrl=https://usc-wo...\n    Line 3: <html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta http-equiv=\"Content-Type\" content=\"text/html;...\n    Line 4: \n    Line 5: </title>",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wacowlhostwebpack.js.download",
+      "name": "wacowlhostwebpack.js.download",
+      "extension": ".download",
+      "size_bytes": 533749,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wacwordeditoractionids.min.js.download",
+      "name": "wacwordeditoractionids.min.js.download",
+      "extension": ".download",
+      "size_bytes": 74911,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\we_version2.png",
+      "name": "we_version2.png",
+      "extension": ".png",
+      "size_bytes": 24960,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.png)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\word-app-intl-fluent.min.js.download",
+      "name": "word-app-intl-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 737879,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\word-app-intl-lazy-fluent.min.js.download",
+      "name": "word-app-intl-lazy-fluent.min.js.download",
+      "extension": ".download",
+      "size_bytes": 1196937,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\word-catchup-activity-intl.min.js.download",
+      "name": "word-catchup-activity-intl.min.js.download",
+      "extension": ".download",
+      "size_bytes": 20034,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\word.boot.f8592d039bea1c6d6278.js.download",
+      "name": "word.boot.f8592d039bea1c6d6278.js.download",
+      "extension": ".download",
+      "size_bytes": 166801,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wordeditords.js.download",
+      "name": "wordeditords.js.download",
+      "extension": ".download",
+      "size_bytes": 5036614,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "name": "wordeditorsimplified.wac.nbcommandmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 168666,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "name": "wordeditorsimplified.wac.tellmesuggestionmodel.js.download",
+      "extension": ".download",
+      "size_bytes": 271970,
+      "line_count": 0,
+      "content_analysis": "Binary or non-text file (.download)",
+      "error": null
+    },
+    {
+      "path": "D:\\Standards\\instrumentation_valves_actuators_standards.docx_files\\wordeditor_version4.min.css",
+      "name": "wordeditor_version4.min.css",
+      "extension": ".css",
+      "size_bytes": 406825,
+      "line_count": 1,
+      "content_analysis": "Text file with extension .css\n  - Total characters: 406825\n  - Total words: 5093\n\n  Total lines: 1\n  Non-empty lines: 1\n  Empty lines: 0\n\n  First few lines:\n    Line 1: .headBrand{cursor:default;font-family:SegoeUI-SemiLight-final,Segoe UI SemiLight,Segoe UI WPC Semili...",
+      "error": null
+    }
+  ]
+}

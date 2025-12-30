@@ -1,0 +1,26 @@
+# Core Dependencies for Agentic Workflow API
+
+# Option 1: SSE Streaming (Simple - Recommended for Start)
+Flask>=2.3.0
+beautifulsoup4>=4.12.0  # For HTML parsing
+
+# Option 2: Production with Celery + WebSockets (Scale Later)
+celery>=5.3.0
+redis>=4.5.0
+flask-socketio>=5.3.0
+eventlet>=0.33.0  # Async mode for Socket.IO
+python-socketio>=5.9.0
+
+# Optional: FastAPI Alternative
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
+
+# Monitoring (Optional but recommended for production)
+# flower>=2.0.0  # Celery monitoring dashboard
+
+# Azure Blob Storage (already in your project)
+azure-storage-blob>=12.19.0
+
+# Common utilities
+python-dotenv>=1.0.0
+requests>=2.31.0

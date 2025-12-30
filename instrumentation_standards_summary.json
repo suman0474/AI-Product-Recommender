@@ -1,0 +1,237 @@
+{
+  "total_standards": 12,
+  "standards_overview": [
+    {
+      "type": "accessories_calibration",
+      "filename": "instrumentation_accessories_calibration_standards",
+      "standards_referenced": [
+        "API 551",
+        "ASME B31.3",
+        "IEC 60079",
+        "IEC 60529",
+        "ISA 7.0.01",
+        "NEMA 250",
+        "NEMA 4X"
+      ]
+    },
+    {
+      "type": "analytical",
+      "filename": "instrumentation_analytical_standards",
+      "standards_referenced": [
+        "API 551",
+        "API 551",
+        "ISA 20",
+        "ISA 5.1",
+        "ISO 15859",
+        "ISO 2186"
+      ]
+    },
+    {
+      "type": "calibration_maintenance",
+      "filename": "instrumentation_calibration_maintenance_standards",
+      "standards_referenced": [
+        "API 551",
+        "ISO 10012",
+        "ISO 17025"
+      ]
+    },
+    {
+      "type": "comm_signal",
+      "filename": "instrumentation_comm_signal_standards",
+      "standards_referenced": [
+        "IEC 60079",
+        "IEC 60364",
+        "IEC 61158",
+        "IEC 61784",
+        "IEC 61804",
+        "IEEE 802.3",
+        "ISA 50"
+      ]
+    },
+    {
+      "type": "condition_monitoring",
+      "filename": "instrumentation_condition_monitoring_standards",
+      "standards_referenced": [
+        "API 1101",
+        "API 1130",
+        "API 5",
+        "API 670",
+        "API 674",
+        "IEC 61589",
+        "IEEE 518",
+        "ISO 10816",
+        "ISO 20816"
+      ]
+    },
+    {
+      "type": "control_systems",
+      "filename": "instrumentation_control_systems_standards",
+      "standards_referenced": [
+        "API 554",
+        "API 554",
+        "IEC 61131",
+        "IEC 61508",
+        "IEC 61804",
+        "IEC 61511",
+        "IEC 62443",
+        "IEEE 518",
+        "ISA 50",
+        "ISA 50"
+      ]
+    },
+    {
+      "type": "flow",
+      "filename": "instrumentation_flow_standards",
+      "standards_referenced": [
+        "API 551",
+        "API 551",
+        "ASME MFC",
+        "ISA 20",
+        "ISA 5.1",
+        "ISO 5167",
+        "ISO 5167",
+        "NEMA 6"
+      ]
+    },
+    {
+      "type": "level",
+      "filename": "instrumentation_level_standards",
+      "standards_referenced": [
+        "API 551",
+        "API 551",
+        "IEC 60079",
+        "IEC 61892",
+        "ISA 20",
+        "ISA 5.1"
+      ]
+    },
+    {
+      "type": "pressure",
+      "filename": "instrumentation_pressure_standards",
+      "standards_referenced": [
+        "API 551",
+        "API 553",
+        "ASME B40",
+        "ASME B40.100",
+        "ASME PTC",
+        "IEC 60770",
+        "ISA 20",
+        "ISA 5.1",
+        "ISO 5167"
+      ]
+    },
+    {
+      "type": "safety",
+      "filename": "instrumentation_safety_standards",
+      "standards_referenced": [
+        "ANSI/ISA",
+        "API 14C",
+        "API 14C",
+        "IEC 61508",
+        "IEC 61511",
+        "IEC 61511",
+        "ISA 84",
+        "ISA 60079",
+        "ISA 84.00.07",
+        "NEMA 4X"
+      ]
+    },
+    {
+      "type": "temperature",
+      "filename": "instrumentation_temperature_standards",
+      "standards_referenced": [
+        "API 551",
+        "ASME PTC",
+        "ISA 20",
+        "ISA 5.1"
+      ]
+    },
+    {
+      "type": "valves_actuators",
+      "filename": "instrumentation_valves_actuators_standards",
+      "standards_referenced": [
+        "API 553",
+        "API 598",
+        "API 553",
+        "API 6D",
+        "ASME B16",
+        "IEC 60534",
+        "IEC 61508",
+        "ISA 75.01.01",
+        "ISA 75.02",
+        "ISA 75"
+      ]
+    }
+  ],
+  "all_unique_standards_referenced": [
+    "ANSI/ISA",
+    "API 1101",
+    "API 1130",
+    "API 14C",
+    "API 5",
+    "API 551",
+    "API 553",
+    "API 554",
+    "API 598",
+    "API 670",
+    "API 674",
+    "API 14C",
+    "API 551",
+    "API 553",
+    "API 554",
+    "API 6D",
+    "ASME B16",
+    "ASME B31.3",
+    "ASME B40",
+    "ASME B40.100",
+    "ASME MFC",
+    "ASME PTC",
+    "IEC 60079",
+    "IEC 61131",
+    "IEC 61508",
+    "IEC 61511",
+    "IEC 61589",
+    "IEC 61804",
+    "IEC 61892",
+    "IEC 60079",
+    "IEC 60364",
+    "IEC 60529",
+    "IEC 60534",
+    "IEC 60770",
+    "IEC 61158",
+    "IEC 61508",
+    "IEC 61511",
+    "IEC 61784",
+    "IEC 61804",
+    "IEC 62443",
+    "IEEE 518",
+    "IEEE 518",
+    "IEEE 802.3",
+    "ISA 20",
+    "ISA 5.1",
+    "ISA 50",
+    "ISA 75.01.01",
+    "ISA 75.02",
+    "ISA 84",
+    "ISA 50",
+    "ISA 60079",
+    "ISA 7.0.01",
+    "ISA 75",
+    "ISA 84",
+    "ISA 84.00.07",
+    "ISO 10012",
+    "ISO 10816",
+    "ISO 15859",
+    "ISO 17025",
+    "ISO 20816",
+    "ISO 2186",
+    "ISO 5167",
+    "ISO 15848",
+    "ISO 5167",
+    "NEMA 250",
+    "NEMA 4X",
+    "NEMA 6",
+    "NEMA ICS"
+  ],
+  "total_unique_standards": 68
+}

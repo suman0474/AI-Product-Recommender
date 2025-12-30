@@ -1,0 +1,1979 @@
+# agentic/api.py
+# Flask API Endpoints for Agentic Workflow
+
+import json
+import logging
+import uuid
+from typing import Dict, Any, List
+from flask import Blueprint, request, jsonify, session
+from functools import wraps
+
+# Import login_required decorator from main app
+import sys
+import os
+# Add parent directory to path to import from main
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from main import login_required
+
+# Import tags module for response tagging
+from tags import classify_response, ResponseTags
+
+from .workflow import run_workflow, create_procurement_workflow, create_instrument_identification_workflow
+from .solution_workflow import run_solution_workflow
+from .comparison_workflow import run_comparison_workflow, run_comparison_from_spec
+from .instrument_detail_workflow import run_instrument_detail_workflow
+from .instrument_identifier_workflow import run_instrument_identifier_workflow
+from .potential_product_index import run_potential_product_index_workflow
+from .grounded_chat_workflow import run_grounded_chat_workflow
+from .agents import AgentFactory
+from .models import create_initial_state, IntentType, WorkflowType
+from .router_agent import get_workflow_router
+
+logger = logging.getLogger(__name__)
+
+# Create Blueprint
+agentic_bp = Blueprint('agentic', __name__, url_prefix='/api/agentic')
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_session_id() -> str:
+    """Get or create session ID"""
+    if 'agentic_session_id' not in session:
+        session['agentic_session_id'] = str(uuid.uuid4())
+    return session['agentic_session_id']
+
+
+def api_response(success: bool, data: Any = None, error: str = None, status_code: int = 200, tags: ResponseTags = None):
+    """
+    Create standardized API response with optional tags.
+
+    Args:
+        success: Whether the request was successful
+        data: Response data
+        error: Error message (if any)
+        status_code: HTTP status code
+        tags: Optional ResponseTags object for frontend routing/UI hints
+
+    Returns:
+        JSON response with optional tags field
+    """
+    response = {
+        "success": success,
+        "data": data,
+        "error": error
+    }
+
+    # Add tags if provided (backward compatible - only adds if tags exist)
+    if tags is not None:
+        response["tags"] = tags.dict()
+
+    return jsonify(response), status_code
+
+
+def handle_errors(f):
+    """Decorator for error handling"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"API Error: {e}")
+            return api_response(False, error=str(e), status_code=500)
+    return decorated_function
+
+
+# ============================================================================
+# ROUTER ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/route', methods=['POST'])
+@login_required
+@handle_errors
+def route_intent():
+    """
+    Router Agent - Intent Classification and Workflow Routing
+    ---
+    tags:
+      - Router Agent
+    summary: Classify user input and determine appropriate workflow
+    description: |
+      Uses hybrid classification (rule-based + LLM) to route user input to one of 3 main workflows:
+      1. **Solution Workflow** - Product requirements, procurement, design
+      2. **Instrument Detail Workflow** - Project-based instrument/accessory identification
+      3. **Grounded Chat Workflow** - Questions and knowledge queries
+
+      Returns routing decision without executing the workflow.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: User input to classify
+              example: "I need pressure transmitters for crude oil refinery"
+            session_id:
+              type: string
+              description: Optional session ID for context
+    responses:
+      200:
+        description: Routing decision
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                workflow:
+                  type: string
+                  enum: [solution, instrument_detail, grounded_chat]
+                  example: "solution"
+                confidence:
+                  type: number
+                  example: 0.95
+                reasoning:
+                  type: string
+                  example: "Product requirements with specifications detected"
+                ambiguity_level:
+                  type: string
+                  enum: [low, medium, high]
+                  example: "low"
+                rule_match:
+                  type: string
+                  example: "solution_product_keywords"
+                llm_used:
+                  type: boolean
+                  example: false
+                alternatives:
+                  type: array
+                  items:
+                    type: string
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+
+    # Get router instance
+    router = get_workflow_router()
+
+    # Route the input
+    routing_decision = router.route(
+        user_input=message,
+        context={"session_id": session_id}
+    )
+
+    # Convert to dict
+    result = {
+        "workflow": routing_decision.workflow.value,
+        "confidence": routing_decision.confidence,
+        "reasoning": routing_decision.reasoning,
+        "ambiguity_level": routing_decision.ambiguity_level.value,
+        "rule_match": routing_decision.rule_match,
+        "llm_used": routing_decision.llm_used,
+        "alternatives": [w.value for w in routing_decision.alternatives],
+        "timestamp": routing_decision.timestamp
+    }
+
+    # Classify response and generate tags
+    # For route endpoint, we return routing metadata, so intent is based on workflow decision
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type=routing_decision.workflow.value
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+# ============================================================================
+# SELECTION HANDLER
+# ============================================================================
+
+def handle_instrument_selection(session_id: str, selection_number: int, items: List[Dict]) -> Dict[str, Any]:
+    """
+    Handle user's item selection from instrument identifier workflow.
+    Extracts sample_input and prepares it for routing to SOLUTION workflow.
+
+    Args:
+        session_id: Session identifier
+        selection_number: Item number selected by user (1-indexed)
+        items: List of identified items with sample_inputs
+
+    Returns:
+        {
+            "new_query": str,  # sample_input to be routed
+            "context": dict,   # Selection context for logging
+            "error": str       # Error message if invalid selection
+        }
+    """
+    try:
+        # Validate selection
+        if selection_number < 1 or selection_number > len(items):
+            return {
+                "error": "Invalid selection",
+                "message": f"Please select a number between 1 and {len(items)}"
+            }
+
+        # Get selected item (convert from 1-indexed to 0-indexed)
+        selected_item = items[selection_number - 1]
+
+        # Extract sample_input
+        sample_input = selected_item.get("sample_input")
+
+        if not sample_input:
+            # Fallback: construct from category and specs
+            category = selected_item.get("category", "Product")
+            specs = selected_item.get("specifications", {})
+            if specs:
+                spec_str = ", ".join([f"{k}: {v}" for k, v in specs.items()])
+                sample_input = f"{category} with {spec_str}"
+            else:
+                sample_input = category
+
+        # Build selection context
+        selection_context = {
+            "previous_workflow": "instrument_identifier",
+            "selected_item_number": selection_number,
+            "selected_item_name": selected_item.get("name"),
+            "selected_item_type": selected_item.get("type"),
+            "selected_item_category": selected_item.get("category")
+        }
+
+        logger.info(f"[SELECTION] User selected item #{selection_number}: {selected_item.get('name')}")
+        logger.info(f"[SELECTION] Sample input: {sample_input[:100]}...")
+
+        return {
+            "new_query": sample_input,
+            "context": selection_context,
+            "success": True
+        }
+
+    except Exception as e:
+        logger.error(f"[SELECTION] Error handling selection: {e}")
+        return {
+            "error": str(e),
+            "message": f"Failed to process selection: {str(e)}"
+        }
+
+
+@agentic_bp.route('/smart-chat', methods=['POST'])
+@login_required
+@handle_errors
+def smart_chat():
+    """
+    Smart Chat with Auto-Routing (5 Workflows)
+    ---
+    tags:
+      - Router Agent
+    summary: Main entry point with automatic workflow routing
+    description: |
+      **PRIMARY ENDPOINT** for agentic workflows with intelligent routing.
+
+      Automatically routes user input to the appropriate workflow:
+      - **Solution Workflow** - Product recommendations, procurement, comparisons
+      - **Instrument Detail Workflow** - Project-based instrument identification & BOM generation
+      - **Grounded Chat Workflow** - Technical questions and knowledge about industrial topics
+      - **Chat Workflow** - Greetings, acknowledgments, farewells (quick responses)
+      - **Invalid Workflow** - Out-of-domain queries (rejects non-industrial topics)
+
+      Returns both the routing decision AND workflow execution results.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: User message
+              example: "What is the difference between SIL2 and SIL3?"
+            session_id:
+              type: string
+              description: Optional session ID
+    responses:
+      200:
+        description: Workflow execution result with routing metadata
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                response:
+                  type: string
+                  description: Workflow response
+                response_data:
+                  type: object
+                  description: Workflow-specific data
+                routing_metadata:
+                  type: object
+                  properties:
+                    workflow:
+                      type: string
+                    confidence:
+                      type: number
+                    reasoning:
+                      type: string
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+
+    # NEW: Check if this is a numeric selection (e.g., "2")
+    # This handles user selecting an item from instrument identifier workflow
+    if message.strip().isdigit():
+        # Retrieve previous workflow response from session
+        last_response_key = f"last_response_{session_id}"
+        last_response_data = session.get(last_response_key)
+
+        if last_response_data and last_response_data.get('awaiting_selection'):
+            # This is a selection response
+            selection_number = int(message.strip())
+            items = last_response_data.get('items', [])
+
+            logger.info(f"[SMART_CHAT] Detected selection: #{selection_number}")
+
+            # Handle selection
+            selection_result = handle_instrument_selection(
+                session_id,
+                selection_number,
+                items
+            )
+
+            if selection_result.get('error'):
+                # Invalid selection
+                return api_response(
+                    False,
+                    error=selection_result['error'],
+                    message=selection_result.get('message'),
+                    status_code=400
+                )
+
+            # Use sample_input as new query
+            message = selection_result['new_query']
+            logger.info(f"[SMART_CHAT] Selection processed, routing sample_input: {message[:100]}...")
+
+            # Store selection context in session for logging
+            selection_context_key = f"selection_context_{session_id}"
+            session[selection_context_key] = selection_result['context']
+
+    # Get router instance
+    router = get_workflow_router()
+
+    # Route the input
+    routing_decision = router.route(
+        user_input=message,
+        context={"session_id": session_id}
+    )
+
+    logger.info(f"[SMART_CHAT] Routed to: {routing_decision.workflow.value} (confidence: {routing_decision.confidence:.2f})")
+
+    # Execute the selected workflow
+    try:
+        # Handle INVALID intent (out-of-domain queries)
+        if routing_decision.workflow == WorkflowType.INVALID:
+            logger.info("[SMART_CHAT] Handling INVALID intent (out-of-domain)")
+            result = {
+                "response": "I'm Engenie, your AI assistant specialized in industrial procurement and instrumentation. "
+                           "I can help you with:\n\n"
+                           "• Finding instruments and equipment (transmitters, sensors, valves, etc.)\n"
+                           "• Answering technical questions about industrial products\n"
+                           "• Identifying instruments for projects or generating BOMs\n"
+                           "• Comparing vendors and products\n\n"
+                           "Your query seems to be outside my area of expertise. "
+                           "Please ask me about industrial instruments, equipment, or technical specifications.",
+                "response_data": {
+                    "workflow": "invalid",
+                    "reason": routing_decision.reasoning
+                }
+            }
+
+        # Handle CHAT intent (greetings, acknowledgments, farewells)
+        elif routing_decision.workflow == WorkflowType.CHAT:
+            logger.info(f"[SMART_CHAT] Handling CHAT intent: {routing_decision.reasoning}")
+
+            # Generate appropriate chat response based on reasoning
+            if "greeting" in routing_decision.reasoning.lower():
+                chat_response = (
+                    "Hello! I'm Engenie, your AI assistant for industrial procurement and instrumentation. "
+                    "I can help you find equipment, answer technical questions, or identify instruments for your projects. "
+                    "What can I help you with today?"
+                )
+            elif "farewell" in routing_decision.reasoning.lower():
+                chat_response = (
+                    "Goodbye! Feel free to return if you need any assistance with industrial procurement, "
+                    "equipment specifications, or technical questions. Have a great day!"
+                )
+            elif "acknowledgment" in routing_decision.reasoning.lower():
+                chat_response = (
+                    "You're welcome! Let me know if you need anything else. "
+                    "I'm here to help with instruments, equipment, and technical specifications."
+                )
+            elif "affirmation" in routing_decision.reasoning.lower() or "negation" in routing_decision.reasoning.lower():
+                chat_response = (
+                    "Understood. How can I assist you with industrial procurement or instrumentation today?"
+                )
+            else:
+                chat_response = (
+                    "I'm here to help! You can ask me about instruments, equipment, technical specifications, "
+                    "or project requirements. What would you like to know?"
+                )
+
+            result = {
+                "response": chat_response,
+                "response_data": {
+                    "workflow": "chat",
+                    "chat_type": routing_decision.reasoning
+                }
+            }
+
+        # Handle main workflows
+        elif routing_decision.workflow == WorkflowType.SOLUTION:
+            result = run_solution_workflow(
+                user_input=message,
+                session_id=session_id
+            )
+        elif routing_decision.workflow == WorkflowType.INSTRUMENT_DETAIL:
+            # NEW: Call instrument identifier workflow (list generator only)
+            result = run_instrument_identifier_workflow(
+                user_input=message,
+                session_id=session_id
+            )
+
+            # Store response_data in session for selection handling
+            if result.get('response_data', {}).get('awaiting_selection'):
+                last_response_key = f"last_response_{session_id}"
+                session[last_response_key] = result['response_data']
+                logger.info(f"[SMART_CHAT] Stored identifier results in session for selection")
+        elif routing_decision.workflow == WorkflowType.GROUNDED_CHAT:
+            result = run_grounded_chat_workflow(
+                user_question=message,
+                session_id=session_id,
+                user_id=None
+            )
+        else:
+            # Fallback to solution
+            logger.warning(f"[SMART_CHAT] Unknown workflow: {routing_decision.workflow}, defaulting to solution")
+            result = run_solution_workflow(
+                user_input=message,
+                session_id=session_id
+            )
+
+        # Add routing metadata to result
+        routing_metadata = {
+            "workflow": routing_decision.workflow.value,
+            "confidence": routing_decision.confidence,
+            "reasoning": routing_decision.reasoning,
+            "ambiguity_level": routing_decision.ambiguity_level.value,
+            "rule_match": routing_decision.rule_match,
+            "llm_used": routing_decision.llm_used
+        }
+        result['routing_metadata'] = routing_metadata
+
+        # Classify response and generate tags
+        tags = classify_response(
+            user_input=message,
+            response_data=result,
+            workflow_type=routing_decision.workflow.value,
+            routing_metadata=routing_metadata
+        )
+
+        logger.info(f"[SMART_CHAT] Tags: intent={tags.intent_type.value}, status={tags.response_status.value}")
+
+        return api_response(True, data=result, tags=tags)
+
+    except Exception as e:
+        logger.error(f"[SMART_CHAT] Workflow execution failed: {e}")
+        return api_response(False, error=f"Workflow execution failed: {str(e)}", status_code=500)
+
+
+# ============================================================================
+# WORKFLOW ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/chat', methods=['POST'])
+@login_required
+@handle_errors
+def chat():
+    """
+    Main Chat Endpoint for Agentic Workflow
+    ---
+    tags:
+      - Agentic Workflows
+    summary: Process user message through agentic workflow
+    description: |
+      Main entry point for conversational AI workflows.
+      Supports multiple workflow types including procurement and instrument identification.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: User message to process
+              example: "I need pressure transmitters for a crude oil refinery"
+            session_id:
+              type: string
+              description: Optional session ID for conversation continuity
+              example: "abc123-session"
+            workflow_type:
+              type: string
+              enum: [procurement, instrument_identification]
+              default: procurement
+              description: Type of workflow to run
+    responses:
+      200:
+        description: Successful response from workflow
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                response:
+                  type: string
+                  description: Agent response text
+                intent:
+                  type: string
+                  description: Classified intent
+                product_type:
+                  type: string
+                  description: Detected product type
+                requires_user_input:
+                  type: boolean
+                current_step:
+                  type: string
+      400:
+        description: Bad request - missing required fields
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+    workflow_type = data.get('workflow_type', 'procurement')
+
+    # Run workflow
+    result = run_workflow(
+        user_input=message,
+        session_id=session_id,
+        workflow_type=workflow_type
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type=workflow_type
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/identify', methods=['POST'])
+@login_required
+@handle_errors
+def identify_instruments():
+    """
+    Identify instruments from process requirements
+
+    Request Body:
+    {
+        "requirements": "process description or requirements text"
+    }
+
+    Response:
+    {
+        "success": true,
+        "data": {
+            "project_name": "...",
+            "instruments": [...],
+            "accessories": [...],
+            "summary": "..."
+        }
+    }
+    """
+    data = request.get_json()
+
+    if not data or 'requirements' not in data:
+        return api_response(False, error="Requirements are required", status_code=400)
+
+    requirements = data['requirements']
+    session_id = data.get('session_id') or get_session_id()
+
+    # Run instrument identification workflow
+    result = run_workflow(
+        user_input=requirements,
+        session_id=session_id,
+        workflow_type='instrument_identification'
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=requirements,
+        response_data=result,
+        workflow_type='instrument_identification'
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/analyze', methods=['POST'])
+@login_required
+@handle_errors
+def analyze_requirements():
+    """
+    Analyze requirements and run full procurement workflow
+
+    Request Body:
+    {
+        "requirements": "technical requirements",
+        "vendor_filter": ["optional", "vendor", "list"]
+    }
+
+    Response:
+    {
+        "success": true,
+        "data": {
+            "response": "...",
+            "ranked_products": [...],
+            "vendor_analysis": {...}
+        }
+    }
+    """
+    data = request.get_json()
+
+    if not data or 'requirements' not in data:
+        return api_response(False, error="Requirements are required", status_code=400)
+
+    requirements = data['requirements']
+    vendor_filter = data.get('vendor_filter')
+    session_id = data.get('session_id') or get_session_id()
+
+    # Store vendor filter in session if provided
+    if vendor_filter:
+        session['csv_vendor_filter'] = {
+            'vendor_names': vendor_filter
+        }
+
+    # Run procurement workflow
+    result = run_workflow(
+        user_input=requirements,
+        session_id=session_id,
+        workflow_type='procurement'
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=requirements,
+        response_data=result,
+        workflow_type='procurement'
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+# ============================================================================
+# ENHANCED WORKFLOW ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/solution', methods=['POST'])
+@login_required
+@handle_errors
+def solution_workflow():
+    """
+    Solution-Based Workflow
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Run the Solution-Based workflow for design requests
+    description: |
+      Takes user requirements and produces ranked product recommendations.
+      Uses RAG for strategy, standards, and inventory constraints.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: Product requirements
+              example: "Need pressure transmitters for crude oil unit, SIL2 rated"
+            session_id:
+              type: string
+              description: Optional session ID
+    responses:
+      200:
+        description: Ranked product recommendations
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                response:
+                  type: string
+                ranked_results:
+                  type: array
+                  items:
+                    type: object
+                product_type:
+                  type: string
+                strategy_present:
+                  type: boolean
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+
+    result = run_solution_workflow(
+        user_input=message,
+        session_id=session_id
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type="solution"
+    )
+
+    logger.info(f"[SOLUTION] Tags: intent={tags.intent_type.value}, status={tags.response_status.value}")
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/compare', methods=['POST'])
+@login_required
+@handle_errors
+def comparison_workflow():
+    """
+    Comparative Analysis Workflow
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Run vendor/product comparison workflow
+    description: |
+      Compares vendors and products based on text request.
+      Returns ranked products with scoring breakdown.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: Comparison request
+              example: "Compare Honeywell ST800 vs Emerson 3051S for pressure measurement"
+            session_id:
+              type: string
+    responses:
+      200:
+        description: Ranked comparison results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                ranked_products:
+                  type: array
+                formatted_output:
+                  type: string
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+
+    result = run_comparison_workflow(
+        user_input=message,
+        session_id=session_id
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type="comparison"
+    )
+
+    logger.info(f"[COMPARISON] Tags: intent={tags.intent_type.value}, status={tags.response_status.value}")
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/compare-from-spec', methods=['POST'])
+@login_required
+@handle_errors
+def compare_from_spec():
+    """
+    Compare Vendors from SpecObject
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Run comparison from finalized specification
+    description: |
+      Triggered by [COMPARE VENDORS] button in UI.
+      Takes a SpecObject from instrument detail capture and runs multi-level comparison.
+      Supports vendor, series, and model level comparisons.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - spec_object
+          properties:
+            spec_object:
+              type: object
+              required:
+                - product_type
+              properties:
+                product_type:
+                  type: string
+                  example: "pressure transmitter"
+                category:
+                  type: string
+                  example: "Process Instrumentation"
+                specifications:
+                  type: object
+                  example: {"range": "0-500 psi", "accuracy": "0.04%"}
+                required_certifications:
+                  type: array
+                  items:
+                    type: string
+                  example: ["SIL2", "ATEX"]
+                source_workflow:
+                  type: string
+                  example: "instrument_detail"
+            comparison_type:
+              type: string
+              enum: [vendor, series, model, full]
+              default: full
+            session_id:
+              type: string
+    responses:
+      200:
+        description: Multi-level comparison results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                vendor_ranking:
+                  type: array
+                series_comparisons:
+                  type: object
+                top_recommendation:
+                  type: object
+                  properties:
+                    vendor:
+                      type: string
+                    series:
+                      type: string
+                    model:
+                      type: string
+                    overall_score:
+                      type: integer
+                formatted_output:
+                  type: string
+    """
+    data = request.get_json()
+
+    if not data or 'spec_object' not in data:
+        return api_response(False, error="spec_object is required", status_code=400)
+
+    spec_object = data['spec_object']
+    comparison_type = data.get('comparison_type', 'full')
+    session_id = data.get('session_id') or get_session_id()
+    user_id = data.get('user_id')
+
+    result = run_comparison_from_spec(
+        spec_object=spec_object,
+        comparison_type=comparison_type,
+        session_id=session_id,
+        user_id=user_id
+    )
+
+    # Classify response and generate tags
+    # For spec-based comparison, use product_type from spec_object as user input context
+    user_input_context = f"Compare {spec_object.get('product_type', 'products')} from specification"
+    tags = classify_response(
+        user_input=user_input_context,
+        response_data=result,
+        workflow_type='comparison'
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/instrument-detail', methods=['POST'])
+@login_required
+@handle_errors
+def instrument_detail_workflow():
+    """
+    Instrument/Accessory Detail Capture
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Capture detailed instrument/accessory specifications
+    description: |
+      Identifies instruments and accessories from requirements.
+      Validates against schema and returns ranked product matches.
+      Returns spec_object for comparison workflow.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: Requirements with instruments/accessories
+              example: "Crude unit needs 5 pressure transmitters, SIL2, 0-500 psi"
+            session_id:
+              type: string
+    responses:
+      200:
+        description: Identified items and rankings
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                identified_instruments:
+                  type: array
+                identified_accessories:
+                  type: array
+                ranked_results:
+                  type: array
+                spec_object:
+                  type: object
+                  description: Ready for /compare-from-spec
+                compare_vendors_available:
+                  type: boolean
+    """
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    session_id = data.get('session_id') or get_session_id()
+
+    result = run_instrument_detail_workflow(
+        user_input=message,
+        session_id=session_id
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type="instrument_detail"
+    )
+
+    logger.info(f"[INSTRUMENT_DETAIL] Tags: intent={tags.intent_type.value}, status={tags.response_status.value}")
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/instrument-detail-compare', methods=['POST'])
+@login_required
+@handle_errors
+def instrument_detail_with_comparison():
+    """
+    Chained Detail Capture + Comparison Workflow
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Run Detail Capture with automatic Comparison
+    description: |
+      Chains both workflows in one call:
+      1. Instrument Detail Capture
+      2. Comparison Workflow (if auto_compare=true)
+      
+      Equivalent to clicking [COMPARE VENDORS] automatically.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+              description: Requirements with instruments
+              example: "Need pressure transmitters for refinery, SIL2"
+            auto_compare:
+              type: boolean
+              default: true
+              description: Automatically run comparison after detail capture
+            comparison_type:
+              type: string
+              enum: [vendor, series, model, full]
+              default: full
+            session_id:
+              type: string
+    responses:
+      200:
+        description: Combined results from both workflows
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  example: "comparison_complete"
+                detail_capture:
+                  type: object
+                comparison:
+                  type: object
+                  properties:
+                    vendor_ranking:
+                      type: array
+                    top_recommendation:
+                      type: object
+                top_vendor:
+                  type: string
+                  example: "Honeywell"
+                top_product:
+                  type: string
+                  example: "STG74L"
+    """
+    from .instrument_detail_workflow import run_instrument_detail_with_comparison
+
+    data = request.get_json()
+
+    if not data or 'message' not in data:
+        return api_response(False, error="Message is required", status_code=400)
+
+    message = data['message']
+    auto_compare = data.get('auto_compare', True)
+    comparison_type = data.get('comparison_type', 'full')
+    session_id = data.get('session_id') or get_session_id()
+
+    result = run_instrument_detail_with_comparison(
+        user_input=message,
+        session_id=session_id,
+        auto_compare=auto_compare,
+        comparison_type=comparison_type
+    )
+
+    # Classify response and generate tags
+    # This is a chained workflow, classify based on the phase
+    workflow_type = 'comparison' if result.get('phase') == 'comparison_complete' else 'instrument_detail'
+    tags = classify_response(
+        user_input=message,
+        response_data=result,
+        workflow_type=workflow_type
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/potential-product-index', methods=['POST'])
+@login_required
+@handle_errors
+def potential_product_index():
+    """
+    Potential Product Index Workflow
+    ---
+    tags:
+      - Enhanced Workflows
+    summary: Discover and index new product types
+    description: |
+      Triggered when no schema exists for a product type.
+      Discovers vendors/models via LLM and generates schema.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - product_type
+          properties:
+            product_type:
+              type: string
+              description: Product type to index
+              example: "differential pressure transmitter"
+            session_id:
+              type: string
+    responses:
+      200:
+        description: Discovered vendors and generated schema
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                product_type:
+                  type: string
+                discovered_vendors:
+                  type: array
+                vendor_model_families:
+                  type: object
+                generated_schema:
+                  type: object
+                schema_saved:
+                  type: boolean
+    """
+    data = request.get_json()
+
+    if not data or 'product_type' not in data:
+        return api_response(False, error="product_type is required", status_code=400)
+
+    product_type = data['product_type']
+    session_id = data.get('session_id') or get_session_id()
+
+    result = run_potential_product_index_workflow(
+        product_type=product_type,
+        session_id=session_id
+    )
+
+    # Classify response and generate tags
+    # This workflow discovers new product types, so use product_type as context
+    user_input_context = f"Index {product_type}"
+    tags = classify_response(
+        user_input=user_input_context,
+        response_data=result,
+        workflow_type='product_search'  # This is essentially a product discovery workflow
+    )
+
+    return api_response(True, data=result, tags=tags)
+
+
+@agentic_bp.route('/chat-knowledge', methods=['POST'])
+@login_required
+@handle_errors
+def grounded_chat():
+    """
+    Grounded Knowledge Chat
+    ---
+    tags:
+      - Chat & Q&A
+    summary: Q&A endpoint for instrument/accessory knowledge
+    description: |
+      Answers questions about instruments and accessories using grounded knowledge.
+      Integrates with RAG systems and validates responses for accuracy.
+      Supports multi-turn conversations with session management.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - question
+          properties:
+            question:
+              type: string
+              description: User question about instruments
+              example: "What is the difference between SIL2 and SIL3 ratings?"
+            session_id:
+              type: string
+              description: Session ID for conversation continuity
+            user_id:
+              type: string
+              description: Optional user identifier
+    responses:
+      200:
+        description: Grounded answer with citations
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                answer:
+                  type: string
+                  description: Grounded response with citations
+                citations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      source:
+                        type: string
+                      content:
+                        type: string
+                confidence:
+                  type: number
+                  format: float
+                  example: 0.85
+                is_validated:
+                  type: boolean
+                session_id:
+                  type: string
+    """
+    data = request.get_json()
+
+    if not data or 'question' not in data:
+        return api_response(False, error="Question is required", status_code=400)
+
+    question = data['question']
+    session_id = data.get('session_id') or get_session_id()
+    user_id = data.get('user_id')
+
+    result = run_grounded_chat_workflow(
+        user_question=question,
+        session_id=session_id,
+        user_id=user_id
+    )
+
+    # Classify response and generate tags
+    tags = classify_response(
+        user_input=question,
+        response_data=result,
+        workflow_type="grounded_chat"
+    )
+
+    logger.info(f"[GROUNDED_CHAT] Tags: intent={tags.intent_type.value}, status={tags.response_status.value}")
+
+    return api_response(True, data=result, tags=tags)
+
+
+# ============================================================================
+# AGENT ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/agents', methods=['GET'])
+@login_required
+@handle_errors
+def list_agents():
+    """
+    List All Available LangChain Agents
+    ---
+    tags:
+      - LangChain Agents
+    summary: Get list of all 9 available LangChain agents
+    description: |
+      Returns a list of all available LangChain agents that can be directly invoked.
+      
+      **Available Agents (9):**
+      - intent_classifier - Classifies user intent
+      - validation - Validates requirements against schema
+      - vendor_search - Searches for vendors
+      - product_analysis - Analyzes vendor products
+      - ranking - Ranks products
+      - sales - Conversational sales agent
+      - instrument_identifier - Identifies instruments
+      - image_search - Searches product images
+      - pdf_search - Searches PDF datasheets
+    responses:
+      200:
+        description: List of available agents
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                agents:
+                  type: array
+                  items:
+                    type: string
+                  example: ["intent_classifier", "validation", "vendor_search", "product_analysis", "ranking", "sales", "instrument_identifier", "image_search", "pdf_search"]
+    """
+    agents = AgentFactory.list_agents()
+    return api_response(True, data={"agents": agents})
+
+
+@agentic_bp.route('/agents/<agent_type>/run', methods=['POST'])
+@login_required
+@handle_errors
+def run_agent(agent_type: str):
+    """
+    Run Specific LangChain Agent
+    ---
+    tags:
+      - LangChain Agents
+    summary: Execute a specific LangChain agent directly
+    description: |
+      Directly invoke any of the 9 available LangChain agents.
+      Each agent uses LangGraph's create_react_agent with specific tools.
+      
+      **Agent Types:**
+      - `intent_classifier` - Uses: classify_intent_tool, extract_requirements_tool
+      - `validation` - Uses: load_schema_tool, validate_requirements_tool, get_missing_fields_tool
+      - `vendor_search` - Uses: search_vendors_tool, get_vendor_products_tool, fuzzy_match_vendors_tool
+      - `product_analysis` - Uses: analyze_vendor_match_tool, extract_specifications_tool, calculate_match_score_tool
+      - `ranking` - Uses: rank_products_tool, judge_analysis_tool
+      - `sales` - Conversational agent (no tools, direct LLM)
+      - `instrument_identifier` - Uses: identify_instruments_tool, identify_accessories_tool
+      - `image_search` - Uses: search_product_images_tool
+      - `pdf_search` - Uses: search_pdf_datasheets_tool
+    parameters:
+      - in: path
+        name: agent_type
+        required: true
+        type: string
+        enum: [intent_classifier, validation, vendor_search, product_analysis, ranking, sales, instrument_identifier, image_search, pdf_search]
+        description: Type of agent to run
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - input
+          properties:
+            input:
+              type: string
+              description: Input data for the agent
+              example: "I need pressure transmitters with 4-20mA output"
+    responses:
+      200:
+        description: Agent execution result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            data:
+              type: object
+              properties:
+                output:
+                  type: string
+                  description: Agent's output
+                agent:
+                  type: string
+                  description: Agent type that was executed
+      400:
+        description: Invalid agent type or missing input
+      500:
+        description: Agent execution error
+    """
+    data = request.get_json()
+
+    if not data or 'input' not in data:
+        return api_response(False, error="Input is required", status_code=400)
+
+    try:
+        agent = AgentFactory.create(agent_type)
+        result = agent.run(data['input'])
+        return api_response(True, data=result)
+    except ValueError as e:
+        return api_response(False, error=str(e), status_code=404)
+
+
+# ============================================================================
+# TOOL ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/tools/classify-intent', methods=['POST'])
+@login_required
+@handle_errors
+def classify_intent_endpoint():
+    """
+    Test Intent Classification Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test classify_intent_tool directly
+    description: |
+      Directly invoke the LangChain classify_intent_tool.
+      This tool classifies user input into intent categories for workflow routing.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - user_input
+          properties:
+            user_input:
+              type: string
+              description: User message to classify
+              example: "I need pressure transmitters"
+            current_step:
+              type: string
+              description: Current workflow step
+              example: "start"
+            context:
+              type: string
+              description: Conversation context
+              example: "New conversation"
+    responses:
+      200:
+        description: Intent classification result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                intent:
+                  type: string
+                  example: "requirements"
+                confidence:
+                  type: number
+                  example: 0.95
+                next_step:
+                  type: string
+    """
+    from tools.intent_tools import classify_intent_tool
+
+    data = request.get_json()
+    if not data or 'user_input' not in data:
+        return api_response(False, error="user_input is required", status_code=400)
+
+    result = classify_intent_tool.invoke({
+        "user_input": data['user_input'],
+        "current_step": data.get('current_step'),
+        "context": data.get('context')
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/validate-requirements', methods=['POST'])
+@login_required
+@handle_errors
+def validate_requirements_endpoint():
+    """
+    Test Requirements Validation Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test validate_requirements_tool directly
+    description: |
+      Directly invoke the LangChain validate_requirements_tool.
+      Validates user requirements against product schema.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - user_input
+          properties:
+            user_input:
+              type: string
+              description: Requirements text
+              example: "Need 4-20mA pressure transmitter, 0-500 psi range"
+            product_type:
+              type: string
+              description: Product type
+              example: "pressure transmitter"
+    responses:
+      200:
+        description: Validation result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                is_valid:
+                  type: boolean
+                missing_fields:
+                  type: array
+                  items:
+                    type: string
+    """
+    from tools.schema_tools import validate_requirements_tool, load_schema_tool
+
+    data = request.get_json()
+    if not data or 'user_input' not in data:
+        return api_response(False, error="user_input is required", status_code=400)
+
+    product_type = data.get('product_type', '')
+
+    # Load schema
+    schema_result = load_schema_tool.invoke({"product_type": product_type})
+    schema = schema_result.get("schema", {})
+
+    # Validate
+    result = validate_requirements_tool.invoke({
+        "user_input": data['user_input'],
+        "product_type": product_type,
+        "schema": schema
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/search-vendors', methods=['POST'])
+@login_required
+@handle_errors
+def search_vendors_endpoint():
+    """
+    Test Vendor Search Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test search_vendors_tool directly
+    description: |
+      Directly invoke the LangChain search_vendors_tool.
+      Searches MongoDB for vendors offering specific products.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - product_type
+          properties:
+            product_type:
+              type: string
+              description: Product type to search for
+              example: "pressure transmitter"
+            requirements:
+              type: object
+              description: Optional requirements filter
+    responses:
+      200:
+        description: Vendor search results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                vendors:
+                  type: array
+                  items:
+                    type: string
+                vendor_count:
+                  type: integer
+    """
+    from tools.vendor_tools import search_vendors_tool
+
+    data = request.get_json()
+    if not data or 'product_type' not in data:
+        return api_response(False, error="product_type is required", status_code=400)
+
+    result = search_vendors_tool.invoke({
+        "product_type": data['product_type'],
+        "requirements": data.get('requirements', {})
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/analyze-match', methods=['POST'])
+@login_required
+@handle_errors
+def analyze_match_endpoint():
+    """
+    Test Vendor Match Analysis Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test analyze_vendor_match_tool directly
+    description: |
+      Directly invoke the LangChain analyze_vendor_match_tool.
+      Performs detailed parameter-by-parameter analysis of vendor products.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendor
+            - requirements
+          properties:
+            vendor:
+              type: string
+              description: Vendor name
+              example: "Honeywell"
+            requirements:
+              type: object
+              description: User requirements
+              example: {"outputSignal": "4-20mA", "range": "0-500 psi"}
+            pdf_content:
+              type: string
+              description: Optional PDF datasheet content
+            product_data:
+              type: object
+              description: Optional product JSON data
+    responses:
+      200:
+        description: Analysis result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                match_score:
+                  type: integer
+                  example: 85
+                matched_requirements:
+                  type: object
+    """
+    from tools.analysis_tools import analyze_vendor_match_tool
+
+    data = request.get_json()
+    if not data or 'vendor' not in data or 'requirements' not in data:
+        return api_response(False, error="vendor and requirements are required", status_code=400)
+
+    result = analyze_vendor_match_tool.invoke({
+        "vendor": data['vendor'],
+        "requirements": data['requirements'],
+        "pdf_content": data.get('pdf_content'),
+        "product_data": data.get('product_data')
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/rank-products', methods=['POST'])
+@login_required
+@handle_errors
+def rank_products_endpoint():
+    """
+    Test Product Ranking Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test rank_products_tool directly
+    description: |
+      Directly invoke the LangChain rank_products_tool.
+      Ranks products based on analysis results using weighted criteria.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendor_matches
+          properties:
+            vendor_matches:
+              type: array
+              description: Array of vendor analysis results
+              items:
+                type: object
+            requirements:
+              type: object
+              description: Original requirements
+    responses:
+      200:
+        description: Ranked products
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                ranked_products:
+                  type: array
+                  items:
+                    type: object
+                top_pick:
+                  type: object
+    """
+    from tools.ranking_tools import rank_products_tool
+
+    data = request.get_json()
+    if not data or 'vendor_matches' not in data:
+        return api_response(False, error="vendor_matches is required", status_code=400)
+
+    result = rank_products_tool.invoke({
+        "vendor_matches": data['vendor_matches'],
+        "requirements": data.get('requirements', {})
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/search-images', methods=['POST'])
+@login_required
+@handle_errors
+def search_images_endpoint():
+    """
+    Test Product Image Search Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test search_product_images_tool directly
+    description: |
+      Directly invoke the LangChain search_product_images_tool.
+      Searches for product images using multi-tier fallback (Google CSE → Serper → SerpAPI).
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendor
+            - product_name
+            - product_type
+          properties:
+            vendor:
+              type: string
+              description: Vendor name
+              example: "Honeywell"
+            product_name:
+              type: string
+              description: Product model name
+              example: "ST800"
+            product_type:
+              type: string
+              description: Product type
+              example: "pressure transmitter"
+            model_family:
+              type: string
+              description: Optional model family
+    responses:
+      200:
+        description: Image search results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: object
+    """
+    from tools.search_tools import search_product_images_tool
+
+    data = request.get_json()
+    required = ['vendor', 'product_name', 'product_type']
+    if not data or not all(k in data for k in required):
+        return api_response(False, error=f"{required} are required", status_code=400)
+
+    result = search_product_images_tool.invoke({
+        "vendor": data['vendor'],
+        "product_name": data['product_name'],
+        "product_type": data['product_type'],
+        "model_family": data.get('model_family')
+    })
+
+    return api_response(True, data=result)
+
+
+@agentic_bp.route('/tools/search-pdfs', methods=['POST'])
+@login_required
+@handle_errors
+def search_pdfs_endpoint():
+    """
+    Test PDF Datasheet Search Tool
+    ---
+    tags:
+      - LangChain Tools
+    summary: Test search_pdf_datasheets_tool directly
+    description: |
+      Directly invoke the LangChain search_pdf_datasheets_tool.
+      Searches for PDF datasheets using multi-tier fallback.
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - vendor
+            - product_type
+          properties:
+            vendor:
+              type: string
+              description: Vendor name
+              example: "Emerson"
+            product_type:
+              type: string
+              description: Product type
+              example: "pressure transmitter"
+            model_family:
+              type: string
+              description: Optional model family
+              example: "3051S"
+    responses:
+      200:
+        description: PDF search results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                pdfs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                      title:
+                        type: string
+    """
+    from tools.search_tools import search_pdf_datasheets_tool
+
+    data = request.get_json()
+    if not data or 'vendor' not in data or 'product_type' not in data:
+        return api_response(False, error="vendor and product_type are required", status_code=400)
+
+    result = search_pdf_datasheets_tool.invoke({
+        "vendor": data['vendor'],
+        "product_type": data['product_type'],
+        "model_family": data.get('model_family')
+    })
+
+    return api_response(True, data=result)
+
+
+# ============================================================================
+# SESSION ENDPOINTS
+# ============================================================================
+
+@agentic_bp.route('/session', methods=['GET'])
+@login_required
+@handle_errors
+def get_session():
+    """Get current session info"""
+    return api_response(True, data={
+        "session_id": get_session_id(),
+        "vendor_filter": session.get('csv_vendor_filter')
+    })
+
+
+@agentic_bp.route('/session', methods=['DELETE'])
+@login_required
+@handle_errors
+def clear_session():
+    """Clear current session"""
+    session.pop('agentic_session_id', None)
+    session.pop('csv_vendor_filter', None)
+    return api_response(True, data={"message": "Session cleared"})
+
+
+@agentic_bp.route('/session/vendor-filter', methods=['POST'])
+@login_required
+@handle_errors
+def set_vendor_filter():
+    """
+    Set vendor filter from CSV upload
+
+    Request Body:
+    {
+        "vendor_names": ["Vendor1", "Vendor2"]
+    }
+    """
+    data = request.get_json()
+    if not data or 'vendor_names' not in data:
+        return api_response(False, error="vendor_names is required", status_code=400)
+
+    session['csv_vendor_filter'] = {
+        'vendor_names': data['vendor_names']
+    }
+
+    return api_response(True, data={
+        "message": "Vendor filter set",
+        "vendor_count": len(data['vendor_names'])
+    })
+
+
+# ============================================================================
+# HEALTH CHECK
+# ============================================================================
+
+@agentic_bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return api_response(True, data={
+        "status": "healthy",
+        "service": "agentic-workflow"
+    })
