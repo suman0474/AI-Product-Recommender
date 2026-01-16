@@ -36,13 +36,8 @@ from test import (
 )
 
 # Azure Blob imports (MongoDB API compatible)
-from azure_blob_utils import (
-    upload_to_mongodb,
-    get_schema_from_mongodb,
-    upload_json_to_mongodb,
-    get_json_from_mongodb,
-    mongodb_file_manager
-)
+# Azure Blob imports
+from azure_blob_utils import azure_blob_file_manager
 
 # LLM import (LangChain Google Gemini with OpenAI fallback)
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -929,24 +924,25 @@ Example format:
 
 
 def _load_existing_schema(specs_dir: str, product_type: str) -> Dict[str, Any]:
-    """Load existing schema from MongoDB specs collection."""
+    """Load existing schema from Azure Blob specs collection."""
     try:
         print(f"[SCHEMA] Loading existing schema for product type: {product_type}")
-        schema = get_schema_from_mongodb(product_type)
+        # Use Azure Blob Storage directly
+        schema = azure_blob_file_manager.get_schema_from_azure(product_type)
         if schema:
-            print(f"[SCHEMA] Found existing schema in MongoDB for: {product_type}")
+            print(f"[SCHEMA] Found existing schema in Azure for: {product_type}")
             return schema
         else:
-            print(f"[SCHEMA] No existing schema found in MongoDB for: {product_type}")
+            print(f"[SCHEMA] No existing schema found in Azure for: {product_type}")
             return {}
     except Exception as e:
-        print(f"[WARN] Failed to load existing schema from MongoDB: {e}")
+        print(f"[WARN] Failed to load existing schema from Azure: {e}")
         return {}
 
 def _save_schema_to_specs(product_type: str, schema_dict: Dict[str, Any]) -> str:
-    """Save schema to MongoDB specs collection."""
+    """Save schema to Azure Blob specs collection."""
     try:
-        print(f"[SCHEMA] Saving schema to MongoDB for product type: {product_type}")
+        print(f"[SCHEMA] Saving schema to Azure for product type: {product_type}")
         
         # Prepare metadata
         metadata = {
@@ -958,14 +954,14 @@ def _save_schema_to_specs(product_type: str, schema_dict: Dict[str, Any]) -> str
             'schema_version': '1.0'
         }
         
-        # Upload to MongoDB
-        doc_id = upload_json_to_mongodb(schema_dict, metadata)
+        # Upload to Azure Blob
+        doc_id = azure_blob_file_manager.upload_json_data(schema_dict, metadata)
         
-        print(f"[SCHEMA] Schema saved to MongoDB with ID: {doc_id}")
-        return f"mongodb://{doc_id}"
+        print(f"[SCHEMA] Schema saved to Azure with ID: {doc_id}")
+        return f"azure://{doc_id}"
         
     except Exception as e:
-        print(f"[ERROR] Failed to save schema to MongoDB: {e}")
+        print(f"[ERROR] Failed to save schema to Azure: {e}")
         raise
 
 # ----------------- Process PDFs -----------------
@@ -999,7 +995,7 @@ def _download_pdf_to_mongodb(pdf_url: str, metadata: Dict[str, Any]) -> Tuple[bo
         if file_size < 1024:  # Less than 1KB is suspicious
             raise ValueError(f"Downloaded file is too small ({file_size} bytes), likely not a valid PDF")
         
-        # Upload to MongoDB
+        # Upload to Azure
         upload_metadata = {
             'collection_type': 'documents',
             'file_type': 'pdf',
@@ -1008,9 +1004,9 @@ def _download_pdf_to_mongodb(pdf_url: str, metadata: Dict[str, Any]) -> Tuple[bo
             **metadata
         }
         
-        file_id = upload_to_mongodb(pdf_data, upload_metadata)
+        file_id = azure_blob_file_manager.upload_to_azure(pdf_data, upload_metadata)
         
-        logger.info(f"Successfully downloaded and stored PDF in MongoDB: {pdf_url} ({file_size} bytes, ID: {file_id})")
+        logger.info(f"Successfully downloaded and stored PDF in Azure: {pdf_url} ({file_size} bytes, ID: {file_id})")
         return True, f"Success ({file_size} bytes)", file_id
         
     except Exception as e:
@@ -1077,9 +1073,10 @@ def process_pdfs_from_urls(product_type: str, vendor_data: List[Dict[str, Any]])
                     logger.info(f"[MONGODB] Saved PDF to MongoDB with ID: {file_id}")
 
                     # ---- extract + LLM ----
+                    # ---- extract + LLM ----
                     try:
-                        # Retrieve PDF from MongoDB for processing
-                        pdf_data = mongodb_file_manager.get_file_from_mongodb(
+                        # Retrieve PDF from Azure for processing
+                        pdf_data = azure_blob_file_manager.get_file_from_azure(
                             'documents', 
                             {'file_id': file_id}
                         )
@@ -1149,13 +1146,13 @@ def process_pdfs_from_urls(product_type: str, vendor_data: List[Dict[str, Any]])
                         'file_type': 'json'
                     }
                     
-                    # Save to MongoDB
+                    # Save to Azure
                     try:
-                        doc_id = upload_json_to_mongodb(single_family_payload, vendor_metadata)
-                        print(f"[OUTPUT] Saved family JSON to MongoDB: {safe_vendor}/{safe_ptype}/{safe_series} (ID: {doc_id})")
+                        doc_id = azure_blob_file_manager.upload_json_data(single_family_payload, vendor_metadata)
+                        print(f"[OUTPUT] Saved family JSON to Azure: {safe_vendor}/{safe_ptype}/{safe_series} (ID: {doc_id})")
                         all_results.append(single_family_payload)  # keep global record too
                     except Exception as e:
-                        logger.error(f"[ERROR] Failed to save vendor data to MongoDB: {e}")
+                        logger.error(f"[ERROR] Failed to save vendor data to Azure: {e}")
         else:
             logger.warning(f"[SAVE] No results to save for vendor '{vendor_name}'")
 
@@ -1601,7 +1598,7 @@ def load_requirements_schema(product_type: str = None) -> Dict[str, Any]:
                 "description": "Generic schema for product type detection"
             }
         
-        print(f"[SCHEMA] Loading requirements schema for '{product_type}' from MongoDB")
+        print(f"[SCHEMA] Loading requirements schema for '{product_type}' from Azure")
 
         # First check in-memory cache to avoid repeated DB/LLM calls
         cached = schema_cache.get(product_type)
@@ -1609,16 +1606,16 @@ def load_requirements_schema(product_type: str = None) -> Dict[str, Any]:
             print(f"[SCHEMA] Using cached schema for '{product_type}'")
             return cached
 
-        # Try to load from MongoDB first (with timeout protection)
+        # Try to load from Azure first (with timeout protection)
         try:
             # Use a shorter timeout for schema loading to fail fast
-            schema = get_schema_from_mongodb(product_type)
+            schema = azure_blob_file_manager.get_schema_from_azure(product_type)
         except Exception as db_error:
-            print(f"[SCHEMA] MongoDB error for '{product_type}': {str(db_error)}")
+            print(f"[SCHEMA] Azure Blob error for '{product_type}': {str(db_error)}")
             schema = None
 
         if schema and schema.get("mandatory_requirements") and schema.get("optional_requirements"):
-            print(f"[SCHEMA] Successfully loaded schema from MongoDB for '{product_type}'")
+            print(f"[SCHEMA] Successfully loaded schema from Azure for '{product_type}'")
             # cache it
             try:
                 schema_cache.set(product_type, schema)
@@ -1651,19 +1648,19 @@ def load_requirements_schema(product_type: str = None) -> Dict[str, Any]:
             # Only the thread that acquired the lock will reach here
             built = build_requirements_schema_from_web(product_type)
             
-            # CRITICAL FIX: Ensure the schema is saved to MongoDB after automation
+            # CRITICAL FIX: Ensure the schema is saved to Azure after automation
             # This is a safety net in case the schema wasn't saved during discover_top_vendors
             if built and built.get("mandatory_requirements"):
                 try:
-                    # Check if schema exists in MongoDB
-                    existing = get_schema_from_mongodb(product_type)
+                    # Check if schema exists in Azure
+                    existing = azure_blob_file_manager.get_schema_from_azure(product_type)
                     if not existing or not existing.get("mandatory_requirements"):
-                        # Schema not in MongoDB, save it now
-                        logger.info(f"[SCHEMA] Schema not found in MongoDB after automation, saving now for '{product_type}'")
+                        # Schema not in Azure, save it now
+                        logger.info(f"[SCHEMA] Schema not found in Azure after automation, saving now for '{product_type}'")
                         _save_schema_to_specs(product_type, built)
-                        logger.info(f"[SCHEMA] Successfully saved schema to MongoDB for '{product_type}'")
+                        logger.info(f"[SCHEMA] Successfully saved schema to Azure for '{product_type}'")
                 except Exception as save_error:
-                    logger.error(f"[SCHEMA] Failed to save schema to MongoDB after automation: {save_error}")
+                    logger.error(f"[SCHEMA] Failed to save schema to Azure after automation: {save_error}")
             
             # Cache the schema
             try:

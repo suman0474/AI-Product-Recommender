@@ -19,6 +19,10 @@ from fuzzywuzzy import fuzz, process
 from functools import wraps
 from dotenv import load_dotenv
 
+# Suppress noisy Azure SDK logs
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.identity").setLevel(logging.WARNING)
+
 # --- NEW IMPORTS FOR SEARCH FUNCTIONALITY ---
 from googleapiclient.discovery import build
 
@@ -184,6 +188,22 @@ from agentic.api import agentic_bp
 app.register_blueprint(agentic_bp)
 logging.info("Agentic workflow blueprint registered at /api/agentic")
 
+# --- Import and Register Deep Agent Blueprint ---
+from agentic.deep_agent.api import deep_agent_bp
+app.register_blueprint(deep_agent_bp)
+logging.info("Deep Agent blueprint registered at /deep-agent")
+
+# --- Import and Register Product Info API Blueprint ---
+from agentic.product_info_api import product_info_bp
+app.register_blueprint(product_info_bp)
+logging.info("Product Info API blueprint registered at /api/product-info")
+
+# --- Import and Register Tools API Blueprint ---
+from tools_api import tools_bp
+app.register_blueprint(tools_bp)
+logging.info("Tools API blueprint registered at /api/tools")
+
+
 # =========================================================================
 # === HELPER FUNCTIONS AND UTILITIES ===
 # =========================================================================
@@ -335,24 +355,48 @@ def allowed_file(filename: str):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# =============================================================================
+# OLD /api/intent ENDPOINT (COMMENTED OUT)
+# This endpoint used an independent LLM chain for intent classification.
+# Now replaced with a wrapper that calls classify_intent_tool from intent_tools.py
+# for consistent intent classification across the system.
+# =============================================================================
+# @app.route("/api/intent", methods=["POST"])
+# @login_required
+# def api_intent_old():
+#     """
+#     [DEPRECATED] Old intent classification endpoint.
+#     Kept for reference - used independent LLM chain instead of intent_tools.
+#     """
+#     pass
+# =============================================================================
+
+# Import the intent tool for the new wrapper API
+from tools.intent_tools import classify_intent_tool
+
 @app.route("/api/intent", methods=["POST"])
 @login_required
 def api_intent():
     """
-    Classify user intent and determine workflow step
+    Classify user intent and determine workflow step (Wrapper for classify_intent_tool)
     ---
     tags:
       - Workflow
     summary: Classify user intent
     description: |
       Classifies user intent and determines the next workflow step based on input and current session state.
-      Supports step-based workflow with session tracking for continuity.
+      This endpoint wraps the classify_intent_tool from intent_tools.py for consistent classification.
       
       **Intent Types:**
       - `greeting` - Initial greeting
+      - `solution` - Complex engineering challenge requiring multiple instruments
+      - `requirements` - Single product specifications
+      - `question` - Asking about industrial topics
       - `productRequirements` - User is providing product specifications
       - `knowledgeQuestion` - User is asking a question
       - `workflow` - Continuing an existing workflow
+      - `confirm` / `reject` - User confirmations/rejections
+      - `chitchat` - Casual conversation
       - `other` - Unrecognized intent
     consumes:
       - application/json
@@ -384,7 +428,7 @@ def api_intent():
           properties:
             intent:
               type: string
-              enum: [greeting, productRequirements, knowledgeQuestion, workflow, other]
+              enum: [greeting, solution, requirements, question, productRequirements, knowledgeQuestion, workflow, confirm, reject, chitchat, other]
               description: Classified intent type
             nextStep:
               type: string
@@ -393,6 +437,12 @@ def api_intent():
             resumeWorkflow:
               type: boolean
               description: Whether to resume the current workflow
+            confidence:
+              type: number
+              description: Confidence score (0.0-1.0)
+            isSolution:
+              type: boolean
+              description: Whether this is a complex engineering solution request
       400:
         description: Bad request - missing userInput
         schema:
@@ -403,12 +453,9 @@ def api_intent():
               example: "userInput is required"
       401:
         description: Unauthorized - login required
-      503:
-        description: Service unavailable - LLM not ready
+      500:
+        description: Intent classification failed
     """
-    if not components or not components.get("llm"):
-        return jsonify({"error": "LLM component not ready."}), 503
-
     data = request.get_json(force=True)
     user_input = data.get("userInput", "").strip()
     if not user_input:
@@ -434,110 +481,120 @@ def api_intent():
             "message": "Skipping missing mandatory fields. Additional and latest specifications are available."
         }
         return jsonify(response), 200
-    
-    # NOTE: Removed automatic transition from awaitAdvanced -> showSummary here
-    # so that 'no' replies at the advanced-parameters prompt are handled
-    # by the sales-agent (`/api/sales-agent`) logic which implements retry
-    # and explicit YES/NO branching for advanced parameters.
-    
-    # Check for greeting patterns (only standalone greetings)
-    greeting_patterns = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening']
-    is_greeting = any(user_input.lower().strip() == pattern or user_input.lower().strip() == pattern + '!' for pattern in greeting_patterns)
-    
-    # Check for knowledge questions patterns
-    knowledge_indicators = ['what is', 'what are', 'how does', 'explain', 'tell me about', 'define']
-    is_knowledge_question = any(indicator in user_input.lower() for indicator in knowledge_indicators)
-    
-    # Check for product requirements patterns
-    product_indicators = [
-        'valve', 'pump', 'motor', 'sensor', 'controller', 'actuator', 'positioner',
-        'transmitter', 'gauge', 'meter', 'switch', 'relay', 'transformer',
-        'ansi', 'asme', 'din', 'iso', 'api', 'nema', 'iec',  # Standards
-        'stainless steel', 'carbon steel', 'bronze', 'cast iron', 'alloy',  # Materials
-        'flanged', 'threaded', 'welded', 'socket', 'butt weld',  # Connections
-        'pneumatic', 'electric', 'hydraulic', 'manual',  # Actuator types
-        'pressure rating', 'temperature rating', 'flow rate', 'cv', 'kv',  # Specs
-        'npt', 'bsp', 'rf', 'rtj',  # Connection types
-        'psi', 'bar', 'mpa', 'kpa', 'gpm', 'lpm',  # Units
-        'inch', 'mm', 'dn', 'nps',  # Sizes
-        'globe', 'ball', 'butterfly', 'gate', 'check', 'needle',  # Valve types
-        'centrifugal', 'positive displacement', 'diaphragm', 'peristaltic',  # Pump types
-        'explosion proof', 'hazardous area', 'atex', 'iecex',  # Safety
-        'foundation fieldbus', 'hart', 'profibus', 'modbus',  # Communication protocols
-        '316ss', '304ss', '316l', '304l',  # Material codes
-        'class', 'schedule', 'rating',  # Ratings
-        'turndown', 'rangeability', 'accuracy',  # Performance specs
-    ]
-
-    lowered = user_input.lower()
-    # Count how many technical indicators are present — if multiple technical tokens exist, treat as requirements
-    tech_count = sum(1 for indicator in product_indicators if indicator in lowered)
-
-    # Also flag as product requirements when there are explicit units/percentages or model-like tokens
-    technical_pattern = bool(
-        re.search(r"\b\d+\s?(inches|inch|mm|cm|m|%|percent|psi|bar|mbar)\b", lowered)
-        or re.search(r"\b(ansi|ss|316)\b", lowered)
-        or re.search(r"\b(series|model|gen|generation)\b", lowered)
-    )
-
-    is_product_requirement = (tech_count >= 2) or (technical_pattern and len(lowered.split()) > 2)
 
     try:
-        # Use LLM component for classification
-        response_chain = prompts.intent_classifier_prompt | components['llm'] | StrOutputParser()
-        llm_response = response_chain.invoke({
+        # =====================================================================
+        # CALL classify_intent_tool from intent_tools.py
+        # This is the centralized intent classification tool
+        # =====================================================================
+        logging.info(f"[INTENT_API] Calling classify_intent_tool for input: {user_input[:100]}...")
+        
+        # Build context from session state
+        context = f"Current step: {current_step or 'None'}, Current intent: {current_intent or 'None'}"
+        
+        # Invoke the classify_intent_tool
+        tool_result = classify_intent_tool.invoke({
             "user_input": user_input,
-            "current_step": current_step or "None",
-            "current_intent": current_intent or "None"
+            "current_step": current_step,
+            "context": context
         })
-
-        # Parse JSON safely
-        try:
-            result_json = json.loads(llm_response)
-        except json.JSONDecodeError:
-            # Improved fallback logic for classification
-            if is_product_requirement:
-                result_json = {"intent": "productRequirements", "nextStep": "initialInput", "resumeWorkflow": False}
-            elif is_knowledge_question:
-                result_json = {"intent": "knowledgeQuestion", "nextStep": None, "resumeWorkflow": True}
-            elif is_greeting and not current_step:
-                result_json = {"intent": "greeting", "nextStep": "greeting", "resumeWorkflow": False}
-            else:
-                result_json = {"intent": "other", "nextStep": None, "resumeWorkflow": False}
-
-        # Heuristic override: if local technical heuristics flagged this as product requirements,
-        # override LLM result to avoid greeting or misclassification.
-        try:
-            if is_product_requirement and result_json.get('intent') != 'productRequirements':
-                logging.info("[INTENT_OVERRIDE] Local heuristics detected product requirements (tech_count=%s). Overriding LLM intent %s -> productRequirements", tech_count if 'tech_count' in locals() else 'N/A', result_json.get('intent'))
-                result_json['intent'] = 'productRequirements'
-                result_json['nextStep'] = 'initialInput'
-                result_json['resumeWorkflow'] = False
-        except Exception:
-            # Non-fatal - continue with whatever classification we have
-            pass
-
+        
+        logging.info(f"[INTENT_API] classify_intent_tool result: {tool_result}")
+        
+        if not tool_result.get("success"):
+            # Tool failed, return error
+            return jsonify({
+                "error": tool_result.get("error", "Intent classification failed"),
+                "intent": "other",
+                "nextStep": None,
+                "resumeWorkflow": False
+            }), 500
+        
+        # Map tool result to API response format
+        intent = tool_result.get("intent", "other")
+        is_solution = tool_result.get("is_solution", False)
+        confidence = tool_result.get("confidence", 0.5)
+        next_step = tool_result.get("next_step")
+        
+        # Map intent types to frontend expected values
+        intent_mapping = {
+            "greeting": "greeting",
+            "solution": "solution",
+            "requirements": "productRequirements",
+            "question": "knowledgeQuestion",
+            "additional_specs": "workflow",
+            "confirm": "workflow",
+            "reject": "workflow",
+            "chitchat": "chitchat",
+            "unrelated": "other"
+        }
+        
+        mapped_intent = intent_mapping.get(intent, intent)
+        
+        # Determine next step based on intent
+        if mapped_intent == "greeting":
+            next_step = "greeting"
+            resume_workflow = False
+        elif mapped_intent == "solution" or is_solution:
+            mapped_intent = "solution"
+            next_step = "solutionWorkflow"
+            resume_workflow = False
+            is_solution = True
+        elif mapped_intent == "productRequirements":
+            next_step = "initialInput"
+            resume_workflow = False
+        elif mapped_intent == "knowledgeQuestion":
+            next_step = next_step or None
+            resume_workflow = True
+        elif mapped_intent == "workflow":
+            resume_workflow = True
+        else:
+            resume_workflow = False
+        
+        # Build response
+        result_json = {
+            "intent": mapped_intent,
+            "nextStep": next_step,
+            "resumeWorkflow": resume_workflow,
+            "confidence": confidence,
+            "isSolution": is_solution,
+            "extractedInfo": tool_result.get("extracted_info", {}),
+            "solutionIndicators": tool_result.get("solution_indicators", [])
+        }
+        
         # Update session based on classification
-        if result_json.get("intent") == "greeting":
+        if mapped_intent == "greeting":
             session[f'current_step_{search_session_id}'] = 'greeting'
             session[f'current_intent_{search_session_id}'] = 'greeting'
-        elif result_json.get("intent") == "productRequirements":
+        elif mapped_intent == "solution" or is_solution:
+            session[f'current_step_{search_session_id}'] = 'solutionWorkflow'
+            session[f'current_intent_{search_session_id}'] = 'solution'
+            logging.info("[SOLUTION_ROUTING] Detected solution/engineering challenge - routing to solution workflow")
+        elif mapped_intent == "productRequirements":
             session[f'current_step_{search_session_id}'] = 'initialInput'
             session[f'current_intent_{search_session_id}'] = 'productRequirements'
-        elif result_json.get("intent") == "workflow" and result_json.get("nextStep"):
-            session[f'current_step_{search_session_id}'] = result_json.get("nextStep")
+        elif mapped_intent == "workflow" and next_step:
+            session[f'current_step_{search_session_id}'] = next_step
             session[f'current_intent_{search_session_id}'] = 'workflow'
-        # For knowledge questions, maintain current step for resumption
-        # Don't update session for chitchat or other intents
         
-        # Debug logging
-        logging.info(f"Intent classification result: {result_json}")
-
+        logging.info(f"[INTENT_API] Final response: {result_json}")
         return jsonify(result_json), 200
 
     except Exception as e:
-        logging.exception("Intent classification failed.")
-        return jsonify({"error": str(e), "intent": "other", "nextStep": None, "resumeWorkflow": False}), 500
+        error_msg = str(e)
+        logging.exception("[INTENT_API] Intent classification failed.")
+        
+        # Return 503 for rate limit errors (temporary condition), 500 for other errors
+        is_rate_limit = any(x in error_msg for x in ['429', 'Resource exhausted', 'RESOURCE_EXHAUSTED', 'quota'])
+        status_code = 503 if is_rate_limit else 500
+        
+        return jsonify({
+            "error": error_msg, 
+            "intent": "other", 
+            "nextStep": None, 
+            "resumeWorkflow": False,
+            "retryable": is_rate_limit
+        }), status_code
 
 @app.route('/health', methods=['GET'])
 @login_required
@@ -576,17 +633,17 @@ def health_check():
     }, 200
 
 # =========================================================================
-# === IMAGE SERVING ENDPOINT ===
+# === IMAGE SERVING ENDPOINT (Azure Blob Storage Primary)
 # =========================================================================
 @app.route('/api/images/<file_id>', methods=['GET'])
 def serve_image(file_id):
     """
-    Serve images from MongoDB GridFS
+    Serve images from Azure Blob Storage
     ---
     tags:
       - Images
-    summary: Serve image from GridFS
-    description: Retrieves and serves an image stored in MongoDB GridFS by its file ID or filename hash.
+    summary: Serve image from Azure Blob Storage
+    description: Retrieves and serves an image stored in Azure Blob Storage by its file ID (UUID).
     produces:
       - image/jpeg
       - image/png
@@ -598,8 +655,8 @@ def serve_image(file_id):
         in: path
         type: string
         required: true
-        description: GridFS file ID (ObjectId) or filename hash (64 chars)
-        example: "507f1f77bcf86cd799439011"
+        description: Azure Blob file ID (UUID format)
+        example: "083015c2-300c-44f3-be9a-3fdafebc39b0"
     responses:
       200:
         description: Image data returned successfully
@@ -620,56 +677,92 @@ def serve_image(file_id):
         description: Internal server error
     """
     try:
-        from bson import ObjectId
-        from mongodb_utils import mongodb_file_manager
+        from azure_blob_config import azure_blob_manager, is_azure_blob_available
+        import os
         
-        gridfs = mongodb_file_manager.gridfs
-        grid_out = None
+        # Check if Azure Blob Storage is available
+        if not is_azure_blob_available():
+            logging.error(f"Azure Blob Storage is not available for serving image: {file_id}")
+            return jsonify({"error": "Image storage service unavailable"}), 503
         
-        # Try 1: Treat as ObjectId
+        container_client = azure_blob_manager.container_client
+        base_path = azure_blob_manager.base_path
+        
+        # Search paths: files (UUIDs), images (cached), generic_images (generated)
+        search_paths = [
+            f"{base_path}/files",
+            f"{base_path}/images",
+            f"{base_path}/generic_images"
+        ]
+        
+        # Search for the blob with matching file_id
+        image_blob = None
+        blob_name = None
+        content_type = 'image/png'  # Default content type
+        
         try:
-            if ObjectId.is_valid(file_id):
-                grid_out = gridfs.get(ObjectId(file_id))
-        except Exception:
-            pass
-            
-        # Try 2: Treat as filename (if not found by ID)
-        if grid_out is None:
-            try:
-                # Search by filename
-                grid_out = gridfs.find_one({"filename": file_id})
+            for path in search_paths:
+                if image_blob: 
+                    break
+                    
+                # List blobs and find the one with matching file_id in the name or metadata
+                blobs = container_client.list_blobs(
+                    name_starts_with=path,
+                    include=['metadata']
+                )
                 
-                # If still not found, try searching by original_url or other metadata if it looks like a hash
-                if grid_out is None and len(file_id) == 64:
-                    # Try finding by filename with extension wildcard? No, exact match.
-                    # Maybe the filename has an extension we don't know.
-                    # Try finding any file starting with this hash
-                    import re
-                    grid_out = gridfs.find_one({"filename": {"$regex": f"^{file_id}"}})
-            except Exception as e:
-                logging.warning(f"Failed to find image by filename {file_id}: {e}")
-
-        if grid_out is None:
-            logging.error(f"Image not found in GridFS: {file_id}")
+                for blob in blobs:
+                    # Check if file_id is in the blob name (UUID match or simple filename match)
+                    # Note: We check if the passed file_id is contained in the blob name
+                    # This handles UUIDs "uuid_filename.png" and simple names "vendor_model.jpg"
+                    if file_id in blob.name:
+                        image_blob = blob
+                        blob_name = blob.name
+                        if blob.content_settings and blob.content_settings.content_type:
+                            content_type = blob.content_settings.content_type
+                        break
+                    
+                    # Also check metadata for file_id
+                    if blob.metadata and blob.metadata.get('file_id') == file_id:
+                        image_blob = blob
+                        blob_name = blob.name
+                        if blob.content_settings and blob.content_settings.content_type:
+                            content_type = blob.content_settings.content_type
+                        break
+        
+        except Exception as e:
+            logging.warning(f"Error searching for image blob {file_id}: {e}")
+        
+        if image_blob is None or blob_name is None:
+            logging.error(f"Image not found in Azure Blob Storage: {file_id}")
             return jsonify({"error": "Image not found"}), 404
         
-        # Read image data
-        image_data = grid_out.read()
-        content_type = grid_out.content_type or 'image/jpeg'
+        # Download the blob content
+        try:
+            blob_client = container_client.get_blob_client(blob_name)
+            download_stream = blob_client.download_blob()
+            image_data = download_stream.readall()
+        except Exception as e:
+            logging.error(f"Failed to download image blob {file_id}: {e}")
+            return jsonify({"error": "Failed to retrieve image"}), 500
+        
+        # Extract filename from blob name
+        filename = os.path.basename(blob_name)
         
         # Create response with proper headers
         response = send_file(
             BytesIO(image_data),
             mimetype=content_type,
             as_attachment=False,
-            download_name=grid_out.filename or f"image.{content_type.split('/')[-1]}"
+            download_name=filename
         )
         
         # Add caching headers (cache for 30 days)
         response.headers['Cache-Control'] = 'public, max-age=2592000'
         
-        logging.info(f"Served image from GridFS: {file_id} ({len(image_data)} bytes)")
+        logging.info(f"Served image from Azure Blob Storage: {file_id} ({len(image_data)} bytes)")
         return response
+        
     except Exception as e:
         logging.exception(f"Error serving image {file_id}: {e}")
         return jsonify({"error": "Internal server error"}), 500
@@ -679,9 +772,15 @@ def serve_image(file_id):
 def serve_image_root(file_id):
     """
     Fallback for images requested at root (e.g. legacy or malformed URLs)
-    Only handles long hashes to avoid conflict with other routes
+    Only handles UUID format or long hashes to avoid conflict with other routes
     """
-    # Only handle if it looks like a hash (64 chars) or ObjectId (24 chars)
+    # Check if it's a UUID format (36 chars with hyphens: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    import re
+    uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    if re.match(uuid_pattern, file_id):
+        return serve_image(file_id)
+    
+    # Also handle old formats: hash (64 chars) or ObjectId (24 chars)
     if len(file_id) in [24, 64] and all(c in '0123456789abcdefABCDEF' for c in file_id):
         return serve_image(file_id)
     
@@ -1117,10 +1216,11 @@ def api_sales_agent():
                     prompt_template = "" # Clears any prior prompt
                     pass
                 elif user_lower in negative_keywords:
-                    # The LLM previously returned zero parameters and user answered 'no' to
-                    # "Shall I proceed to the summary?" — user chose NOT to proceed, so retry discovery.
-                    prompt_template = "" # Clears any prior prompt
-                    pass
+                    # User says 'no' or 'skip' - they want to skip advanced parameters entirely
+                    # Proceed directly to showSummary without discovering parameters
+                    llm_response = "No problem! Proceeding without advanced specifications."
+                    current_prompt_template = None
+                    next_step = "showSummary"
                 else:
                     # Default action for unexpected input when no params are known
                     llm_response = "I'm not sure how to proceed. Would you like me to try discovering the parameters, or shall we skip to the summary?"
@@ -2746,7 +2846,7 @@ def fetch_product_images_with_fallback_sync(vendor_name: str, product_name: str 
     
     # Step 0: Check MongoDB cache first (if model_family is provided)
     if vendor_name and model_family:
-        from mongodb_utils import get_cached_image, cache_image
+        from azure_blob_utils import get_cached_image, cache_image
         
         cached_image = get_cached_image(vendor_name, model_family)
         if cached_image:
@@ -2779,7 +2879,7 @@ def fetch_product_images_with_fallback_sync(vendor_name: str, product_name: str 
         logging.info(f"Using Google CSE images for {vendor_name}")
         # Cache the top image if model_family is provided
         if vendor_name and model_family and len(images) > 0:
-            from mongodb_utils import cache_image
+            from azure_blob_utils import cache_image
             cache_image(vendor_name, model_family, images[0])
         return images, "google_cse"
     
@@ -2794,7 +2894,7 @@ def fetch_product_images_with_fallback_sync(vendor_name: str, product_name: str 
         logging.info(f"Using SerpAPI images for {vendor_name}")
         # Cache the top image if model_family is provided
         if vendor_name and model_family and len(images) > 0:
-            from mongodb_utils import cache_image
+            from azure_blob_utils import cache_image
             cache_image(vendor_name, model_family, images[0])
         return images, "serpapi"
     
@@ -2825,7 +2925,7 @@ def fetch_vendor_logo_sync(vendor_name: str, manufacturer_domains: list = None):
     
     # Step 0: Check MongoDB cache first
     try:
-        from mongodb_utils import mongodb_file_manager, download_image_from_url
+        from azure_blob_utils import mongodb_file_manager, download_image_from_url
         
         logos_collection = mongodb_file_manager.collections.get('vendor_logos')
         if logos_collection is not None:
@@ -3562,7 +3662,7 @@ def upload_pdf_from_url():
 
     
 @app.route("/register", methods=["POST"])
-@limiter.limit(["5 per minute", "20 per hour", "100 per day"])
+@limiter.limit("5 per minute;20 per hour;100 per day")
 def register():
     """
     Register new user
@@ -3656,7 +3756,7 @@ def register():
     return jsonify({"message": "User registration submitted. Awaiting admin approval."}), 201
 
 @app.route("/login", methods=["POST"])
-@limiter.limit(["5 per minute", "20 per hour", "100 per day"])
+@limiter.limit("5 per minute;20 per hour;100 per day")
 def login():
     """
     User login
@@ -3817,7 +3917,7 @@ def get_current_user():
       404:
         description: User not found
     """
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User, session['user_id'])
     if not user:
         return jsonify({"error": "User not found"}), 404
     # Construct full name from first_name and last_name
@@ -3948,6 +4048,8 @@ def clear_session_state(session_id):
         'cleared_keys': keys_to_remove,
         'status': 'cleared'
     }), 200
+
+
 
 @app.route("/validate", methods=["POST"])
 @login_required
@@ -4413,6 +4515,11 @@ def api_add_advanced_parameters():
 @login_required
 def api_analyze():
     try:
+        # Check if analysis chain is initialized
+        if analysis_chain is None:
+            logging.error("[ANALYZE] Analysis chain not initialized")
+            return jsonify({"error": "Analysis service not available. Please try again later."}), 503
+
         data = request.get_json(force=True)
         if not data:
             return jsonify({"error": "No input data provided"}), 400
@@ -4424,7 +4531,7 @@ def api_analyze():
         detected_product = data.get("detected_product", "")
         user_input = data.get("user_input")
         
-        # Handle CSV vendor filtering for existing analysis process
+        # Handle CSV vendor filtering (optional - can be combined with user_input)
         if csv_vendors and len(csv_vendors) > 0:
             logging.info(f"[CSV_VENDOR_FILTER] Applying CSV vendor filter with {len(csv_vendors)} vendors")
             
@@ -4449,21 +4556,37 @@ def api_analyze():
             
             logging.info(f"[CSV_VENDOR_FILTER] Applied filter for vendors: {csv_vendor_names}")
         
-        # Handle regular analysis (with or without CSV vendor filtering)
-        elif user_input is not None:
-            # Ensure user_input is a dict
-            if isinstance(user_input, str):
+        # Now handle the analysis (user_input is REQUIRED)
+        if user_input is not None:
+            # user_input can be a string or dict - handle both cases
+            # The analysis chain expects the raw input string for LLM processing
+            if isinstance(user_input, dict):
+                # If it's already a dict, extract the raw input or convert to string
+                if "raw_input" in user_input:
+                    user_input_str = user_input["raw_input"]
+                else:
+                    # Convert dict to a formatted string for the LLM
+                    user_input_str = json.dumps(user_input, indent=2)
+            elif isinstance(user_input, str):
+                # Try to parse as JSON first (might be a JSON string)
                 try:
-                    user_input = json.loads(user_input)
+                    parsed = json.loads(user_input)
+                    if isinstance(parsed, dict):
+                        if "raw_input" in parsed:
+                            user_input_str = parsed["raw_input"]
+                        else:
+                            user_input_str = json.dumps(parsed, indent=2)
+                    else:
+                        user_input_str = user_input
                 except json.JSONDecodeError:
-                    # fallback: wrap string into dict
-                    user_input = {"raw_input": user_input}
+                    # It's a plain string - use as is
+                    user_input_str = user_input
+            else:
+                return jsonify({"error": "user_input must be a string or dict"}), 400
 
-            if not isinstance(user_input, dict):
-                return jsonify({"error": "user_input must be a dict or JSON string representing a dict"}), 400
-
-            # Pass user_input to the analysis chain
-            analysis_result = analysis_chain.invoke({"user_input": user_input})
+            # Pass user_input as string to the analysis chain
+            logging.info(f"[ANALYZE] Processing input: {user_input_str[:200]}...")
+            analysis_result = analysis_chain({"user_input": user_input_str})
         
         else:
             return jsonify({"error": "Missing 'user_input' parameter or CSV vendor data"}), 400
@@ -4490,8 +4613,14 @@ def api_analyze():
         return jsonify(camel_case_result)
 
     except Exception as e:
-        logging.error("Analysis failed.", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        error_traceback = traceback.format_exc()
+        logging.error(f"Analysis failed: {str(e)}")
+        logging.error(f"Traceback:\n{error_traceback}")
+        return jsonify({
+            "error": str(e),
+            "details": error_traceback.split('\n')[-3] if error_traceback else None
+        }), 500
 
 
 
@@ -4521,27 +4650,244 @@ def match_user_with_pdf(user_input, pdf_data):
 @app.route("/get_field_description", methods=["POST"])
 @login_required
 def api_get_field_description():
-    if not components:
-        return jsonify({"error": "Backend is not ready. LangChain failed."}), 503
+    """
+    Get field description and value from standards documents using Deep Agent.
+    
+    This endpoint uses the Deep Agent's field extraction functionality to:
+    1. Query relevant standards documents for the field
+    2. Extract specification value and description
+    3. Return standards-based information for UI display
+    
+    Request Body:
+        {
+            "field": "Compliance.hazardousAreaRating.value",
+            "product_type": "Multi-Point Thermocouple"
+        }
+    
+    Response:
+        {
+            "success": true,
+            "description": "ATEX II 1/2 G Ex ia/d per IEC 60079",
+            "field": "hazardousAreaRating",
+            "product_type": "Multi-Point Thermocouple",
+            "source": "instrumentation_safety_standards.docx",
+            "standards_referenced": ["IEC 60079", "ATEX"],
+            "confidence": 0.85
+        }
+    """
     try:
         data = request.get_json(force=True)
-        field = data.get("field", "").strip()
+        field_path = data.get("field", "").strip()
         product_type = data.get("product_type", "general").strip()
 
-        if not field:
-            return jsonify({"error": "Missing 'field' parameter."}), 400
+        if not field_path:
+            return jsonify({"error": "Missing 'field' parameter.", "success": False}), 400
 
-        # Use the new schema description chain with Gemini 2.5 Flash Lite model
-        description_response = components['schema_description_chain'].invoke({
-            "field": field, 
-            "product_type": product_type
-        })
+        # Parse field path (e.g., "Compliance.hazardousAreaRating.value" -> "hazardousAreaRating")
+        field_parts = field_path.split(".")
+        field_name = field_parts[-2] if len(field_parts) >= 2 and field_parts[-1] in ["value", "source", "confidence", "standards_referenced"] else field_parts[-1]
+        section_name = field_parts[0] if len(field_parts) > 1 else "Other"
+        
+        logging.info(f"[FieldDescription] Extracting value for field: {field_name}, product: {product_type}, section: {section_name}")
+        
+        # =====================================================
+        # STRATEGY 1: Direct Default Lookup (FAST PATH)
+        # Uses comprehensive standards specifications from schema_field_extractor
+        # =====================================================
+        try:
+            from agentic.deep_agent.schema_field_extractor import get_default_value_for_field
+            
+            default_value = get_default_value_for_field(product_type, field_name)
+            
+            if default_value:
+                logging.info(f"[FieldDescription] ✓ Found default value for {field_name}: {default_value[:50]}...")
+                return jsonify({
+                    "success": True,
+                    "description": default_value,
+                    "field": field_name,
+                    "field_path": field_path,
+                    "section": section_name,
+                    "product_type": product_type,
+                    "source": "standards_specifications",
+                    "standards_referenced": [],  # Could be enhanced to include IEC/ISO codes
+                    "confidence": 0.9
+                }), 200
+            else:
+                logging.debug(f"[FieldDescription] No default value found for {field_name}")
+                
+        except Exception as default_err:
+            logging.warning(f"[FieldDescription] Default lookup failed: {default_err}")
+        
+        # =====================================================
+        # STRATEGY 2: LLM-based Description (Fallback)
+        # Used when no predefined default exists
+        # =====================================================
+        try:
+            from llm_fallback import create_llm_with_fallback
+            import os
+            
+            llm = create_llm_with_fallback(
+                model="gemini-2.5-flash",
+                temperature=0.3,
+                google_api_key=os.getenv("GOOGLE_API_KEY")
+            )
+            
+            # Create a focused prompt for technical specifications
+            prompt = f"""Provide the typical technical specification value for "{field_name}" 
+for a {product_type} in industrial instrumentation.
 
-        return jsonify({"description": description_response}), 200
+Guidelines:
+- Provide a specific value or range (e.g., "±0.1%", "4-20mA", "IP66")
+- Include relevant standards references (IEC, ISO, NAMUR, etc.) if applicable
+- Keep response under 50 words
+- Focus on the specification VALUE, not a description
+
+Example format: "±0.75% or ±2.5°C (whichever is greater) per IEC 60584"
+"""
+            
+            response = llm.invoke(prompt)
+            description = response.content.strip()
+            
+            if description and description.lower() not in ["not specified", "n/a", "unknown", ""]:
+                logging.info(f"[FieldDescription] ✓ LLM generated value for {field_name}")
+                return jsonify({
+                    "success": True,
+                    "description": description,
+                    "field": field_name,
+                    "field_path": field_path,
+                    "section": section_name,
+                    "product_type": product_type,
+                    "source": "llm_inference",
+                    "standards_referenced": [],
+                    "confidence": 0.7
+                }), 200
+                
+        except Exception as llm_err:
+            logging.warning(f"[FieldDescription] LLM fallback failed: {llm_err}")
+        
+        # =====================================================
+        # STRATEGY 3: Generic Fallback
+        # Last resort when all else fails
+        # =====================================================
+        field_display = field_name.replace("_", " ").replace("-", " ")
+        # Convert camelCase to Title Case
+        import re
+        field_display = re.sub('([a-z])([A-Z])', r'\1 \2', field_display).title()
+        
+        return jsonify({
+            "success": True,
+            "description": f"Specification for {field_display}",
+            "field": field_name,
+            "field_path": field_path,
+            "section": section_name,
+            "product_type": product_type,
+            "source": "generic",
+            "standards_referenced": [],
+            "confidence": 0.3
+        }), 200
 
     except Exception as e:
-        logging.exception("Failed to get field description from LLM.")
-        return jsonify({"error": "Failed to get field description: " + str(e)}), 500
+        logging.exception("Failed to get field description.")
+        return jsonify({
+            "success": False,
+            "error": "Failed to get field description: " + str(e),
+            "description": ""
+        }), 500
+
+@app.route("/get_all_field_descriptions", methods=["POST"])
+@login_required
+def api_get_all_field_descriptions():
+    """
+    Get ALL field descriptions and values for a schema at once (BATCH API).
+    
+    This avoids multiple individual API calls by fetching all values in one request.
+    
+    Request Body:
+        {
+            "product_type": "Thermocouple",
+            "fields": ["Performance.accuracy", "Electrical.outputSignal", ...]
+        }
+    
+    Response:
+        {
+            "success": true,
+            "product_type": "Thermocouple",
+            "field_values": {
+                "Performance.accuracy": {"value": "±0.75%...", "source": "standards"},
+                "Electrical.outputSignal": {"value": "4-20mA...", "source": "standards"},
+                ...
+            },
+            "total_fields": 30,
+            "fields_populated": 28
+        }
+    """
+    try:
+        data = request.get_json(force=True)
+        product_type = data.get("product_type", "general").strip()
+        fields = data.get("fields", [])
+        
+        if not fields:
+            return jsonify({"error": "Missing 'fields' parameter.", "success": False}), 400
+        
+        logging.info(f"[BatchFieldDescription] Processing {len(fields)} fields for {product_type}")
+        
+        # Import the default value lookup function
+        try:
+            from agentic.deep_agent.schema_field_extractor import get_default_value_for_field, extract_standards_from_value
+        except ImportError as e:
+            logging.warning(f"[BatchFieldDescription] Could not import schema_field_extractor: {e}")
+            get_default_value_for_field = None
+            extract_standards_from_value = lambda x: []
+        
+        field_values = {}
+        fields_populated = 0
+        
+        for field_path in fields:
+            # Parse field path
+            field_parts = field_path.split(".")
+            field_name = field_parts[-2] if len(field_parts) >= 2 and field_parts[-1] in ["value", "source", "confidence", "standards_referenced"] else field_parts[-1]
+            
+            # Try to get default value
+            value = None
+            source = "not_found"
+            standards_refs = []
+            
+            if get_default_value_for_field:
+                try:
+                    value = get_default_value_for_field(product_type, field_name)
+                    if value:
+                        source = "standards_specifications"
+                        fields_populated += 1
+                        # Extract standards references from the value
+                        standards_refs = extract_standards_from_value(value) if value else []
+                except Exception as e:
+                    logging.debug(f"[BatchFieldDescription] Lookup failed for {field_name}: {e}")
+            
+            field_values[field_path] = {
+                "value": value or "",
+                "source": source,
+                "field_name": field_name,
+                "confidence": 0.9 if value else 0.0,
+                "standards_referenced": standards_refs
+            }
+        
+        logging.info(f"[BatchFieldDescription] Completed: {fields_populated}/{len(fields)} fields populated")
+        
+        return jsonify({
+            "success": True,
+            "product_type": product_type,
+            "field_values": field_values,
+            "total_fields": len(fields),
+            "fields_populated": fields_populated
+        }), 200
+        
+    except Exception as e:
+        logging.exception("Failed to get batch field descriptions.")
+        return jsonify({
+            "success": False,
+            "error": "Failed to get batch field descriptions: " + str(e),
+            "field_values": {}
+        }), 500
 
 def get_submodel_to_model_series_mapping():
     """
@@ -4742,14 +5088,14 @@ def get_submodel_mapping():
 @app.route("/admin/approve_user", methods=["POST"])
 @login_required
 def approve_user():
-    admin_user = User.query.get(session['user_id'])
+    admin_user = db.session.get(User, session['user_id'])
     if admin_user.role != "admin":
         return jsonify({"error": "Forbidden: Admins only"}), 403
 
     data = request.get_json()
     user_id = data.get("user_id")
     action = data.get("action", "approve")
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
     if action == "approve":
@@ -4765,7 +5111,7 @@ def approve_user():
 @app.route("/admin/pending_users", methods=["GET"])
 @login_required
 def pending_users():
-    admin_user = User.query.get(session['user_id'])
+    admin_user = db.session.get(User, session['user_id'])
     if admin_user.role != "admin":
         return jsonify({"error": "Forbidden: Admins only"}), 403
 
@@ -4911,7 +5257,7 @@ def update_files_with_standardization():
     Update existing vendor files with standardized naming
     """
     try:
-        admin_user = User.query.get(session['user_id'])
+        admin_user = db.session.get(User, session['user_id'])
         if admin_user.role != "admin":
             return jsonify({"error": "Forbidden: Admins only"}), 403
             

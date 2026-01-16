@@ -43,13 +43,14 @@ You are Engenie - a smart assistant that classifies user input for an industrial
 Analyze the user's input and classify it into ONE of these categories:
 
 1. "greeting" - Simple greeting (hi, hello, hey) with NO other content
-2. "requirements" - Technical requirements, specifications, or product requests
-3. "question" - Asking about industrial topics, products, or processes
-4. "additional_specs" - Adding more specifications to existing requirements
-5. "confirm" - User confirms or agrees (yes, proceed, continue)
-6. "reject" - User rejects or disagrees (no, cancel, stop)
-7. "chitchat" - Casual conversation not related to procurement
-8. "unrelated" - Content unrelated to industrial automation
+2. "solution" - Complex engineering challenge/problem requiring MULTIPLE instruments or a complete measurement system
+3. "requirements" - Technical requirements for a SINGLE product type or simple specification
+4. "question" - Asking about industrial topics, products, or processes
+5. "additional_specs" - Adding more specifications to existing requirements
+6. "confirm" - User confirms or agrees (yes, proceed, continue)
+7. "reject" - User rejects or disagrees (no, cancel, stop)
+8. "chitchat" - Casual conversation not related to procurement
+9. "unrelated" - Content unrelated to industrial automation
 
 Current workflow step: {current_step}
 Context: {context}
@@ -57,20 +58,48 @@ Context: {context}
 User Input: "{user_input}"
 
 **Classification Rules (Priority Order):**
-1. If contains technical specs (pressure, temperature, 4-20mA, PSI, etc.) → "requirements"
-2. If asking "what is", "how does", "explain" about industrial topics → "question"
-3. If only greeting words with no other content → "greeting"
-4. If says yes/proceed/continue → "confirm"
-5. If says no/cancel/stop → "reject"
+
+**RULE 1 - SOLUTION Detection (Highest Priority):**
+A "solution" is identified when ANY of these patterns are present:
+- Contains "Problem Statement", "Challenge", "Design a system", "Implement a system"
+- Describes a complete measurement/control SYSTEM with multiple measurement points
+- Mentions multiple LOCATIONS for measurements (inlet, outlet, reactor, tubes, zones)
+- References REDUNDANT sensors or safety-critical systems
+- Contains system integration requirements (DCS, HART, data logging, alarm systems)
+- Specifies measurements for DIFFERENT parameters across a process (temperature AND pressure AND flow)
+- References industrial standards compliance (ASME, Class I Div 2, SIL, ATEX, hazardous area)
+- Total measurement points > 3 or monitoring multiple process stages
+- Describes a complete reactor, vessel, or process unit instrumentation
+
+**EXAMPLES of SOLUTION inputs:**
+- "Design a temperature measurement system for a chemical reactor with hot oil heating..."
+- "Implement temperature profiling for a multi-tube catalytic reactor with 32 measurement points..."
+- "Need complete instrumentation for a distillation column: temperature, pressure, level..."
+- "Safety instrumented system for reactor with redundant sensors and SIL requirements..."
+
+**RULE 2 - REQUIREMENTS Detection:**
+Use "requirements" only for SIMPLE, single-product requests:
+- Single product type specification (e.g., "I need a pressure transmitter 0-100 PSI")
+- Adding specs to an existing product search
+- Does NOT contain system-level architecture or multiple measurement locations
+
+**Other Rules:**
+3. If asking "what is", "how does", "explain" about industrial topics → "question"
+4. If only greeting words with no other content → "greeting"
+5. If says yes/proceed/continue → "confirm"
+6. If says no/cancel/stop → "reject"
 
 Return ONLY valid JSON:
 {{
     "intent": "<intent_type>",
     "confidence": <0.0-1.0>,
     "next_step": "<suggested_next_step or null>",
-    "extracted_info": {{<any extracted information>}}
+    "extracted_info": {{<any extracted information>}},
+    "is_solution": <true if solution detected, false otherwise>,
+    "solution_indicators": ["<list of patterns that triggered solution detection>"]
 }}
 """
+
 
 REQUIREMENTS_EXTRACTION_PROMPT = """
 You are Engenie - an expert assistant for industrial requisitioners and buyers.
@@ -120,7 +149,7 @@ def classify_intent_tool(
     """
     try:
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
@@ -141,8 +170,11 @@ def classify_intent_tool(
             "intent": result.get("intent", "unrelated"),
             "confidence": result.get("confidence", 0.5),
             "next_step": result.get("next_step"),
-            "extracted_info": result.get("extracted_info", {})
+            "extracted_info": result.get("extracted_info", {}),
+            "is_solution": result.get("is_solution", False),
+            "solution_indicators": result.get("solution_indicators", [])
         }
+
 
     except Exception as e:
         logger.error(f"Intent classification failed: {e}")
@@ -163,7 +195,7 @@ def extract_requirements_tool(user_input: str) -> Dict[str, Any]:
     """
     try:
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )

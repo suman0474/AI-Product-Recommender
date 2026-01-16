@@ -1,0 +1,65 @@
+{
+  "source_file": "instrumentation_flow_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "ISO 5167",
+        "type": "ISO"
+      },
+      {
+        "code": "ISO 5167",
+        "type": "ISO"
+      },
+      {
+        "code": "ISO 5167",
+        "type": "ISO"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      }
+    ],
+    "certifications": [
+      {
+        "name": "NEMA 6",
+        "type": "NEMA"
+      }
+    ],
+    "measurement_ranges": [],
+    "accuracy_specs": [
+      "±2 %",
+      "0.25 %",
+      "±2 %",
+      "±2 %",
+      "0.25 %",
+      "±2 %",
+      "100 %"
+    ],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [
+      "HART"
+    ],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Flow Measurement Instrumentation Standards\nIntroduction\nAccurate flow measurement underpins material balance, control and custody transfer in a refinery. The following standards integrate guidance from API 551 and ISO 5167 and synthesise detailed requirements for magnetic, propeller and differential pressure flowmeters from industry specifications【51948133245220†L2055-L2194】.\nApplicable Standards\nAPI 551 – Process Measurement Instrumentation: flow measurement instruments.\nISO 5167 – Measurement of Fluid Flow by Means of Differential Pressure Devices.\nASME MFC‑3M / AGA 9 – Mass Flowmeter Standards.\nISA 5.1 and ISA 20 for symbols and data sheets.\nMIL‑STD‑45662A: calibration system requirements.\nEquipment Types\nMagnetic flowmeters: low‑frequency electromagnetic meters producing 4–20 mA output; include metering tube, signal cable, transmitter and grounding rings【51948133245220†L2055-L2097】.\nPropeller and turbine flowmeters: used for water and low‑viscosity services; accuracy ±2 % of rate【5"
+  },
+  "text_length": 6010,
+  "paragraphs": 49
+}

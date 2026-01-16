@@ -1,0 +1,85 @@
+Product Type,Standard Code,Standard Type,Category,Source Document
+Accessories & Calibration,API 551,API,Measurement Instrumentation,instrumentation_accessories_calibration_standards.docx
+Accessories & Calibration,ISO 6954,ISO,Calibration,instrumentation_accessories_calibration_standards.docx
+Accessories & Calibration,ISA 20,ISA,Data Sheets,instrumentation_accessories_calibration_standards.docx
+Accessories & Calibration,ASME B40,ASME,Pressure Gauges,instrumentation_accessories_calibration_standards.docx
+Accessories & Calibration,IEC 61036,IEC,Electrical Instruments,instrumentation_accessories_calibration_standards.docx
+Analytical Instrumentation,API 551,API,Measurement Instrumentation,instrumentation_analytical_standards.docx
+Analytical Instrumentation,API 554,API,Instrumentation - Furnaces,instrumentation_analytical_standards.docx
+Analytical Instrumentation,API 559,API,Control Systems,instrumentation_analytical_standards.docx
+Analytical Instrumentation,ISA 5.1,ISA,Symbols and Identification,instrumentation_analytical_standards.docx
+Analytical Instrumentation,ISA 20,ISA,Data Sheets,instrumentation_analytical_standards.docx
+Analytical Instrumentation,ASME PTC 19.1,ASME,Performance Testing,instrumentation_analytical_standards.docx
+Calibration & Maintenance,API 551,API,Measurement Instrumentation,instrumentation_calibration_maintenance_standards.docx
+Calibration & Maintenance,ISA 20,ISA,Data Sheets,instrumentation_calibration_maintenance_standards.docx
+Calibration & Maintenance,ASME PTC 19.3,ASME,Thermowell Design,instrumentation_calibration_maintenance_standards.docx
+Communication & Signals,API 551,API,Measurement Instrumentation,instrumentation_comm_signal_standards.docx
+Communication & Signals,ISA 5.1,ISA,Symbols and Identification,instrumentation_comm_signal_standards.docx
+Communication & Signals,ISA 20,ISA,Data Sheets,instrumentation_comm_signal_standards.docx
+Communication & Signals,HART Protocol,HART,Communication Protocol,instrumentation_comm_signal_standards.docx
+Communication & Signals,Profibus,PROFIBUS,Communication Protocol,instrumentation_comm_signal_standards.docx
+Communication & Signals,Foundation Fieldbus,FF,Communication Protocol,instrumentation_comm_signal_standards.docx
+Communication & Signals,IEC 61131,IEC,Programmable Controllers,instrumentation_comm_signal_standards.docx
+Condition Monitoring,ISO 13373,ISO,Condition Monitoring,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,ISO 10816,ISO,Vibration Severity,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,API 551,API,Measurement Instrumentation,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,ISA 5.1,ISA,Symbols and Identification,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,ISA 20,ISA,Data Sheets,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,ASME PTC 19.3,ASME,Thermowell Design,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,IEC 61508,IEC,Functional Safety,instrumentation_condition_monitoring_standards.docx
+Condition Monitoring,NFPA 79,NFPA,Electrical Standards Safety,instrumentation_condition_monitoring_standards.docx
+Control Systems,IEC 61131,IEC,Programmable Controllers,instrumentation_control_systems_standards.docx
+Control Systems,IEC 61508,IEC,Functional Safety,instrumentation_control_systems_standards.docx
+Control Systems,IEC 61511,IEC,SIL Requirements,instrumentation_control_systems_standards.docx
+Control Systems,IEC 61512,IEC,Batch Control,instrumentation_control_systems_standards.docx
+Control Systems,API 559,API,Control Systems,instrumentation_control_systems_standards.docx
+Control Systems,ISA 84,ISA,Safety Systems,instrumentation_control_systems_standards.docx
+Control Systems,ISA 5.1,ISA,Symbols and Identification,instrumentation_control_systems_standards.docx
+Control Systems,ISA 20,ISA,Data Sheets,instrumentation_control_systems_standards.docx
+Control Systems,ASME B31.8,ASME,Gas Pipeline Systems,instrumentation_control_systems_standards.docx
+Control Systems,NFPA 79,NFPA,Electrical Standards Safety,instrumentation_control_systems_standards.docx
+Flow Measurement,ISO 5167,ISO,Differential Pressure,instrumentation_flow_standards.docx
+Flow Measurement,API 551,API,Measurement Instrumentation,instrumentation_flow_standards.docx
+Flow Measurement,API 554,API,Instrumentation - Furnaces,instrumentation_flow_standards.docx
+Flow Measurement,ISA 5.1,ISA,Symbols and Identification,instrumentation_flow_standards.docx
+Flow Measurement,ISA 20,ISA,Data Sheets,instrumentation_flow_standards.docx
+Flow Measurement,ASME B40,ASME,Pressure Gauges,instrumentation_flow_standards.docx
+Level Measurement,ISO 13704,ISO,Level Measurement,instrumentation_level_standards.docx
+Level Measurement,API 551,API,Measurement Instrumentation,instrumentation_level_standards.docx
+Level Measurement,API 554,API,Instrumentation - Furnaces,instrumentation_level_standards.docx
+Level Measurement,ISA 5.1,ISA,Symbols and Identification,instrumentation_level_standards.docx
+Level Measurement,ISA 20,ISA,Data Sheets,instrumentation_level_standards.docx
+Level Measurement,ASME B40,ASME,Pressure Gauges,instrumentation_level_standards.docx
+Pressure Measurement,IEC 60770,IEC,Pressure Transducers,instrumentation_pressure_standards.docx
+Pressure Measurement,ISO 5167,ISO,Differential Pressure,instrumentation_pressure_standards.docx
+Pressure Measurement,API 551,API,Measurement Instrumentation,instrumentation_pressure_standards.docx
+Pressure Measurement,API 553,API,Refinery Control Valves,instrumentation_pressure_standards.docx
+Pressure Measurement,ISA 5.1,ISA,Symbols and Identification,instrumentation_pressure_standards.docx
+Pressure Measurement,ISA 20,ISA,Data Sheets,instrumentation_pressure_standards.docx
+Pressure Measurement,ASME B40,ASME,Pressure Gauges,instrumentation_pressure_standards.docx
+Pressure Measurement,ASME B40.100,ASME,Accuracy Requirements,instrumentation_pressure_standards.docx
+Pressure Measurement,ASME PTC 19.3,ASME,Thermowell Design,instrumentation_pressure_standards.docx
+Safety & Protection,IEC 61508,IEC,Functional Safety,instrumentation_safety_standards.docx
+Safety & Protection,IEC 61511,IEC,SIL Requirements,instrumentation_safety_standards.docx
+Safety & Protection,IEC 61131,IEC,Programmable Controllers,instrumentation_safety_standards.docx
+Safety & Protection,API 551,API,Measurement Instrumentation,instrumentation_safety_standards.docx
+Safety & Protection,ISA 84,ISA,Safety Systems,instrumentation_safety_standards.docx
+Safety & Protection,ISA 5.1,ISA,Symbols and Identification,instrumentation_safety_standards.docx
+Safety & Protection,ISA 20,ISA,Data Sheets,instrumentation_safety_standards.docx
+Safety & Protection,NFPA 79,NFPA,Electrical Standards Safety,instrumentation_safety_standards.docx
+Safety & Protection,NFPA 70,NFPA,National Electrical Code,instrumentation_safety_standards.docx
+Temperature Measurement,API 551,API,Measurement Instrumentation,instrumentation_temperature_standards.docx
+Temperature Measurement,ISA 5.1,ISA,Symbols and Identification,instrumentation_temperature_standards.docx
+Temperature Measurement,ISA 20,ISA,Data Sheets,instrumentation_temperature_standards.docx
+Temperature Measurement,ASME PTC 19.3,ASME,Thermowell Design,instrumentation_temperature_standards.docx
+Temperature Measurement,ASTM E1137,ASTM,Industrial Platinum RTDs,instrumentation_temperature_standards.docx
+Valves & Actuators,API 553,API,Refinery Control Valves,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,API 559,API,Control Systems,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,API 560,API,Fired Heaters,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,API 598,API,Valve Inspection,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,ISA 5.1,ISA,Symbols and Identification,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,ISA 20,ISA,Data Sheets,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,IEC 61131,IEC,Programmable Controllers,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,IEC 61508,IEC,Functional Safety,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,ASME B16.5,ASME,Flanges,instrumentation_valves_actuators_standards.docx
+Valves & Actuators,NFPA 79,NFPA,Electrical Standards Safety,instrumentation_valves_actuators_standards.docx

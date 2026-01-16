@@ -19,6 +19,8 @@ _load_pdf_content_runnable_instance = load_pdf_content_runnable()
 load_pdf_content = _load_pdf_content_runnable_instance.func
 from azure_blob_utils import get_available_vendors_from_mongodb, get_vendors_for_product_type
 from dotenv import load_dotenv
+# TODO: Migrate from google.generativeai to google.genai
+# See: https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 import google.generativeai as genai
 
 # Import standardization utilities
@@ -27,14 +29,18 @@ from standardization_utils import standardize_ranking_result
 # Import LLM fallback utilities
 from llm_fallback import FallbackLLMClient
 
+# Import LangChain Runnable base class for compatibility
+from langchain_core.runnables import RunnableLambda
+from langchain_core.prompts import ChatPromptTemplate
+
 
 # Load environment variables
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-class GeminiClient:
-    """Wrapper for Google Generative AI client with OpenAI fallback"""
+class GeminiClient(RunnableLambda):
+    """LangChain-compatible wrapper for Google Generative AI client with OpenAI fallback"""
     def __init__(self, model_name, temperature=0.1, api_key=None, openai_api_key=None):
         self.model_name = model_name
         self.temperature = temperature
@@ -47,13 +53,71 @@ class GeminiClient:
             openai_api_key=openai_api_key
         )
 
-    def invoke(self, prompt):
-        """Invoke the model with a prompt (with automatic fallback)"""
+        # Initialize RunnableLambda with the invoke_impl method
+        super().__init__(self.invoke_impl)
+
+    def invoke_impl(self, input_data, config=None):
+        """Internal invoke implementation (LangChain-compatible)"""
         try:
+            # Handle different input types
+            if isinstance(input_data, dict):
+                # If input is a dict, format it as a prompt
+                prompt = str(input_data)
+            elif isinstance(input_data, ChatPromptTemplate):
+                # If input is a ChatPromptTemplate, format it
+                prompt = input_data.format()
+            else:
+                # Otherwise use as-is
+                prompt = str(input_data)
+
             return self.client.invoke(prompt)
         except Exception as e:
             logging.error(f"Error invoking LLM (both Gemini and OpenAI failed): {e}")
             raise
+
+
+def _normalize_ranking_fields(parsed):
+    """Normalize LLM output field names to match Pydantic RankedProduct model."""
+    # Handle top-level key variations
+    if 'ranked_products' not in parsed and 'rankedProducts' in parsed:
+        parsed['ranked_products'] = parsed.pop('rankedProducts')
+    
+    if 'ranked_products' in parsed:
+        for product in parsed['ranked_products']:
+            # Map common field variations to expected snake_case keys
+            mappings = {
+                'product_name': ['name', 'productName', 'product', 'model', 'modelName'],
+                'overall_score': ['score', 'overallScore', 'matchScore', 'match_score', 'rating'],
+                'requirements_match': ['requirementsMatch', 'matches', 'isMatch', 'matchesRequirements', 'exactMatch'],
+                'key_strengths': ['keyStrengths', 'strengths', 'pros', 'advantages'],
+                'concerns': ['limitations', 'weaknesses', 'cons', 'issues'],
+                'model_family': ['modelFamily', 'family', 'series'],
+                'vendor': ['vendor', 'manufacturer', 'brand'],
+                'rank': ['rank', 'position', 'order']
+            }
+            for target_key, source_keys in mappings.items():
+                if target_key not in product or product.get(target_key) in [None, '', 0, False]:
+                    for source in source_keys:
+                        if source in product and product.get(source) not in [None, '']:
+                            product[target_key] = product[source]
+                            break
+            
+            # Ensure numeric fields are integers
+            if 'overall_score' in product:
+                try:
+                    product['overall_score'] = int(product['overall_score'])
+                except (ValueError, TypeError):
+                    product['overall_score'] = 0
+            
+            # Ensure requirements_match is boolean
+            if 'requirements_match' in product:
+                val = product['requirements_match']
+                if isinstance(val, str):
+                    product['requirements_match'] = val.lower() in ['true', 'yes', '1']
+                elif isinstance(val, (int, float)):
+                    product['requirements_match'] = val >= 80
+    
+    return parsed
 
 
 def parse_json_response(text, pydantic_model=None):
@@ -71,6 +135,19 @@ def parse_json_response(text, pydantic_model=None):
 
         # Parse JSON
         parsed = json.loads(text)
+        
+        # Log raw parsed structure for debugging
+        if pydantic_model and pydantic_model.__name__ == 'OverallRanking':
+            logging.info(f"[RANKING_DEBUG] Parsed JSON keys: {list(parsed.keys())}")
+            if 'ranked_products' in parsed or 'rankedProducts' in parsed:
+                products = parsed.get('ranked_products', parsed.get('rankedProducts', []))
+                if products and len(products) > 0:
+                    logging.info(f"[RANKING_DEBUG] First product keys: {list(products[0].keys())}")
+                    logging.info(f"[RANKING_DEBUG] First product sample: {str(products[0])[:300]}")
+        
+        # Normalize field names for ranking results
+        if pydantic_model and pydantic_model.__name__ == 'OverallRanking':
+            parsed = _normalize_ranking_fields(parsed)
 
         # Validate with Pydantic if model provided
         if pydantic_model:
@@ -111,22 +188,23 @@ def setup_ai_components():
     openai_key = os.getenv("OPENAI_API_KEY")
 
     # Create different models for different purposes with fallback
+    # Multi-tier approach: DEFAULT for standard tasks, PRO for quality-critical tasks, LITE for lightweight tasks
     llm_flash = GeminiClient(
-        model_name="gemini-2.0-flash-exp",
+        model_name="gemini-2.5-flash",
         temperature=0.1,
         api_key=os.getenv("GOOGLE_API_KEY"),
         openai_api_key=openai_key
     )
 
     llm_flash_lite = GeminiClient(
-        model_name="gemini-2.0-flash-exp",
+        model_name="gemini-2.5-flash",
         temperature=0.1,
         api_key=os.getenv("GOOGLE_API_KEY"),
         openai_api_key=openai_key
     )
 
     llm_pro = GeminiClient(
-        model_name="gemini-2.0-flash-exp",
+        model_name="gemini-2.5-pro",
         temperature=0.1,
         api_key=os.getenv("GOOGLE_API_KEY1"),
         openai_api_key=openai_key
@@ -139,6 +217,7 @@ def setup_ai_components():
     additional_requirements_format_instructions = get_format_instructions(RequirementValidation)
 
     return {
+        'llm': llm_flash,  # Alias for backward compatibility with main.py endpoints
         'llm_flash': llm_flash,
         'llm_flash_lite': llm_flash_lite,
         'llm_pro': llm_pro,
@@ -147,6 +226,7 @@ def setup_ai_components():
         'ranking_format_instructions': ranking_format_instructions,
         'additional_requirements_format_instructions': additional_requirements_format_instructions,
     }
+
 
 
 # Maintain backward compatibility
@@ -195,6 +275,10 @@ def invoke_ranking_chain(components, vendor_analysis, format_instructions):
     prompt = get_ranking_prompt(vendor_analysis, format_instructions)
     llm = components['llm_pro']
     response = llm.invoke(prompt)
+    
+    # Debug: Log first part of raw response
+    logging.info(f"[RANKING_DEBUG] Raw response type: {type(response)}, length: {len(str(response))}")
+    logging.info(f"[RANKING_DEBUG] Raw response (first 300 chars): {str(response)[:300]}")
 
     return parse_json_response(response, OverallRanking)
 
@@ -242,13 +326,16 @@ def get_final_ranking(vendor_analysis_dict):
         if not model_family:
             model_family = product_name
 
+        # Compute requirements_match from score if not set (≥80% = exact match)
+        computed_match = product_score >= 80
+        
         # Ensure requirements_match is a boolean
         products.append({
             'product_name': product_name,
             'vendor': product.get('vendor', ''),
             'model_family': model_family,
             'match_score': product_score,
-            'requirements_match': product.get('requirements_match', False),
+            'requirements_match': product.get('requirements_match', computed_match),
             'reasoning': product.get('reasoning', ''),
             'limitations': product.get('limitations', '')
         })
@@ -582,50 +669,78 @@ def create_analysis_chain(components, vendors_base_path=None):
     def run_analysis(input_dict):
         """Run the analysis pipeline"""
         user_input = input_dict.get("user_input", "")
+        
+        try:
+            # Step 1: Generate structured requirements
+            logging.info("[PIPELINE] Step 1: Generating structured requirements")
+            structured_requirements = invoke_requirements_chain(components, user_input)
+            input_dict["structured_requirements"] = structured_requirements
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 1 FAILED: {e}")
+            raise Exception(f"Failed to generate structured requirements: {e}")
 
-        # Step 1: Generate structured requirements
-        logging.info("[PIPELINE] Step 1: Generating structured requirements")
-        structured_requirements = invoke_requirements_chain(components, user_input)
-        input_dict["structured_requirements"] = structured_requirements
+        try:
+            # Step 2: Detect product type
+            logging.info("[PIPELINE] Step 2: Detecting product type")
+            schema = load_requirements_schema()
+            validation_result = invoke_validation_chain(
+                components,
+                user_input,
+                json.dumps(schema, indent=2),
+                components['validation_format_instructions']
+            )
+            input_dict["detected_product_type"] = validation_result.get('product_type', None)
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 2 FAILED: {e}")
+            raise Exception(f"Failed to detect product type: {e}")
 
-        # Step 2: Detect product type
-        logging.info("[PIPELINE] Step 2: Detecting product type")
-        schema = load_requirements_schema()
-        validation_result = invoke_validation_chain(
-            components,
-            user_input,
-            json.dumps(schema, indent=2),
-            components['validation_format_instructions']
-        )
-        input_dict["detected_product_type"] = validation_result.get('product_type', None)
+        try:
+            # Step 3: Load product data
+            logging.info("[PIPELINE] Step 3: Loading product data")
+            input_dict = load_products_data(input_dict)
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 3 FAILED: {e}")
+            raise Exception(f"Failed to load product data: {e}")
 
-        # Step 3: Load product data
-        logging.info("[PIPELINE] Step 3: Loading product data")
-        input_dict = load_products_data(input_dict)
+        try:
+            # Step 4: Load and filter vendors
+            logging.info("[PIPELINE] Step 4: Loading and filtering vendors")
+            input_dict = load_vendors_and_filter(input_dict)
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 4 FAILED: {e}")
+            raise Exception(f"Failed to load and filter vendors: {e}")
 
-        # Step 4: Load and filter vendors
-        logging.info("[PIPELINE] Step 4: Loading and filtering vendors")
-        input_dict = load_vendors_and_filter(input_dict)
+        try:
+            # Step 5: Load filtered PDF content
+            logging.info("[PIPELINE] Step 5: Loading filtered PDF content")
+            input_dict = load_filtered_pdf_content(input_dict)
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 5 FAILED: {e}")
+            raise Exception(f"Failed to load PDF content: {e}")
 
-        # Step 5: Load filtered PDF content
-        logging.info("[PIPELINE] Step 5: Loading filtered PDF content")
-        input_dict = load_filtered_pdf_content(input_dict)
+        try:
+            # Step 6: Run parallel vendor analysis
+            logging.info("[PIPELINE] Step 6: Running parallel vendor analysis")
+            input_dict["vendor_analysis"] = _run_parallel_vendor_analysis(
+                structured_requirements=input_dict.get("structured_requirements"),
+                products_json_str=input_dict.get("products_json"),
+                pdf_content_json_str=input_dict.get("pdf_content_json"),
+                components=components,
+                format_instructions=components['vendor_format_instructions']
+            )
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 6 FAILED: {e}")
+            raise Exception(f"Failed to run vendor analysis: {e}")
 
-        # Step 6: Run parallel vendor analysis
-        logging.info("[PIPELINE] Step 6: Running parallel vendor analysis")
-        input_dict["vendor_analysis"] = _run_parallel_vendor_analysis(
-            structured_requirements=input_dict.get("structured_requirements"),
-            products_json_str=input_dict.get("products_json"),
-            pdf_content_json_str=input_dict.get("pdf_content_json"),
-            components=components,
-            format_instructions=components['vendor_format_instructions']
-        )
-
-        # Step 7: Generate final ranking
-        logging.info("[PIPELINE] Step 7: Generating final ranking")
-        input_dict["overall_ranking"] = get_final_ranking(
-            to_dict_if_pydantic(input_dict.get("vendor_analysis", {}))
-        )
+        try:
+            # Step 7: Generate final ranking
+            logging.info("[PIPELINE] Step 7: Generating final ranking")
+            input_dict["overall_ranking"] = get_final_ranking(
+                to_dict_if_pydantic(input_dict.get("vendor_analysis", {}))
+            )
+        except Exception as e:
+            logging.error(f"[PIPELINE] Step 7 FAILED: {e}")
+            raise Exception(f"Failed to generate final ranking: {e}")
 
         return input_dict
 

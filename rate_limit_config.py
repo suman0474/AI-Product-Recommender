@@ -38,7 +38,7 @@ class RateLimitConfig:
     STORAGE_URI = REDIS_URL if USE_REDIS else 'memory://'
 
     # Rate Limit Strategy
-    STRATEGY = 'fixed-window-elastic-expiry'  # Options: fixed-window, moving-window, fixed-window-elastic-expiry
+    STRATEGY = 'fixed-window'  # Options: fixed-window, moving-window
 
     # Default Rate Limits (per minute unless specified)
     DEFAULT_LIMITS = ["200 per minute", "3000 per hour", "10000 per day"]
@@ -153,6 +153,7 @@ def is_exempt() -> bool:
 def create_limiter(app: Flask) -> Limiter:
     """
     Create and configure Flask-Limiter instance.
+    Automatically falls back to in-memory storage if Redis is unavailable.
 
     Args:
         app: Flask application instance
@@ -160,11 +161,25 @@ def create_limiter(app: Flask) -> Limiter:
     Returns:
         Limiter: Configured limiter instance
     """
+    storage_uri = RateLimitConfig.STORAGE_URI
+    
+    # Test Redis connection if configured, fallback to memory if unavailable
+    if RateLimitConfig.USE_REDIS and 'redis' in storage_uri:
+        try:
+            import redis
+            # Quick connection test with 1 second timeout
+            r = redis.from_url(RateLimitConfig.REDIS_URL, socket_timeout=1, socket_connect_timeout=1)
+            r.ping()
+            logger.info(f"[RATE_LIMIT] Redis connection successful")
+        except Exception as e:
+            logger.warning(f"[RATE_LIMIT] Redis unavailable ({e}), falling back to memory storage")
+            storage_uri = 'memory://'
+    
     limiter = Limiter(
         app=app,
         key_func=get_user_identifier,
         default_limits=RateLimitConfig.DEFAULT_LIMITS,
-        storage_uri=RateLimitConfig.STORAGE_URI,
+        storage_uri=storage_uri,
         storage_options={
             'socket_connect_timeout': 2,
             'socket_timeout': 2
@@ -175,7 +190,7 @@ def create_limiter(app: Flask) -> Limiter:
         enabled=RateLimitConfig.ENABLED
     )
 
-    logger.info(f"Rate limiter initialized with storage: {RateLimitConfig.STORAGE_URI}")
+    logger.info(f"Rate limiter initialized with storage: {storage_uri}")
     logger.info(f"Rate limiting enabled: {RateLimitConfig.ENABLED}")
 
     return limiter

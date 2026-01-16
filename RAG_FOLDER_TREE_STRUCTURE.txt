@@ -1,0 +1,338 @@
+RAG SYSTEMS CONSOLIDATED FOLDER STRUCTURE - VISUAL TREE
+================================================================================
+
+agentic/
+│
+├── README.md                                    [Overview of RAG systems]
+├── __init__.py                                  [Package exports]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  CORE: VECTOR STORE INFRASTRUCTURE      ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── vector_store/
+│   ├── __init__.py                              [Exports: get_vector_store(), BaseDocumentStore]
+│   ├── base.py                                  [BaseDocumentStore interface]
+│   ├── pinecone_store.py                        [PineconeDocumentStore implementation]
+│   ├── chromadb_store.py                        [ChromaDB HTTP wrapper]
+│   ├── chromadb_http_client.py                  [Direct ChromaDB REST API client]
+│   ├── embedding.py                             [Google embedding-001 wrapper]
+│   ├── chunking.py                              [1000 chars, 200 overlap]
+│   ├── namespaces.py                            [Collection constants]
+│   ├── singleton.py                             [Singleton pattern: get_vector_store()]
+│   └── exceptions.py                            [VectorStoreError, DocumentNotFoundError, etc.]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  RAG #1: STANDARDS SYSTEM                ┃
+│  ┃  (Engineering Standards: IEC, ISO, API, ATEX, SIL)
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── standards_rag/
+│   ├── __init__.py                              [Exports workflow, state, agent]
+│   ├── workflow.py                              [StandardsRAGState + graph]
+│   ├── nodes.py                                 [validate → retrieve → generate → validate → retry]
+│   ├── chat_agent.py                            [StandardsChatAgent (singleton)]
+│   ├── response_validator.py                    [Validates relevance, accuracy, hallucination]
+│   ├── enrichment.py                            [Parallel enrichment with ThreadPoolExecutor]
+│   ├── config.py                                [top_k, score_threshold, max_retries]
+│   ├── prompts.py                               [System & validation prompts]
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_workflow.py
+│       ├── test_chat_agent.py
+│       ├── test_enrichment.py
+│       └── test_response_validation.py
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  RAG #2: STRATEGY SYSTEM                 ┃
+│  ┃  (Vendor Procurement Rules)              ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── strategy_rag/
+│   ├── __init__.py                              [Exports workflow, state, filter]
+│   ├── workflow.py                              [StrategyRAGState + graph]
+│   ├── nodes.py                                 [classify → retrieve → apply_rules → generate]
+│   ├── csv_filter.py                            [StrategyCSVFilter (CSV-based)]
+│   ├── chat_agent.py                            [StrategyChatAgent]
+│   ├── enrichment.py                            [Vendor strategy enrichment]
+│   ├── document_ingestion.py                    [Extract vendor refs & policies]
+│   ├── config.py                                [Vendor rules, procurement priorities]
+│   ├── prompts.py                               [Strategy-specific prompts]
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_workflow.py
+│       ├── test_csv_filter.py
+│       ├── test_enrichment.py
+│       └── test_document_ingestion.py
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  RAG #3: INDEX SYSTEM                    ┃
+│  ┃  (Product Discovery with Dual Filtering) ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── index_rag/
+│   ├── __init__.py                              [Exports workflow, state, filters]
+│   ├── workflow.py                              [IndexRAGState + graph]
+│   ├── nodes.py                                 [intent → extract → filter1 → vector → filter2 → rank]
+│   ├── intent_classifier.py                     [Intent classification logic]
+│   ├── filters/
+│   │   ├── __init__.py
+│   │   ├── metadata_filter.py                   [Layer 1: Pre-retrieval filtering]
+│   │   │                                        [Extract product types & vendors]
+│   │   └── specs_filter.py                      [Layer 2: Post-retrieval filtering]
+│   │                                            [Apply standards & strategy constraints]
+│   ├── indexers/
+│   │   ├── __init__.py
+│   │   ├── parallel_indexer.py                  [Concurrent DB + Web search]
+│   │   ├── database_indexer.py                  [Azure Blob product queries]
+│   │   └── web_search_indexer.py                [Web search fallback]
+│   ├── config.py                                [Parallel workers, timeouts, thresholds]
+│   ├── prompts.py                               [Intent & extraction prompts]
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_workflow.py
+│       ├── test_intent_classifier.py
+│       ├── test_metadata_filter.py
+│       ├── test_specs_filter.py
+│       └── test_parallel_indexer.py
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  SHARED: RAG AGGREGATOR & FILTERS       ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── rag_aggregator/
+│   ├── __init__.py                              [Exports aggregator, filter, context]
+│   ├── aggregator.py                            [RAGAggregator class]
+│   │                                            [query_strategy_rag(), query_standards_rag()]
+│   │                                            [query_inventory_rag(), query_all_parallel()]
+│   │                                            [merge_to_constraint_context()]
+│   ├── strategy_filter.py                       [StrategyFilter class]
+│   │                                            [apply_strategy_rules(), apply_installed_base_rules()]
+│   │                                            [apply_standards_rules(), apply_all_rules()]
+│   ├── constraint_context.py                    [ConstraintContext model]
+│   └── config.py                                [Aggregator settings]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  TOOLS: RAG OPERATIONS (LangChain)       ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── tools/
+│   ├── __init__.py                              [Exports all tools]
+│   ├── rag_tools.py                             [CRUD: Add/Search/List/Delete documents]
+│   ├── standards_enrichment_tool.py             [Extract SIL, ATEX, certifications]
+│   ├── strategy_document_ingestion.py           [Vendor ref & policy extraction]
+│   ├── parallel_indexer.py                      [Parallel DB + Web indexing]
+│   ├── metadata_filter.py                       [Product type & vendor extraction]
+│   ├── specs_filter.py                          [Standards & strategy constraint application]
+│   ├── search_tools.py                          [Generic search operations]
+│   ├── schema_tools.py                          [Schema-related queries]
+│   ├── intent_tools.py                          [Intent classification]
+│   ├── ranking_tools.py                         [Result ranking & scoring]
+│   ├── analysis_tools.py                        [Analysis & validation]
+│   └── vendor_tools.py                          [Vendor-specific tools (optional)]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  SUPPORTING WORKFLOWS (Using RAGs)       ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── workflows/
+│   ├── __init__.py                              [Exports all workflows]
+│   ├── instrument_identifier.py                 [Identify instruments + Standards enrichment]
+│   ├── solution.py                              [Analyze solutions + Standards enrichment]
+│   ├── grounded_chat.py                         [RAG-grounded Q&A + citations]
+│   ├── engenie_chatbot.py                       [Azure Blob + Web search + Standards]
+│   ├── potential_product_index.py               [Product discovery + filtering]
+│   ├── common_nodes.py                          [Shared patterns: intent, extraction, vendor search, ranking]
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_instrument_identifier.py
+│       ├── test_solution.py
+│       ├── test_grounded_chat.py
+│       ├── test_engenie_chatbot.py
+│       └── test_potential_product_index.py
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  STATE & CONFIGURATION                   ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── models.py                                    [All TypedDict states]
+│                                                [StandardsRAGState, StrategyRAGState, IndexRAGState]
+│                                                [GroundedChatState, EnGenieState, SolutionState, etc.]
+│
+├── config.py                                    [Global + RAG-specific configuration]
+│
+├── prompts.py                                   [Shared prompts across all RAGs]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  API & ORCHESTRATION                     ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── api.py                                       [Flask API endpoints (/api/agentic/*)]
+│
+├── api_streaming.py                             [Streaming endpoints]
+│
+├── internal_api.py                              [Internal API client for orchestration]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  CHECKPOINTING & UTILITIES               ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+├── checkpointing.py                             [Workflow state persistence]
+│
+├── streaming_utils.py                           [Streaming utilities]
+│
+├── thread_manager.py                            [Thread pool management]
+│
+├── exceptions.py                                [RAG-specific exceptions]
+│
+├── common_utils.py                              [Shared utility functions]
+│
+├── ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+│  ┃  TESTING INFRASTRUCTURE                  ┃
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+│
+└── tests/
+    ├── __init__.py
+    │
+    ├── integration/                             [End-to-end RAG tests]
+    │   ├── __init__.py
+    │   ├── test_standards_rag_workflow.py
+    │   ├── test_strategy_rag_workflow.py
+    │   ├── test_index_rag_workflow.py
+    │   ├── test_rag_aggregator.py
+    │   └── test_end_to_end.py
+    │
+    ├── unit/                                    [Unit tests for components]
+    │   ├── __init__.py
+    │   ├── test_vector_store.py
+    │   ├── test_embeddings.py
+    │   ├── test_chunking.py
+    │   ├── test_tools.py
+    │   └── test_filters.py
+    │
+    └── fixtures/                                [Test data & mocks]
+        ├── __init__.py
+        ├── sample_documents.py
+        ├── mock_responses.py
+        └── test_data/
+            ├── standards_docs/
+            │   └── sample.txt
+            ├── strategy_docs/
+            │   └── sample.csv
+            └── test_queries.json
+
+
+================================================================================
+SUMMARY STATISTICS
+================================================================================
+
+Vector Store:          9 files
+Standards RAG:         8 files
+Strategy RAG:          9 files
+Index RAG:             14 files
+RAG Aggregator:        5 files
+Tools:                 13 files
+Workflows:             7 files (+ tests)
+State & Config:        3 files
+API & Orchestration:   3 files
+Testing:               19 files
+Utilities:             5 files
+
+TOTAL FILES:           ~85-100 files (including __init__, tests, fixtures)
+
+================================================================================
+COLLECTIONS & STORAGE MAPPING
+================================================================================
+
+Pinecone Vector Store:
+├── standards_documents      ← Standards RAG queries
+├── strategy_documents       ← Strategy RAG queries
+├── inventory_documents      ← Inventory RAG queries
+└── general_documents        ← General knowledge
+
+MongoDB (Optional):
+└── Checkpointing / Session storage
+
+Azure Blob (Optional):
+└── Vendor catalogs & schema files
+
+================================================================================
+IMPORT PATTERN (AFTER MIGRATION)
+================================================================================
+
+FROM:
+from agentic.standards_rag_workflow import StandardsRAGState
+from agentic.rag_components import RAGAggregator
+from tools.rag_tools import AddDocumentTool
+
+TO:
+from agentic.standards_rag.workflow import StandardsRAGState
+from agentic.rag_aggregator.aggregator import RAGAggregator
+from agentic.tools.rag_tools import AddDocumentTool
+
+================================================================================
+EXECUTION FLOW
+================================================================================
+
+User Query
+    ↓
+[Flask API endpoint] (/api/agentic/*)
+    ↓
+[Route to appropriate workflow]
+    ├── Standards Q? → [standards_rag/workflow.py]
+    ├── Strategy Q? → [strategy_rag/workflow.py]
+    ├── Product Discovery? → [index_rag/workflow.py]
+    └── General Chat? → [workflows/engenie_chatbot.py]
+    ↓
+[RAG Aggregator] (if needed)
+    ├→ [standards_rag] → Standards context
+    ├→ [strategy_rag]  → Strategy context
+    └→ [inventory]     → Inventory context
+    ↓
+[Apply Filters]
+    ├→ [index_rag/filters/metadata_filter.py]    (Layer 1)
+    └→ [index_rag/filters/specs_filter.py]       (Layer 2)
+    ↓
+[Validate & Retry]
+    ├→ Standards: Response validation
+    ├→ Strategy: Rule application
+    └→ Index: Result ranking
+    ↓
+[Return to User]
+
+================================================================================
+KEY DEPENDENCIES
+================================================================================
+
+vector_store/ (NO internal RAG deps)
+    ↓
+[depends on: langchain, pinecone, chromadb, google-genai]
+
+rag_aggregator/ (depends on vector_store)
+    ↓
+standards_rag/ ┐
+strategy_rag/  ├─→ (depend on vector_store + rag_aggregator)
+index_rag/     ┘
+
+tools/ (depend on vector_store)
+    ↓
+workflows/ (depend on all RAGs + tools)
+    ↓
+api.py, api_streaming.py (depend on workflows + RAGs)
+
+================================================================================
+MIGRATION ORDER
+================================================================================
+
+1. ✅ vector_store/       (no dependencies)
+2. ✅ rag_aggregator/     (depends on vector_store)
+3. ✅ standards_rag/      (depends on rag_aggregator)
+4. ✅ strategy_rag/       (depends on rag_aggregator)
+5. ✅ index_rag/          (depends on vector_store)
+6. ✅ tools/              (depends on vector_store)
+7. ✅ workflows/          (depends on all RAGs)
+8. ✅ models.py, config.py (update if needed)
+9. ✅ api.py, api_streaming.py (update imports)
+10. ✅ tests/             (create test suite)
+
+================================================================================

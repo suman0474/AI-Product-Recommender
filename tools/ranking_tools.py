@@ -189,7 +189,7 @@ def rank_products_tool(
             }
 
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
@@ -233,7 +233,7 @@ def judge_analysis_tool(
     """
     try:
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )

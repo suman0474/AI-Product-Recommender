@@ -6,7 +6,8 @@ Provides helper functions for SSE (Server-Sent Events) streaming
 import json
 import queue
 import threading
-from typing import Callable, Dict, Any, Optional
+from functools import wraps
+from typing import Callable, Dict, Any, Optional, List
 from datetime import datetime
 from flask import Response, stream_with_context
 import logging
@@ -277,3 +278,118 @@ def emit_complete(emitter: ProgressEmitter, result: Any = None):
         100,
         data=result
     )
+
+
+# ============================================================================
+# STREAMING DECORATOR
+# ============================================================================
+
+class ProgressStep:
+    """Represents a single progress step in a workflow"""
+
+    def __init__(self, step_id: str, message: str, progress: int, data: Any = None):
+        """
+        Initialize a progress step.
+
+        Args:
+            step_id: Unique identifier for this step (e.g., 'initialize', 'search_vendors')
+            message: Human-readable message (e.g., 'Searching vendor database...')
+            progress: Progress percentage (0-100)
+            data: Optional additional data to include in the event
+        """
+        self.step_id = step_id
+        self.message = message
+        self.progress = progress
+        self.data = data
+
+
+def with_streaming(
+    progress_steps: List[ProgressStep],
+    workflow_name: str = "workflow",
+    extract_result_metadata: Callable[[Dict[str, Any]], Dict[str, Any]] = None
+):
+    """
+    Decorator to add streaming progress updates to any workflow function.
+
+    This decorator eliminates code duplication by:
+    - Automatically creating ProgressEmitter
+    - Emitting progress steps at the right time
+    - Handling success/error cases
+    - Wrapping exceptions with proper error emission
+
+    Usage:
+        @with_streaming(
+            progress_steps=[
+                ProgressStep('initialize', 'Starting workflow...', 10),
+                ProgressStep('process', 'Processing data...', 50),
+                ProgressStep('finalize', 'Finalizing results...', 90)
+            ],
+            workflow_name="solution",
+            extract_result_metadata=lambda r: {'product_count': len(r.get('ranked_results', []))}
+        )
+        def run_solution_workflow(user_input, session_id, progress_callback=None):
+            # Original workflow code - decorator handles all streaming
+            return result
+
+    Args:
+        progress_steps: List of ProgressStep objects defining the workflow stages
+        workflow_name: Name of the workflow for logging
+        extract_result_metadata: Optional function to extract metadata from result
+                                for the completion event
+
+    Returns:
+        Decorated function with streaming support
+    """
+    def decorator(workflow_func: Callable):
+        @wraps(workflow_func)
+        def wrapper(*args, progress_callback: Optional[Callable] = None, **kwargs):
+            # Create emitter
+            emitter = ProgressEmitter(progress_callback)
+
+            # Emit initial progress steps (everything except the last one)
+            # The last step will be emitted after workflow completion
+            for step in progress_steps[:-1]:
+                emitter.emit(step.step_id, step.message, step.progress, step.data)
+
+            try:
+                # Execute the actual workflow
+                logger.info(f"[{workflow_name.upper()}-STREAM] Starting workflow")
+                result = workflow_func(*args, **kwargs)
+
+                # Check if result indicates success
+                is_success = result.get("success", True) if isinstance(result, dict) else True
+
+                if is_success:
+                    # Extract metadata for completion event
+                    completion_data = None
+                    if extract_result_metadata and isinstance(result, dict):
+                        try:
+                            completion_data = extract_result_metadata(result)
+                        except Exception as e:
+                            logger.warning(f"[{workflow_name.upper()}-STREAM] Failed to extract metadata: {e}")
+
+                    # Emit final progress step (completion)
+                    final_step = progress_steps[-1]
+                    emitter.emit(
+                        final_step.step_id,
+                        final_step.message,
+                        final_step.progress,
+                        completion_data or final_step.data
+                    )
+                else:
+                    # Workflow returned error
+                    error_message = result.get('error', 'Unknown error') if isinstance(result, dict) else 'Workflow failed'
+                    emitter.error(error_message)
+
+                return result
+
+            except Exception as e:
+                logger.error(f"[{workflow_name.upper()}-STREAM] Failed: {e}", exc_info=True)
+                emitter.error(f'{workflow_name} failed: {str(e)}')
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+
+        return wrapper
+    return decorator

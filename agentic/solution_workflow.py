@@ -1,887 +1,921 @@
 # agentic/solution_workflow.py
-# Solution-Based Workflow for Design Requests
+# =============================================================================
+# SOLUTION WORKFLOW - Instrument Identification for Solutions
+# =============================================================================
+#
+# PURPOSE: Analyze solution descriptions and identify instruments/accessories.
+# User describes a solution → Identify instruments/accessories → Generate 
+# sample_input for each → User selects → Product Search Workflow
+#
+# This workflow works SIMILARLY to instrument_identifier_workflow.py but
+# focuses on high-level solution descriptions rather than direct requirements.
+#
+# FLOW:
+#   User: "I'm designing a crude oil distillation unit..."
+#   ↓
+#   1. Analyze Solution Context (extract domain, process, industry)
+#   2. Identify Instruments & Accessories (with sample_input for each)
+#   3. Format Selection List (await user selection)
+#   ↓
+#   User selects item → sample_input → Product Search Workflow
+#
+# =============================================================================
 
 import json
 import logging
-from typing import Dict, Any, List, Literal, Optional, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Any, List, Optional, Callable
 from langgraph.graph import StateGraph, END
 
 from .models import (
     SolutionState,
-    create_solution_state,
-    WorkflowStep
+    create_solution_state
 )
-from .rag_components import RAGAggregator, StrategyFilter, create_rag_aggregator, create_strategy_filter
 from .checkpointing import compile_with_checkpointing
 
-from tools.intent_tools import classify_intent_tool, extract_requirements_tool
-from tools.schema_tools import load_schema_tool, validate_requirements_tool, get_missing_fields_tool
-from tools.vendor_tools import search_vendors_tool
-from tools.analysis_tools import analyze_vendor_match_tool
-from tools.ranking_tools import judge_analysis_tool, rank_products_tool
-from tools.search_tools import search_product_images_tool, search_pdf_datasheets_tool
+from tools.intent_tools import classify_intent_tool
+from tools.instrument_tools import identify_instruments_tool, identify_accessories_tool
 
-# Import synchronization utilities
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.workflow_sync import (
-    with_workflow_lock,
-    with_state_transaction,
-    ThreadSafeResultCollector
+# Standards RAG enrichment for grounded identification
+from .standards_rag.standards_rag_enrichment import (
+    enrich_identified_items_with_standards,
+    validate_items_against_domain_standards
 )
 
+import os
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
+from llm_fallback import create_llm_with_fallback
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from llm_fallback import create_llm_with_fallback
+
+# Import lock utilities
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.workflow_sync import with_workflow_lock
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-# ============================================================================
+# =============================================================================
 # PROMPTS
-# ============================================================================
+# =============================================================================
 
-SUMMARY_AGENT_PROMPT = """
-You are Engenie's Summary Agent. Summarize the vendor analysis results.
+SOLUTION_ANALYSIS_PROMPT = """
+You are Engenie's Solution Analyzer. Analyze the user's solution description and extract:
+1. Industry domain (Oil & Gas, Chemical, Pharma, etc.)
+2. Process type (Distillation, Refining, Manufacturing, etc.)
+3. Key operational parameters (temperature, pressure, flow rates, etc.)
+4. Safety requirements (SIL levels, hazardous areas, etc.)
+5. Environmental conditions
 
-Vendor Analysis Results:
-{analysis_results}
-
-Create a concise summary that:
-1. Highlights top performing vendors
-2. Identifies key differentiators
-3. Notes any concerns or limitations
-4. Provides recommendation rationale
+User's Solution Description:
+{solution_description}
 
 Return ONLY valid JSON:
 {{
-    "top_vendors": ["<top 3 vendors>"],
-    "key_differentiators": ["<main differences>"],
-    "concerns": ["<notable concerns>"],
-    "summary": "<executive summary in 2-3 sentences>"
+    "solution_name": "<descriptive name for the solution>",
+    "industry": "<industry domain>",
+    "process_type": "<type of process>",
+    "key_parameters": {{
+        "temperature_range": "<if mentioned>",
+        "pressure_range": "<if mentioned>",
+        "flow_rates": "<if mentioned>",
+        "materials": ["<materials handled>"]
+    }},
+    "safety_requirements": {{
+        "sil_level": "<SIL level if mentioned>",
+        "atex_zone": "<ATEX zone if mentioned>",
+        "hazardous_area": <true/false>
+    }},
+    "environmental": {{
+        "location": "<indoor/outdoor>",
+        "conditions": "<special conditions>"
+    }},
+    "context_for_instruments": "<summary context to help identify instruments>"
+}}
+"""
+
+SOLUTION_INSTRUMENT_LIST_PROMPT = """
+You are Engenie's Solution Instrument Presenter. Format the identified instruments and 
+accessories for user selection, specifically tailored for the solution context.
+
+Solution Analysis:
+{solution_analysis}
+
+Identified Instruments:
+{instruments}
+
+Identified Accessories:
+{accessories}
+
+Create a numbered list for user selection. Each item should have:
+- number: Sequential number (1, 2, 3, ...)
+- type: "instrument" or "accessory"
+- name: Product name
+- category: Product category  
+- quantity: How many needed
+- purpose: Why this is needed for the solution
+- key_specs: Brief specification summary based on solution requirements
+
+Return ONLY valid JSON:
+{{
+    "formatted_list": [
+        {{
+            "number": 1,
+            "type": "instrument" | "accessory",
+            "name": "<product name>",
+            "category": "<category>",
+            "quantity": <quantity>,
+            "purpose": "<why needed for this solution>",
+            "key_specs": "<specs derived from solution context>"
+        }}
+    ],
+    "total_items": <count>,
+    "solution_summary": "<brief summary of the solution and its instrument needs>"
 }}
 """
 
 
-# ============================================================================
+# =============================================================================
 # WORKFLOW NODES
-# ============================================================================
+# =============================================================================
 
-def classify_intent_node(state: SolutionState) -> SolutionState:
+def analyze_solution_node(state: SolutionState) -> SolutionState:
     """
-    Agent 1: Intent Classification + Comparison Detection.
-    Determines the type of user request and detects comparison mode.
+    Node 1: Analyze Solution Context.
+    Extracts domain, process type, parameters, and safety requirements
+    from the user's solution description.
     """
-    logger.info("[SOLUTION] Node 1: Classifying intent and detecting comparison mode...")
+    logger.info("[SOLUTION] Node 1: Analyzing solution context...")
 
     try:
-        # Step 1: Classify general intent
-        result = classify_intent_tool.invoke({
-            "user_input": state["user_input"],
-            "context": None
+        llm = create_llm_with_fallback(
+            model="gemini-2.5-flash",
+            temperature=0.1,
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+
+        prompt = ChatPromptTemplate.from_template(SOLUTION_ANALYSIS_PROMPT)
+        parser = JsonOutputParser()
+        chain = prompt | llm | parser
+
+        result = chain.invoke({
+            "solution_description": state["user_input"]
         })
 
-        if result.get("success"):
-            state["intent"] = result.get("intent", "requirements")
-            state["intent_confidence"] = result.get("confidence", 0.0)
+        # Store solution analysis
+        state["solution_analysis"] = result
+        state["solution_name"] = result.get("solution_name", "Industrial Solution")
+
+        # Extract key context for instrument identification
+        context = result.get("context_for_instruments", state["user_input"])
+        state["instrument_context"] = context
+
+        # Extract safety requirements
+        safety = result.get("safety_requirements", {})
+        if safety.get("sil_level"):
+            state["provided_requirements"]["sil_level"] = safety["sil_level"]
+        if safety.get("hazardous_area"):
+            state["provided_requirements"]["hazardous_area"] = True
+
+        state["current_step"] = "identify_instruments"
+
+        state["messages"] = state.get("messages", []) + [{
+            "role": "system",
+            "content": f"Solution analyzed: {state['solution_name']} ({result.get('industry', 'Unknown')})"
+        }]
+
+        logger.info(f"[SOLUTION] Solution name: {state['solution_name']}")
+
+    except Exception as e:
+        logger.error(f"[SOLUTION] Solution analysis failed: {e}")
+        state["error"] = str(e)
+        state["solution_analysis"] = {}
+        state["solution_name"] = "Solution"
+        state["instrument_context"] = state["user_input"]
+
+    return state
+
+
+def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
+    """
+    Node 2: Identify Instruments & Accessories for the Solution.
+    Uses the solution context to identify all required instruments and accessories.
+    Generates sample_input for each item.
+    
+    OPTIMIZATION: Uses helper functions with clean error handling for identification.
+    """
+    logger.info("[SOLUTION] Node 2: Identifying instruments and accessories...")
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    def identify_instruments_task(context):
+        """Task to identify instruments."""
+        try:
+            return identify_instruments_tool.invoke({
+                "requirements": context
+            })
+        except Exception as e:
+            logger.error(f"[SOLUTION] Instrument identification exception: {e}")
+            return {"success": False, "error": str(e), "instruments": []}
+    
+    def identify_accessories_task(instruments_list, context):
+        """Task to identify accessories based on instruments."""
+        if not instruments_list:
+            return {"success": False, "accessories": [], "error": "No instruments"}
+        try:
+            return identify_accessories_tool.invoke({
+                "instruments": instruments_list,
+                "process_context": context
+            })
+        except Exception as e:
+            logger.error(f"[SOLUTION] Accessory identification exception: {e}")
+            return {"success": False, "error": str(e), "accessories": []}
+
+    try:
+        # Use the enriched context from solution analysis
+        context = state.get("instrument_context", state["user_input"])
+        solution_analysis = state.get("solution_analysis", {})
+
+        # Identify instruments
+        inst_result = identify_instruments_task(context)
+
+        if inst_result.get("success"):
+            instruments = inst_result.get("instruments", [])
+            
+            # Enrich instruments with solution context
+            for inst in instruments:
+                # Add solution-specific details to sample_input
+                sample_input = inst.get("sample_input", "")
+                if solution_analysis.get("safety_requirements", {}).get("sil_level"):
+                    sample_input += f" with {solution_analysis['safety_requirements']['sil_level']} rating"
+                if solution_analysis.get("key_parameters", {}).get("temperature_range"):
+                    sample_input += f" for {solution_analysis['key_parameters']['temperature_range']} temperature"
+                inst["sample_input"] = sample_input
+                inst["solution_purpose"] = f"Required for {state.get('solution_name', 'solution')}"
+            
+            state["identified_instruments"] = instruments
+            state["project_name"] = state.get("solution_name", "Industrial Solution")
         else:
-            state["intent"] = "requirements"
-            state["intent_confidence"] = 0.5
+            state["identified_instruments"] = []
 
-        # Step 2: NEW - Detect comparison mode
-        user_input_lower = state["user_input"].lower()
+        # Identify accessories
+        acc_result = identify_accessories_task(state["identified_instruments"], context)
 
-        # Comparison keywords
-        comparison_keywords = [
-            "compare", "comparison", "versus", "vs", "vs.",
-            "difference between", "better", "which is better",
-            "pros and cons", "side by side", " or ",
-            "which one", "what's the difference"
+        if acc_result.get("success"):
+            accessories = acc_result.get("accessories", [])
+            
+            # Enrich accessories with solution context
+            for acc in accessories:
+                acc_sample_input = f"{acc.get('category', 'Accessory')} for {acc.get('related_instrument', 'instruments')}"
+                if solution_analysis.get("safety_requirements", {}).get("hazardous_area"):
+                    acc_sample_input += " (explosion-proof required)"
+                acc["sample_input"] = acc_sample_input
+                
+            state["identified_accessories"] = accessories
+        else:
+            state["identified_accessories"] = []
+
+        # If no items found, create defaults based on solution
+        if not state["identified_instruments"] and not state["identified_accessories"]:
+            industry = solution_analysis.get("industry", "Industrial")
+            process_type = solution_analysis.get("process_type", "process")
+            
+            state["identified_instruments"] = [{
+                "category": "Process Instrument",
+                "product_name": f"{industry} Instrument",
+                "quantity": 1,
+                "specifications": {},
+                "sample_input": f"Industrial instrument for {process_type} in {industry}",
+                "solution_purpose": f"General instrumentation for {state.get('solution_name', 'solution')}"
+            }]
+
+        # Build unified item list with sample_inputs
+        all_items = []
+        item_number = 1
+
+        # Add instruments
+        for instrument in state["identified_instruments"]:
+            all_items.append({
+                "number": item_number,
+                "type": "instrument",
+                "name": instrument.get("product_name", "Unknown Instrument"),
+                "category": instrument.get("category", "Instrument"),
+                "quantity": instrument.get("quantity", 1),
+                "specifications": instrument.get("specifications", {}),
+                "sample_input": instrument.get("sample_input", ""),  # KEY FIELD
+                "purpose": instrument.get("solution_purpose", ""),
+                "strategy": instrument.get("strategy", "")
+            })
+            item_number += 1
+
+        # Add accessories
+        for accessory in state["identified_accessories"]:
+            all_items.append({
+                "number": item_number,
+                "type": "accessory",
+                "name": accessory.get("accessory_name", "Unknown Accessory"),
+                "category": accessory.get("category", "Accessory"),
+                "quantity": accessory.get("quantity", 1),
+                "sample_input": accessory.get("sample_input", ""),
+                "purpose": f"Supports {accessory.get('related_instrument', 'instruments')}",
+                "related_instrument": accessory.get("related_instrument", "")
+            })
+            item_number += 1
+
+        state["all_items"] = all_items
+        state["total_items"] = len(all_items)
+
+        state["current_step"] = "format_list"
+
+        total_items = len(state["identified_instruments"]) + len(state["identified_accessories"])
+
+        state["messages"] = state.get("messages", []) + [{
+            "role": "system",
+            "content": f"Identified {len(state['identified_instruments'])} instruments and {len(state['identified_accessories'])} accessories for solution"
+        }]
+
+        logger.info(f"[SOLUTION] Found {total_items} items for solution")
+
+    except Exception as e:
+        logger.error(f"[SOLUTION] Instrument identification failed: {e}")
+        state["error"] = str(e)
+
+    return state
+
+
+# =============================================================================
+# STANDARDS RAG ENRICHMENT NODE (BATCH OPTIMIZED)
+# =============================================================================
+
+def enrich_solution_with_standards_node(state: SolutionState) -> SolutionState:
+    """
+    Node 3: Parallel 3-Source Specification Enrichment.
+    
+    Runs 3 specification sources in PARALLEL:
+    1. USER_SPECIFIED: Extract explicit specs from user input (MANDATORY)
+    2. LLM_GENERATED: Generate specs for each product type
+    3. STANDARDS_BASED: Extract from standards documents
+    
+    All results stored in Deep Agent Memory, deduplicated, and merged.
+    
+    SPECIFICATION PRIORITY:
+    - User-specified specs are MANDATORY (never overwritten)
+    - Standards specs take precedence over LLM for conflicts
+    - Non-conflicting specs from all sources are included
+    
+    Adds to each item:
+    - user_specified_specs: Explicit specs from user (MANDATORY)
+    - llm_generated_specs: LLM-generated specs for product type
+    - standards_specifications: Specs from standards documents
+    - combined_specifications: Final merged specs with source metadata
+    - specifications: Flattened values for backward compatibility
+    """
+    logger.info("[SOLUTION] Node 3: Running PARALLEL 3-Source Specification Enrichment...")
+    
+    all_items = state.get("all_items", [])
+    solution_analysis = state.get("solution_analysis", {})
+    user_input = state.get("user_input", "")
+    
+    if not all_items:
+        logger.warning("[SOLUTION] No items to enrich")
+        state["current_step"] = "format_list"
+        return state
+    
+    try:
+        # Import Parallel 3-Source Enrichment
+        from agentic.deep_agent.parallel_specs_enrichment import run_parallel_3_source_enrichment
+        
+        # Get domain and safety context from solution analysis
+        domain = solution_analysis.get("industry", "")
+        safety_requirements = solution_analysis.get("safety_requirements", {})
+        
+        logger.info(f"[SOLUTION] Starting parallel enrichment for {len(all_items)} items...")
+        
+        # =====================================================
+        # PARALLEL 3-SOURCE ENRICHMENT
+        # =====================================================
+        result = run_parallel_3_source_enrichment(
+            items=all_items,
+            user_input=user_input,
+            session_id=state.get("session_id", "solution-parallel"),
+            domain_context=domain,
+            safety_requirements=safety_requirements
+        )
+        
+        if result.get("success"):
+            enriched_items = result.get("items", all_items)
+            metadata = result.get("metadata", {})
+            
+            processing_time = metadata.get("processing_time_ms", 0)
+            thread_results = metadata.get("thread_results", {})
+            
+            logger.info(f"[SOLUTION] Parallel enrichment complete in {processing_time}ms")
+            logger.info(f"[SOLUTION] Thread results: {thread_results}")
+            
+            # Extract applicable standards and certifications for each item
+            for item in enriched_items:
+                if item.get("standards_info", {}).get("enrichment_status") == "success":
+                    # Add extracted standards and certifications
+                    standards_specs = item.get("standards_specifications", {})
+                    item["standards_info"]["applicable_standards"] = _extract_standards_from_solution_specs(
+                        {"specifications": standards_specs}
+                    )
+                    item["standards_info"]["certifications"] = _extract_certifications_from_solution_specs(
+                        {"specifications": standards_specs}
+                    )
+                    item["standards_info"]["domain"] = domain
+            
+            state["all_items"] = enriched_items
+            
+            # Count spec sources
+            total_user_specs = sum(len(item.get("user_specified_specs", {})) for item in enriched_items)
+            total_llm_specs = sum(len(item.get("llm_generated_specs", {})) for item in enriched_items)
+            total_std_specs = sum(len(item.get("standards_specifications", {})) for item in enriched_items)
+            
+            state["messages"] = state.get("messages", []) + [{
+                "role": "system",
+                "content": f"Parallel 3-source enrichment complete: {total_user_specs} user specs (MANDATORY), {total_llm_specs} LLM specs, {total_std_specs} standards specs in {processing_time}ms"
+            }]
+            
+            logger.info(f"[SOLUTION] Spec breakdown: {total_user_specs} user, {total_llm_specs} LLM, {total_std_specs} standards")
+            
+        else:
+            error = result.get("error", "Unknown error")
+            logger.error(f"[SOLUTION] Parallel enrichment failed: {error}")
+            state["all_items"] = result.get("items", all_items)
+            
+            state["messages"] = state.get("messages", []) + [{
+                "role": "system",
+                "content": f"Parallel enrichment failed (non-critical): {error}"
+            }]
+        
+        # Optional: Validate against domain-specific standards
+        if domain or safety_requirements:
+            logger.info(f"[SOLUTION] Validating against domain standards: {domain}")
+            try:
+                validation_result = validate_items_against_domain_standards(
+                    items=state["all_items"],
+                    domain=domain,
+                    safety_requirements=safety_requirements
+                )
+                state["standards_validation"] = validation_result
+                
+                if not validation_result.get("is_compliant"):
+                    logger.warning(f"[SOLUTION] Compliance issues found: {len(validation_result.get('compliance_issues', []))}")
+            except Exception as ve:
+                logger.warning(f"[SOLUTION] Domain validation skipped: {ve}")
+        
+    except ImportError as ie:
+        logger.error(f"[SOLUTION] Parallel enrichment import failed: {ie}")
+        # Fallback to existing Standards RAG enrichment
+        try:
+            domain = solution_analysis.get("industry", "")
+            enriched_items = enrich_identified_items_with_standards(
+                items=all_items,
+                product_type=None,
+                domain=domain,
+                top_k=3
+            )
+            state["all_items"] = enriched_items
+            logger.info("[SOLUTION] Fallback to existing Standards RAG enrichment")
+        except Exception as e2:
+            logger.error(f"[SOLUTION] Fallback enrichment also failed: {e2}")
+            
+    except Exception as e:
+        logger.error(f"[SOLUTION] Specification enrichment failed: {e}")
+        import traceback
+        traceback.print_exc()
+        state["messages"] = state.get("messages", []) + [{
+            "role": "system",
+            "content": f"Specification enrichment failed (non-critical): {str(e)}"
+        }]
+    
+    state["current_step"] = "format_list"
+    return state
+
+
+def _extract_standards_from_solution_specs(final_specs: dict) -> list:
+    """Extract applicable standards codes from Deep Agent results."""
+    standards = []
+    constraints = final_specs.get("constraints_applied", [])
+    for c in constraints:
+        if isinstance(c, dict):
+            ref = c.get("standard_reference") or c.get("constraint", "")
+            if ref:
+                import re
+                matches = re.findall(r'\b(IEC|ISO|API|ANSI|ISA|EN|NFPA|ASME|IEEE)\s*[\d.-]+', str(ref), re.IGNORECASE)
+                standards.extend(matches)
+    return list(set(standards))
+
+
+def _extract_certifications_from_solution_specs(final_specs: dict) -> list:
+    """Extract certifications from Deep Agent results."""
+    certs = []
+    specs = final_specs.get("specifications", {})
+    for key, value in specs.items():
+        key_lower = key.lower()
+        value_str = str(value).upper()
+        if any(x in key_lower for x in ["cert", "sil", "atex", "rating", "approval"]):
+            certs.append(f"{key}: {value}")
+        import re
+        cert_patterns = re.findall(r'\b(SIL\s*[1-4]|ATEX|IECEx|CE|UL|CSA|FM|IP\d{2})', value_str)
+        certs.extend(cert_patterns)
+    return list(set(certs))
+
+
+def _extract_spec_value(spec_value) -> str:
+    """
+    Extract ONLY the value from any specification format.
+    
+    Handles:
+    - dict with 'value' key: {'value': 'x', 'confidence': 0.9} → 'x'
+    - nested category dict: {'temp_range': {'value': 'y'}} → 'y' (for single key)
+    - plain string: 'plain value' → 'plain value'
+    - list: [{'value': 'a'}, {'value': 'b'}] → 'a, b'
+    """
+    if spec_value is None:
+        return ""
+    
+    if isinstance(spec_value, dict):
+        # Case 1: Direct value dict {'value': 'x', 'confidence': ...}
+        if 'value' in spec_value:
+            val = spec_value['value']
+            # Handle double-nested case
+            if isinstance(val, dict) and 'value' in val:
+                val = val['value']
+            return str(val) if val and str(val).lower() not in ['null', 'none', 'n/a'] else ""
+        
+        # Case 2: Category wrapper dict - will be handled by _flatten_nested_specs
+        return ""
+    
+    if isinstance(spec_value, list):
+        values = []
+        for v in spec_value:
+            extracted = _extract_spec_value(v)
+            if extracted:
+                values.append(extracted)
+        return ", ".join(values) if values else ""
+    
+    # Plain string
+    return str(spec_value) if spec_value else ""
+
+
+def _flatten_nested_specs(spec_dict: dict) -> dict:
+    """
+    Flatten nested specification dictionaries into simple key-value pairs.
+    
+    Input:  {'environmental_specs': {'temperature_range': {'value': '200°C', 'confidence': 0.9, 'note': '...'}}}
+    Output: {'temperature_range': '200°C'}
+    
+    Input:  {'accuracy': {'value': '±0.1%', 'confidence': 0.8}}
+    Output: {'accuracy': '±0.1%'}
+    """
+    flattened = {}
+    
+    for key, value in spec_dict.items():
+        if isinstance(value, dict):
+            # Check if this is a value dict
+            if 'value' in value:
+                extracted = _extract_spec_value(value)
+                if extracted:
+                    flattened[key] = extracted
+            else:
+                # This is a category wrapper - flatten its contents
+                for inner_key, inner_value in value.items():
+                    if isinstance(inner_value, dict) and 'value' in inner_value:
+                        extracted = _extract_spec_value(inner_value)
+                        if extracted:
+                            flattened[inner_key] = extracted
+                    elif inner_value and str(inner_value).lower() not in ['null', 'none', '']:
+                        flattened[inner_key] = str(inner_value)
+        elif value and str(value).lower() not in ['null', 'none', '']:
+            flattened[key] = str(value)
+    
+    return flattened
+
+
+def _merge_deep_agent_specs_for_display(items: list) -> list:
+    """
+    Merge Deep Agent specifications into the specifications field for UI display.
+    Labels values based on source:
+    - Standards -> [STANDARDS]
+    - LLM/Inferred -> [INFERRED]
+    - User -> (No label)
+    """
+    import re
+    
+    # Patterns that indicate raw JSON structure - EXACT matches only for these
+    RAW_JSON_PATTERNS = [
+        "{'value':",
+        "'confidence':",
+        "'note':",
+        "[{",
+        "{'",
+    ]
+    
+    # Patterns that indicate the ENTIRE value is invalid (use startswith/full match)
+    INVALID_START_PATTERNS = [
+        "i don't have",
+        "i do not have",
+        "no information",
+        "not found in",
+        "cannot determine",
+        "not available in",
+    ]
+    
+    # Placeholder values to skip (exact matches only)
+    PLACEHOLDER_VALUES = [
+        "null", "none", "n/a", "na", "not applicable",
+        "extracted value or null", "consolidated value or null",
+        "value if applicable", "not specified", ""
+    ]
+    
+    for item in items:
+        # Get Deep Agent specs if available
+        combined_specs = item.get("combined_specifications", {})
+        standards_specs = item.get("standards_specifications", {})
+        llm_specs = item.get("llm_generated_specs", {})
+        
+        # Create clean specifications for display
+        display_specs = {}
+        
+        # Strategy:
+        # 1. If combined_specs exists (Unified path), use its 'source' field
+        # 2. If separate specs exist, use implicit labeling
+        
+        if combined_specs:
+            flattened = _flatten_nested_specs(combined_specs)
+            
+            for key, val in flattened.items():
+                if not val: continue
+                
+                # Check source in original dict if possible
+                source_label = ""
+                if key in combined_specs and isinstance(combined_specs[key], dict):
+                    src = combined_specs[key].get("source", "")
+                    if src == "standards":
+                        source_label = " [STANDARDS]"
+                    elif src == "llm_generated":
+                        source_label = " [INFERRED]"
+                
+                # Helper to check validity
+                val_str = str(val).strip()
+                # Clean up any pre-existing tags
+                val_str = val_str.replace("[INFERRED]", "").replace("[STANDARDS]", "").strip()
+                val_lower = val_str.lower()
+                
+                if any(p in val_lower for p in RAW_JSON_PATTERNS): continue
+                if any(val_lower.startswith(p) for p in INVALID_START_PATTERNS): continue
+                if val_lower in PLACEHOLDER_VALUES: continue
+                
+                display_specs[key] = f"{val_str}{source_label}"
+
+        elif standards_specs:
+            # Fallback: All are standards
+            flattened = _flatten_nested_specs(standards_specs)
+            for key, val in flattened.items():
+                if not val: continue
+                if str(val).lower() in PLACEHOLDER_VALUES: continue
+                display_specs[key] = f"{str(val)} [STANDARDS]"
+                
+        elif llm_specs:
+            # Fallback: All are inferred
+            flattened = _flatten_nested_specs(llm_specs)
+            for key, val in flattened.items():
+                if not val: continue
+                if str(val).lower() in PLACEHOLDER_VALUES: continue
+                display_specs[key] = f"{str(val)} [INFERRED]"
+        
+        # Merge with any existing specs (User specs usually here)
+        original_specs = item.get("specifications", {})
+        if isinstance(original_specs, dict):
+             for key, val in original_specs.items():
+                 # Key normalization for comparison
+                 key_clean = key.lower().replace("_", "").replace(" ", "")
+                 existing_keys = [k.lower().replace("_", "").replace(" ", "") for k in display_specs.keys()]
+                 
+                 if key_clean not in existing_keys:
+                     val_str = str(val).strip()
+                     val_str = val_str.replace("[INFERRED]", "").replace("[STANDARDS]", "").strip()
+                     
+                     if val_str and val_str.lower() not in PLACEHOLDER_VALUES:
+                         display_specs[key] = val_str
+        
+        # Update item
+        if display_specs:
+            item["specifications"] = display_specs
+    
+    return items
+
+
+
+
+def format_solution_list_node(state: SolutionState) -> SolutionState:
+    """
+    Node 3: Format Selection List for Solution.
+    Formats identified items into user-friendly numbered list with sample_inputs.
+    This is the FINAL node - workflow ends here and waits for user selection.
+    """
+    logger.info("[SOLUTION] Node 3: Formatting selection list...")
+    
+    # === DEBUG: Print specification source analysis ===
+    try:
+        from debug_spec_tracker import print_specification_report
+        all_items = state.get("all_items", [])
+        if all_items:
+            print_specification_report(all_items)
+    except Exception as debug_err:
+        logger.debug(f"[SOLUTION] Debug tracker not available: {debug_err}")
+    # === END DEBUG ===
+
+    try:
+        llm = create_llm_with_fallback(
+            model="gemini-2.5-flash",
+            temperature=0.1,
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+
+        prompt = ChatPromptTemplate.from_template(SOLUTION_INSTRUMENT_LIST_PROMPT)
+        parser = JsonOutputParser()
+        chain = prompt | llm | parser
+
+        result = chain.invoke({
+            "solution_analysis": json.dumps(state.get("solution_analysis", {}), indent=2),
+            "instruments": json.dumps(state["identified_instruments"], indent=2),
+            "accessories": json.dumps(state["identified_accessories"], indent=2)
+        })
+
+        solution_name = state.get("solution_name", "Solution")
+        solution_analysis = state.get("solution_analysis", {})
+
+        # Format response for user
+        response_lines = [
+            f"**🏗️ {solution_name} - Instrument Requirements**\n",
+            f"*Industry: {solution_analysis.get('industry', 'Industrial')} | Process: {solution_analysis.get('process_type', 'General')}*\n",
+            f"\nI've identified **{state['total_items']} items** required for your solution:\n"
         ]
 
-        # Check for comparison intent
-        is_comparison = any(kw in user_input_lower for kw in comparison_keywords)
+        formatted_list = result.get("formatted_list", [])
 
-        # Check for multiple vendor/model mentions (e.g., "Honeywell vs Emerson")
-        vendors_mentioned = sum(1 for v in ["honeywell", "emerson", "abb", "yokogawa", "siemens", "rosemount"]
-                                if v in user_input_lower)
-        if vendors_mentioned >= 2:
-            is_comparison = True
-
-        # Set comparison mode
-        if is_comparison:
-            state["comparison_mode"] = True
-            state["mode_confidence"] = 0.95 if vendors_mentioned >= 2 else 0.75
-            logger.info(f"[SOLUTION] ✓ Comparison mode detected (confidence: {state['mode_confidence']:.2f})")
-        else:
-            state["comparison_mode"] = False
-            state["mode_confidence"] = 0.85
-
-        state["current_step"] = "validate_requirements"
-
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Intent: {state['intent']}, Comparison mode: {state['comparison_mode']} (confidence: {state['mode_confidence']:.2f})"
-        }]
-
-        logger.info(f"[SOLUTION] Intent: {state['intent']}, Comparison: {state['comparison_mode']}")
-
-    except Exception as e:
-        logger.error(f"[SOLUTION] Intent classification failed: {e}")
-        state["error"] = str(e)
-        state["intent"] = "requirements"
-        state["comparison_mode"] = False
-
-    return state
-
-
-def validate_requirements_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 2: Validation Agent.
-    Validates user requirements and extracts product type.
-    """
-    logger.info("[SOLUTION] Node 2: Validating requirements...")
-    
-    try:
-        # Extract requirements
-        extract_result = extract_requirements_tool.invoke({
-            "user_input": state["user_input"]
-        })
-        
-        if extract_result.get("success"):
-            state["product_type"] = extract_result.get("product_type", "")
-            state["provided_requirements"] = extract_result.get("requirements", {})
-        
-        # Load schema if product type detected
-        if state["product_type"]:
-            schema_result = load_schema_tool.invoke({
-                "product_type": state["product_type"]
-            })
-            
-            if schema_result.get("success"):
-                state["schema"] = schema_result.get("schema")
-                state["schema_source"] = schema_result.get("source", "mongodb")
-        
-        # Validate against schema
-        if state["schema"]:
-            validate_result = validate_requirements_tool.invoke({
-                "user_input": state["user_input"],
-                "product_type": state["product_type"],
-                "schema": state["schema"]
-            })
-            
-            if validate_result.get("success"):
-                state["is_requirements_valid"] = validate_result.get("is_valid", False)
-                state["missing_requirements"] = validate_result.get("missing_fields", [])
-        
-        state["current_step"] = "aggregate_data"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Validation: {'Valid' if state['is_requirements_valid'] else 'Missing info'}, Product: {state['product_type']}"
-        }]
-        
-        logger.info(f"[SOLUTION] Product type: {state['product_type']}, Valid: {state['is_requirements_valid']}")
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Validation failed: {e}")
-        state["error"] = str(e)
-    
-    return state
-
-
-def aggregate_data_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 3: RAG Data Aggregator.
-    Queries RAG systems for context data.
-    """
-    logger.info("[SOLUTION] Node 3: Aggregating RAG data...")
-    
-    try:
-        rag_aggregator = create_rag_aggregator()
-        
-        # Query all RAGs
-        rag_results = rag_aggregator.query_all_parallel(
-            product_type=state["product_type"] or "industrial instrument",
-            requirements=state["provided_requirements"]
-        )
-        
-        state["rag_context"] = rag_results
-        
-        # Check if strategy is present
-        strategy_data = rag_results.get("strategy", {}).get("data", {})
-        has_preferred = bool(strategy_data.get("preferred_vendors", []))
-        has_forbidden = bool(strategy_data.get("forbidden_vendors", []))
-        state["strategy_present"] = has_preferred or has_forbidden
-        
-        # Get allowed vendors from strategy
-        if state["strategy_present"]:
-            allowed = strategy_data.get("preferred_vendors", []) + strategy_data.get("neutral_vendors", [])
-            forbidden = strategy_data.get("forbidden_vendors", [])
-            state["allowed_vendors"] = [v for v in allowed if v not in forbidden]
-        
-        state["current_step"] = "lookup_schema"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"RAG data aggregated. Strategy present: {state['strategy_present']}"
-        }]
-        
-        logger.info(f"[SOLUTION] Strategy present: {state['strategy_present']}")
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] RAG aggregation failed: {e}")
-        state["error"] = str(e)
-        state["rag_context"] = {}
-    
-    return state
-
-
-def lookup_schema_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 4: Schema Agent.
-    Looks up or generates schema for product type.
-    """
-    logger.info("[SOLUTION] Node 4: Schema lookup...")
-    
-    try:
-        if not state.get("schema"):
-            # Attempt schema lookup from MongoDB
-            schema_result = load_schema_tool.invoke({
-                "product_type": state["product_type"] or "industrial instrument"
-            })
-            
-            if schema_result.get("success") and schema_result.get("schema"):
-                state["schema"] = schema_result["schema"]
-                state["schema_source"] = "mongodb"
-            else:
-                # No schema found - trigger Potential Product Index
-                state["schema_source"] = "not_found"
-                logger.info("[SOLUTION] Schema not found - may need Potential Product Index")
-        
-        state["current_step"] = "apply_strategy"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Schema source: {state.get('schema_source', 'unknown')}"
-        }]
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Schema lookup failed: {e}")
-        state["error"] = str(e)
-    
-    return state
-
-
-def apply_strategy_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 5: Strategy Agent.
-    Applies procurement strategy rules.
-    """
-    logger.info("[SOLUTION] Node 5: Applying strategy...")
-    
-    try:
-        # Search for vendors
-        vendor_result = search_vendors_tool.invoke({
-            "product_type": state["product_type"] or "industrial instrument",
-            "requirements": state["provided_requirements"]
-        })
-        
-        available_vendors = vendor_result.get("vendors", [])
-        if not available_vendors:
-            available_vendors = ["Honeywell", "Emerson", "Yokogawa", "ABB", "Siemens"]
-        
-        state["available_vendors"] = available_vendors
-        
-        if state["strategy_present"]:
-            # Apply strategy filter
-            strategy_filter = create_strategy_filter()
-            strategy_data = state["rag_context"].get("strategy", {}).get("data", {})
-            
-            constraint_context = {
-                "preferred_vendors": strategy_data.get("preferred_vendors", []),
-                "forbidden_vendors": strategy_data.get("forbidden_vendors", []),
-                "neutral_vendors": strategy_data.get("neutral_vendors", []),
-                "procurement_priorities": strategy_data.get("procurement_priorities", {})
-            }
-            
-            filter_result = strategy_filter.apply_strategy_rules(
-                vendors=available_vendors,
-                constraint_context=constraint_context
+        for item in formatted_list:
+            emoji = "🔧" if item.get("type") == "instrument" else "🔩"
+            response_lines.append(
+                f"{item['number']}. {emoji} **{item.get('name', 'Unknown')}** ({item.get('category', '')})"
+            )
+            response_lines.append(
+                f"   📊 Quantity: {item.get('quantity', 1)}"
             )
             
-            state["filtered_vendors"] = [v["vendor"] for v in filter_result["filtered_vendors"]]
-        else:
-            # No strategy - use all vendors
-            state["filtered_vendors"] = available_vendors
-        
-        state["current_step"] = "parallel_analysis"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Strategy applied: {len(state['filtered_vendors'])}/{len(state['available_vendors'])} vendors"
-        }]
-        
-        logger.info(f"[SOLUTION] Filtered vendors: {len(state['filtered_vendors'])}")
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Strategy application failed: {e}")
-        state["error"] = str(e)
-    
-    return state
+            # Show purpose
+            purpose = item.get("purpose", "")
+            if purpose:
+                response_lines.append(f"   💡 Purpose: {purpose}")
 
-
-@with_state_transaction(auto_commit=True)
-def parallel_analysis_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 6: Analysis Coordinator.
-    Spawns parallel vendor analysis with thread-safe result collection.
-    """
-    logger.info("[SOLUTION] Node 6: Parallel vendor analysis...")
-
-    try:
-        vendors = state.get("filtered_vendors", [])[:5]  # Top 5 vendors
-        requirements = state["provided_requirements"]
-
-        # Thread-safe collectors
-        vendor_data_collector = ThreadSafeResultCollector()
-        analysis_collector = ThreadSafeResultCollector()
-
-        # Phase 1: Search for PDFs and images in parallel
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {}
-
-            for vendor in vendors:
-                # Search for PDF datasheets
-                pdf_future = executor.submit(
-                    search_pdf_datasheets_tool.invoke,
-                    {
-                        "vendor": vendor,
-                        "product_type": state["product_type"] or "industrial instrument",
-                        "model_family": None
-                    }
+            # Show sample_input preview
+            actual_item = next((i for i in state["all_items"] if i["number"] == item["number"]), None)
+            if actual_item and actual_item.get("sample_input"):
+                sample_preview = actual_item["sample_input"][:100] + "..." if len(actual_item["sample_input"]) > 100 else actual_item["sample_input"]
+                response_lines.append(
+                    f"   🔍 Search query: {sample_preview}"
                 )
-                futures[pdf_future] = ("pdf", vendor)
 
-                # Search for product images
-                img_future = executor.submit(
-                    search_product_images_tool.invoke,
-                    {
-                        "vendor": vendor,
-                        "product_name": state["product_type"] or "industrial instrument",
-                        "product_type": state["product_type"] or "instrument"
-                    }
-                )
-                futures[img_future] = ("image", vendor)
+            response_lines.append("")
 
-            # Collect PDF and image results (thread-safe)
-            vendor_data = {}
-            for future in as_completed(futures):
-                result_type, vendor = futures[future]
-                try:
-                    result = future.result()
-                    if vendor not in vendor_data:
-                        vendor_data[vendor] = {"vendor": vendor}
+        # Add solution summary if available
+        solution_summary = result.get("solution_summary", "")
+        if solution_summary:
+            response_lines.append(f"**📋 Solution Summary:** {solution_summary}\n")
 
-                    if result_type == "pdf" and result.get("success"):
-                        vendor_data[vendor]["pdf_url"] = result.get("pdf_urls", [None])[0]
-                    elif result_type == "image" and result.get("success"):
-                        vendor_data[vendor]["image_url"] = result.get("images", [None])[0]
-                except Exception as e:
-                    logger.error(f"Search failed for {vendor}: {e}")
-                    vendor_data_collector.add_error(e, {"vendor": vendor, "type": result_type})
-
-        # Phase 2: Analyze each vendor in parallel
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            analyze_futures = {}
-
-            for vendor in vendors:
-                analyze_futures[executor.submit(
-                    analyze_vendor_match_tool.invoke,
-                    {
-                        "vendor": vendor,
-                        "requirements": requirements,
-                        "pdf_content": None,
-                        "product_data": vendor_data.get(vendor, {})
-                    }
-                )] = vendor
-
-            for future in as_completed(analyze_futures):
-                vendor = analyze_futures[future]
-                try:
-                    result = future.result()
-                    if result.get("success"):
-                        analysis_result = {
-                            "vendor": vendor,
-                            "product_name": result.get("product_name", ""),
-                            "model_family": result.get("model_family", ""),
-                            "match_score": result.get("match_score", 0),
-                            "requirements_match": result.get("requirements_match", False),
-                            "matched_requirements": result.get("matched_requirements", {}),
-                            "unmatched_requirements": result.get("unmatched_requirements", []),
-                            "reasoning": result.get("reasoning", ""),
-                            "limitations": result.get("limitations"),
-                            "pdf_source": vendor_data.get(vendor, {}).get("pdf_url"),
-                            "image_url": vendor_data.get(vendor, {}).get("image_url")
-                        }
-                        analysis_collector.add_result(analysis_result)
-                except Exception as e:
-                    logger.error(f"Analysis failed for {vendor}: {e}")
-                    analysis_collector.add_error(e, {"vendor": vendor})
-
-        # Get thread-safe results
-        analysis_results = analysis_collector.get_results()
-
-        # Log summary
-        summary = analysis_collector.summary()
-        logger.info(
-            f"[SOLUTION] Parallel analysis complete: "
-            f"{summary['total_results']} successes, {summary['total_errors']} errors"
+        response_lines.append(
+            f"\n**📌 Next Steps:**\n"
+            f"Reply with an item number (1-{state['total_items']}) to search for vendor products.\n"
+            f"I'll then find specific product recommendations for your selected item."
         )
-
-        # Update state (protected by transaction)
-        state["parallel_analysis_results"] = analysis_results
-        state["current_step"] = "summarize"
-
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Analyzed {len(analysis_results)} vendors"
-        }]
-
-        logger.info(f"[SOLUTION] Analyzed {len(analysis_results)} vendors")
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Parallel analysis failed: {e}")
-        state["error"] = str(e)
-    
-    return state
-
-
-def summarize_results_node(state: SolutionState) -> SolutionState:
-    """
-    Summary Agent: Summarize analysis results.
-    """
-    logger.info("[SOLUTION] Node 6b: Summarizing results...")
-    
-    try:
-        analysis_results = state.get("parallel_analysis_results", [])
-        
-        llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
-            temperature=0.2,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
-        
-        prompt = ChatPromptTemplate.from_template(SUMMARY_AGENT_PROMPT)
-        parser = JsonOutputParser()
-        chain = prompt | llm | parser
-        
-        result = chain.invoke({
-            "analysis_results": json.dumps(analysis_results, indent=2)
-        })
-        
-        state["summarized_results"] = [result]
-        state["current_step"] = "judge"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Summary: {result.get('summary', 'No summary available')[:100]}..."
-        }]
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Summarization failed: {e}")
-        state["error"] = str(e)
-        state["summarized_results"] = []
-    
-    return state
-
-
-def judge_results_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 7: Judge Agent.
-    Validates analysis results.
-    """
-    logger.info("[SOLUTION] Node 7: Judging results...")
-    
-    try:
-        analysis_results = state.get("parallel_analysis_results", [])
-        
-        # Use judge_analysis_tool
-        judge_result = judge_analysis_tool.invoke({
-            "original_requirements": state["provided_requirements"],
-            "vendor_analysis": analysis_results,
-            "strategy_rules": None
-        })
-        
-        if judge_result.get("success"):
-            state["judge_validation"] = {
-                "passed": judge_result.get("valid_matches", []),
-                "failed": judge_result.get("invalid_matches", []),
-                "summary": judge_result.get("summary", "")
-            }
-        
-        state["current_step"] = "rank"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Judge validation: {len(state['judge_validation'].get('passed', []))} passed"
-        }]
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Judging failed: {e}")
-        state["error"] = str(e)
-        state["judge_validation"] = {"passed": [], "failed": []}
-    
-    return state
-
-
-def rank_products_node(state: SolutionState) -> SolutionState:
-    """
-    Agent 8: Ranking Agent.
-    Ranks products and generates final output.
-    """
-    logger.info("[SOLUTION] Node 8: Ranking products...")
-    
-    try:
-        analysis_results = state.get("parallel_analysis_results", [])
-        
-        # Use rank_products_tool
-        rank_result = rank_products_tool.invoke({
-            "vendor_matches": analysis_results,
-            "requirements": state["provided_requirements"]
-        })
-        
-        if rank_result.get("success"):
-            state["ranked_results"] = rank_result.get("ranked_products", [])
-            
-            # Generate response
-            response_lines = ["**🎯 Product Recommendations**\n"]
-            
-            for i, product in enumerate(state["ranked_results"][:5], 1):
-                response_lines.append(f"**#{i} {product.get('vendor', '')} - {product.get('product_name', '')}**")
-                response_lines.append(f"   Match Score: {product.get('overall_score', 0)}/100")
-                
-                strengths = product.get("key_strengths", [])
-                if strengths:
-                    response_lines.append(f"   ✓ {', '.join(strengths[:2])}")
-                
-                concerns = product.get("concerns", [])
-                if concerns:
-                    response_lines.append(f"   ⚠ {concerns[0]}")
-                
-                response_lines.append("")
-            
-            state["response"] = "\n".join(response_lines)
-            state["response_data"] = {
-                "ranked_products": state["ranked_results"],
-                "total_analyzed": len(analysis_results),
-                "product_type": state["product_type"]
-            }
-        
-        state["current_step"] = "complete"
-        
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Ranked {len(state.get('ranked_results', []))} products"
-        }]
-        
-        logger.info(f"[SOLUTION] Ranking complete")
-        
-    except Exception as e:
-        logger.error(f"[SOLUTION] Ranking failed: {e}")
-        state["error"] = str(e)
-        state["ranked_results"] = []
-    
-    return state
-
-
-def format_comparison_node(state: SolutionState) -> SolutionState:
-    """
-    NEW Node: Format results as detailed comparison if in comparison mode.
-    Generates side-by-side comparison with winner, key differences, and trade-offs.
-    """
-    logger.info("[SOLUTION] Node 9: Formatting comparison output...")
-
-    try:
-        # Only run if in comparison mode
-        if not state.get("comparison_mode", False):
-            logger.info("[SOLUTION] Not in comparison mode - skipping comparison formatting")
-            return state
-
-        ranked_results = state.get("ranked_results", [])
-
-        if not ranked_results:
-            state["comparison_output"] = {
-                "summary": "No products found for comparison",
-                "winner": None,
-                "key_differences": [],
-                "trade_offs": [],
-                "recommendation": "Unable to complete comparison - no matching products found"
-            }
-            logger.warning("[SOLUTION] No ranked results for comparison")
-            return state
-
-        # Get top 3-5 products for comparison
-        top_products = ranked_results[:min(5, len(ranked_results))]
-
-        logger.info(f"[SOLUTION] Generating comparison analysis for {len(top_products)} products")
-
-        # Use LLM to generate comprehensive comparison analysis
-        llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
-            temperature=0.2,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
-
-        comparison_prompt = """
-You are Engenie's Comparison Presenter. Generate a detailed product comparison analysis.
-
-Ranked Products:
-{ranked_products}
-
-Original User Request: {user_input}
-
-Scoring Breakdown (100 points total):
-- Overall Match Score: Vendor-specific technical fit
-- Key Strengths: Standout features
-- Concerns: Limitations or risks
-
-Generate a comprehensive comparison analysis with:
-1. **Winner** - Which product is the BEST choice overall and WHY (be specific about technical/business reasons)
-2. **Key Differences** - 3-4 main technical or business differences between top options
-3. **Trade-offs** - 2-3 important trade-offs to consider when choosing between options
-4. **Recommendation** - Final recommendation with clear rationale based on requirements
-
-Return ONLY valid JSON:
-{{
-    "summary": "<executive summary in 2-3 sentences explaining the comparison result>",
-    "winner": {{
-        "vendor": "<vendor name>",
-        "model": "<model name>",
-        "reason": "<specific reason why this is the best choice - mention key advantages>"
-    }},
-    "key_differences": [
-        "<difference 1: e.g., Honeywell has better SIL rating but Emerson has wider range>",
-        "<difference 2>",
-        "<difference 3>"
-    ],
-    "trade_offs": [
-        "<trade-off 1: e.g., Higher accuracy vs lower cost>",
-        "<trade-off 2>"
-    ],
-    "recommendation": "<final recommendation with rationale - be specific about use case fit>"
-}}
-"""
-
-        prompt = ChatPromptTemplate.from_template(comparison_prompt)
-        parser = JsonOutputParser()
-        chain = prompt | llm | parser
-
-        result = chain.invoke({
-            "ranked_products": json.dumps(top_products, indent=2),
-            "user_input": state["user_input"]
-        })
-
-        state["comparison_output"] = result
-
-        # Generate formatted response for comparison mode
-        response_lines = ["**🔍 Product Comparison Analysis**\n"]
-
-        # Summary
-        summary = result.get("summary", "")
-        if summary:
-            response_lines.append(f"{summary}\n")
-
-        # Winner
-        winner = result.get("winner", {})
-        if winner and winner.get("vendor"):
-            response_lines.append(f"**✅ Recommended Winner: {winner.get('vendor')} {winner.get('model', '')}**")
-            response_lines.append(f"_{winner.get('reason', '')}_\n")
-
-        # Top products comparison table
-        response_lines.append("**📊 Top Options Compared:**")
-        for i, product in enumerate(top_products, 1):
-            response_lines.append(f"\n**#{i} {product.get('vendor', '')} - {product.get('product_name', '')}**")
-            response_lines.append(f"   Match Score: {product.get('overall_score', 0)}/100")
-
-            strengths = product.get("key_strengths", [])
-            if strengths:
-                response_lines.append(f"   ✓ Strengths: {', '.join(strengths[:2])}")
-
-            concerns = product.get("concerns", [])
-            if concerns:
-                response_lines.append(f"   ⚠ Concerns: {concerns[0]}")
-
-        # Key Differences
-        differences = result.get("key_differences", [])
-        if differences:
-            response_lines.append("\n**🔑 Key Differences:**")
-            for diff in differences:
-                response_lines.append(f"• {diff}")
-
-        # Trade-offs
-        trade_offs = result.get("trade_offs", [])
-        if trade_offs:
-            response_lines.append("\n**⚖️ Trade-offs to Consider:**")
-            for trade_off in trade_offs:
-                response_lines.append(f"• {trade_off}")
-
-        # Final Recommendation
-        recommendation = result.get("recommendation", "")
-        if recommendation:
-            response_lines.append(f"\n**💡 Final Recommendation:**")
-            response_lines.append(recommendation)
 
         state["response"] = "\n".join(response_lines)
+        
+        # === MERGE DEEP AGENT SPECS FOR UI DISPLAY ===
+        # This ensures Deep Agent specifications are shown in UI with [STANDARDS] labels
+        _merge_deep_agent_specs_for_display(state["all_items"])
+        logger.info(f"[SOLUTION] Merged Deep Agent specs for {len(state['all_items'])} items")
+        # === END MERGE ===
+        
         state["response_data"] = {
-            "comparison_output": result,
-            "ranked_products": top_products,
-            "total_analyzed": len(state.get("parallel_analysis_results", [])),
-            "product_type": state.get("product_type"),
-            "comparison_mode": True
+            "workflow": "solution",
+            "solution_name": solution_name,
+            "solution_analysis": solution_analysis,
+            "project_name": solution_name,  # For compatibility
+            "items": state["all_items"],  # Full items with merged specs
+            "total_items": state["total_items"],
+            "awaiting_selection": True,
+            "instructions": f"Reply with item number (1-{state['total_items']}) to get product recommendations"
         }
 
         state["current_step"] = "complete"
 
-        state["messages"] = state.get("messages", []) + [{
-            "role": "system",
-            "content": f"Comparison formatting complete - Winner: {winner.get('vendor', 'N/A')}"
-        }]
-
-        logger.info(f"[SOLUTION] Comparison formatting complete - Winner: {winner.get('vendor', 'N/A')}")
+        logger.info(f"[SOLUTION] Selection list formatted with {state['total_items']} items")
 
     except Exception as e:
-        logger.error(f"[SOLUTION] Comparison formatting failed: {e}")
+        logger.error(f"[SOLUTION] List formatting failed: {e}")
         state["error"] = str(e)
-        # Fallback to regular ranking output if comparison fails
-        state["comparison_mode"] = False
+
+        # Fallback: Create simple text list
+        response_lines = [
+            f"**🏗️ {state.get('solution_name', 'Solution')} - Identified Items**\n"
+        ]
+
+        for item in state.get("all_items", []):
+            emoji = "🔧" if item.get("type") == "instrument" else "🔩"
+            response_lines.append(
+                f"{item['number']}. {emoji} {item.get('name', 'Unknown')} ({item.get('category', '')})"
+            )
+
+        response_lines.append(
+            f"\nReply with an item number (1-{state.get('total_items', 0)}) to search for products."
+        )
+
+        state["response"] = "\n".join(response_lines)
+        state["response_data"] = {
+            "workflow": "solution",
+            "items": state.get("all_items", []),
+            "total_items": state.get("total_items", 0),
+            "awaiting_selection": True
+        }
 
     return state
 
 
-# ============================================================================
-# ROUTING FUNCTIONS
-# ============================================================================
-
-def route_after_intent(state: SolutionState) -> Literal["validate", "end"]:
-    """Route after intent classification."""
-    if state.get("error"):
-        return "end"
-    
-    intent = state.get("intent", "")
-    if intent in ["requirements", "additional_specs", "question"]:
-        return "validate"
-    
-    return "validate"
-
-
-def route_after_schema(state: SolutionState) -> Literal["strategy", "potential_index"]:
-    """Route based on schema availability."""
-    if state.get("schema_source") == "not_found":
-        # Would trigger Potential Product Index sub-workflow
-        # For now, continue with strategy
-        logger.info("[SOLUTION] Schema not found - continuing without full schema")
-    
-    return "strategy"
-
-
-def route_after_strategy(state: SolutionState) -> Literal["normal", "strategy_path"]:
-    """Route based on strategy presence."""
-    if state.get("strategy_present"):
-        return "strategy_path"
-    return "normal"
-
-
-def route_after_ranking(state: SolutionState) -> Literal["comparison", "end"]:
-    """
-    NEW: Route after ranking based on comparison mode.
-    If comparison mode is enabled, format as detailed comparison.
-    Otherwise, end workflow with standard ranking output.
-    """
-    if state.get("comparison_mode", False):
-        logger.info("[SOLUTION] Routing to comparison formatting")
-        return "comparison"
-    logger.info("[SOLUTION] Routing to end (standard mode)")
-    return "end"
-
-
-# ============================================================================
+# =============================================================================
 # WORKFLOW CREATION
-# ============================================================================
+# =============================================================================
 
 def create_solution_workflow() -> StateGraph:
     """
-    Create the Solution-Based workflow with Comparison Mode support.
+    Create the Solution Workflow.
+
+    This workflow analyzes solution descriptions and identifies required
+    instruments/accessories, similar to instrument_identifier_workflow.py.
 
     Flow:
-    1. Intent Classifier (+ Comparison Detection)
-    2. Validation Agent + RAG Aggregation
-    3. Schema Agent
-    4. Strategy Agent
-    5. Analysis Coordinator (Parallel)
-    6. Summary Agents
-    7. Judge Agent
-    8. Ranking Agent
-    9. [CONDITIONAL] Comparison Formatter (if comparison_mode=True)
+    1. Analyze Solution Context (domain, process, safety)
+    2. Identify Instruments & Accessories (with sample_input generation)
+    3. Format Selection List
 
-    Supports two modes:
-    - Regular Search Mode: "I need pressure transmitters"
-    - Comparison Mode: "Compare Honeywell vs Emerson transmitters"
+    After this workflow completes, user selects an item, and the sample_input
+    is routed to the PRODUCT SEARCH workflow.
+
+    Architecture:
+    ┌─────────────────────────────────────────────────────────────┐
+    │                   SOLUTION WORKFLOW                          │
+    ├─────────────────────────────────────────────────────────────┤
+    │  User: "I'm designing a crude oil distillation unit..."    │
+    │                              ↓                               │
+    │  ┌───────────────────────────────────────────────────────┐  │
+    │  │           analyze_solution                             │  │
+    │  │   (Extract domain, process, safety requirements)       │  │
+    │  └──────────────────────┬────────────────────────────────┘  │
+    │                         ↓                                    │
+    │  ┌───────────────────────────────────────────────────────┐  │
+    │  │         identify_solution_instruments                  │  │
+    │  │   (Identify instruments + accessories + sample_input) │  │
+    │  └──────────────────────┬────────────────────────────────┘  │
+    │                         ↓                                    │
+    │  ┌───────────────────────────────────────────────────────┐  │
+    │  │            format_solution_list                        │  │
+    │  │   (Generate numbered list for user selection)          │  │
+    │  └──────────────────────┬────────────────────────────────┘  │
+    │                         ↓                                    │
+    │              [END - Awaiting User Selection]                 │
+    │                                                              │
+    │  When user selects item:                                     │
+    │    → sample_input is sent to Product Search Workflow         │
+    └─────────────────────────────────────────────────────────────┘
     """
 
     workflow = StateGraph(SolutionState)
 
-    # Add nodes
-    workflow.add_node("classify_intent", classify_intent_node)
-    workflow.add_node("validate_requirements", validate_requirements_node)
-    workflow.add_node("aggregate_data", aggregate_data_node)
-    workflow.add_node("lookup_schema", lookup_schema_node)
-    workflow.add_node("apply_strategy", apply_strategy_node)
-    workflow.add_node("parallel_analysis", parallel_analysis_node)
-    workflow.add_node("summarize_results", summarize_results_node)
-    workflow.add_node("judge_results", judge_results_node)
-    workflow.add_node("rank_products", rank_products_node)
-    workflow.add_node("format_comparison", format_comparison_node)  # NEW
+    # Add 4 nodes (including Standards RAG enrichment)
+    workflow.add_node("analyze_solution", analyze_solution_node)
+    workflow.add_node("identify_instruments", identify_solution_instruments_node)
+    workflow.add_node("enrich_with_standards", enrich_solution_with_standards_node)  # NEW: Standards RAG
+    workflow.add_node("format_list", format_solution_list_node)
 
     # Set entry point
-    workflow.set_entry_point("classify_intent")
+    workflow.set_entry_point("analyze_solution")
 
-    # Add edges (sequential flow until ranking)
-    workflow.add_edge("classify_intent", "validate_requirements")
-    workflow.add_edge("validate_requirements", "aggregate_data")
-    workflow.add_edge("aggregate_data", "lookup_schema")
-    workflow.add_edge("lookup_schema", "apply_strategy")
-    workflow.add_edge("apply_strategy", "parallel_analysis")
-    workflow.add_edge("parallel_analysis", "summarize_results")
-    workflow.add_edge("summarize_results", "judge_results")
-    workflow.add_edge("judge_results", "rank_products")
-
-    # NEW: Conditional routing after ranking
-    # If comparison_mode=True, format as detailed comparison
-    # If comparison_mode=False, end with standard ranking output
-    workflow.add_conditional_edges(
-        "rank_products",
-        route_after_ranking,
-        {
-            "comparison": "format_comparison",  # Comparison mode path
-            "end": END  # Standard mode path
-        }
-    )
-
-    # Comparison formatter ends the workflow
-    workflow.add_edge("format_comparison", END)
+    # Add edges - linear flow with Standards RAG enrichment
+    workflow.add_edge("analyze_solution", "identify_instruments")
+    workflow.add_edge("identify_instruments", "enrich_with_standards")  # NEW: Route to Standards RAG
+    workflow.add_edge("enrich_with_standards", "format_list")  # NEW: Then to formatting
+    workflow.add_edge("format_list", END)  # WORKFLOW ENDS HERE - waits for user selection
 
     return workflow
 
 
-# ============================================================================
+# =============================================================================
 # WORKFLOW EXECUTION
-# ============================================================================
+# =============================================================================
 
 @with_workflow_lock(session_id_param="session_id", timeout=60.0)
 def run_solution_workflow(
@@ -890,18 +924,41 @@ def run_solution_workflow(
     checkpointing_backend: str = "memory"
 ) -> Dict[str, Any]:
     """
-    Run the solution workflow with session-level locking to prevent race conditions.
+    Run the solution workflow.
+
+    This workflow analyzes solution descriptions and returns a selection list
+    of identified instruments/accessories. It does NOT perform product search.
 
     Args:
-        user_input: User's product requirements
+        user_input: User's solution description (e.g., "I'm designing a crude oil distillation unit...")
         session_id: Session identifier
         checkpointing_backend: Backend for state persistence
 
     Returns:
-        Workflow result with ranked products
+        {
+            "success": True,
+            "response": "Formatted selection list",
+            "response_data": {
+                "workflow": "solution",
+                "solution_name": "...",
+                "solution_analysis": {...},
+                "items": [
+                    {
+                        "number": 1,
+                        "type": "instrument",
+                        "name": "...",
+                        "sample_input": "..."  # To be used for product search
+                    },
+                    ...
+                ],
+                "total_items": N,
+                "awaiting_selection": True
+            }
+        }
     """
     try:
-        logger.info(f"[SOLUTION] Starting workflow for session {session_id}")
+        logger.info(f"[SOLUTION] Starting workflow for session: {session_id}")
+        logger.info(f"[SOLUTION] User input: {user_input[:100]}...")
 
         # Create initial state
         initial_state = create_solution_state(user_input, session_id)
@@ -910,20 +967,20 @@ def run_solution_workflow(
         workflow = create_solution_workflow()
         compiled = compile_with_checkpointing(workflow, checkpointing_backend)
 
-        # Run workflow
-        config = {"configurable": {"thread_id": session_id}}
-        final_state = compiled.invoke(initial_state, config)
+        # Execute workflow
+        result = compiled.invoke(
+            initial_state,
+            config={"configurable": {"thread_id": session_id}}
+        )
 
-        logger.info(f"[SOLUTION] Workflow completed for session {session_id}")
+        logger.info(f"[SOLUTION] Workflow completed successfully")
+        logger.info(f"[SOLUTION] Generated {result.get('total_items', 0)} items for selection")
 
         return {
             "success": True,
-            "response": final_state.get("response"),
-            "response_data": final_state.get("response_data"),
-            "ranked_results": final_state.get("ranked_results", []),
-            "product_type": final_state.get("product_type"),
-            "strategy_present": final_state.get("strategy_present"),
-            "error": final_state.get("error")
+            "response": result.get("response", ""),
+            "response_data": result.get("response_data", {}),
+            "error": result.get("error")
         }
 
     except TimeoutError as e:
@@ -933,10 +990,18 @@ def run_solution_workflow(
             "error": "Another workflow is currently running for this session. Please try again."
         }
     except Exception as e:
-        logger.error(f"[SOLUTION] Workflow failed for session {session_id}: {e}", exc_info=True)
+        logger.error(f"[SOLUTION] Workflow execution failed: {e}")
+        import traceback
+        traceback.print_exc()
+
         return {
             "success": False,
-            "error": str(e)
+            "response": f"I encountered an error while analyzing your solution: {str(e)}",
+            "response_data": {
+                "workflow": "solution",
+                "error": str(e),
+                "awaiting_selection": False
+            }
         }
 
 
@@ -949,80 +1014,64 @@ def run_solution_workflow_stream(
     """
     Run the solution workflow with streaming progress updates.
 
-    This is a wrapper around run_solution_workflow that emits progress updates
-    during execution. Designed for SSE streaming endpoints.
-
     Args:
-        user_input: User's product requirements
+        user_input: User's solution description
         session_id: Session identifier
         checkpointing_backend: Backend for state persistence
         progress_callback: Callback function to emit progress updates
 
     Returns:
-        Workflow result with ranked products
+        Workflow result with selection list
     """
     from .streaming_utils import ProgressEmitter
 
-    # Create emitter
     emitter = ProgressEmitter(progress_callback)
 
     try:
-        # Step 1: Initialize (5%)
+        # Step 1: Initialize (10%)
         emitter.emit(
             'initialize',
-            'Initializing solution workflow...',
-            5,
+            'Analyzing your solution description...',
+            10,
             data={'user_input_preview': user_input[:100]}
         )
 
-        # Step 2: Intent Classification (15%)
+        # Step 2: Analyze Solution (30%)
         emitter.emit(
-            'classify_intent',
-            'Analyzing your requirements...',
-            15
+            'analyze_solution',
+            'Extracting solution context and requirements...',
+            30
         )
 
-        # Step 3: Extract requirements (25%)
+        # Step 3: Identify Instruments (60%)
         emitter.emit(
-            'extract_requirements',
-            'Extracting product specifications...',
-            25
-        )
-
-        # Step 4: Search vendors (40%)
-        emitter.emit(
-            'search_vendors',
-            'Searching for matching vendors...',
-            40
-        )
-
-        # Step 5: Analyze products (60%)
-        emitter.emit(
-            'analyze_products',
-            'Analyzing vendor products and capabilities...',
+            'identify_instruments',
+            'Identifying required instruments and accessories...',
             60
         )
 
-        # Step 6: Rank results (80%)
+        # Step 4: Format List (85%)
         emitter.emit(
-            'rank_results',
-            'Ranking products based on your requirements...',
-            80
+            'format_list',
+            'Preparing instrument selection list...',
+            85
         )
 
         # Execute the actual workflow
         logger.info(f"[SOLUTION-STREAM] Starting workflow for session {session_id}")
         result = run_solution_workflow(user_input, session_id, checkpointing_backend)
 
-        # Step 7: Complete (100%)
+        # Step 5: Complete (100%)
         if result.get("success"):
+            response_data = result.get("response_data", {})
             emitter.emit(
                 'complete',
-                'Workflow completed successfully',
+                'Solution analysis complete! Please select an item.',
                 100,
                 data={
-                    'product_count': len(result.get('ranked_results', [])),
-                    'product_type': result.get('product_type')
+                    'item_count': response_data.get('total_items', 0),
+                    'solution_name': response_data.get('solution_name', ''),
+                    'awaiting_selection': response_data.get('awaiting_selection', True)
                 }
             )
         else:
@@ -1040,3 +1089,15 @@ def run_solution_workflow_stream(
             "success": False,
             "error": str(e)
         }
+
+
+# =============================================================================
+# EXPORTS
+# =============================================================================
+
+__all__ = [
+    'SolutionState',
+    'create_solution_workflow',
+    'run_solution_workflow',
+    'run_solution_workflow_stream'
+]

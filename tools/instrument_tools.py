@@ -37,81 +37,73 @@ class IdentifyAccessoriesInput(BaseModel):
 # ============================================================================
 
 INSTRUMENT_IDENTIFICATION_PROMPT = """
-You are Engenie - an expert in Industrial Process Control Systems.
-Analyze the requirements and identify all instruments needed for the project.
+You are Engenie - an expert assistant in Industrial Process Control Systems. Analyze the given requirements and identify the Bill of Materials (instruments) needed.
+**IMPORTANT: Think step-by-step through your identification process.**
 
-**IMPORTANT: Think step-by-step through your analysis.**
+Before providing the final JSON:
+1. First, read the requirements and extract a concise project name (1-2 words) that best represents the objective.
+2. Then, identify every instrument required by the problem statement. For each instrument, determine category, generic product name, quantity (explicit or inferred), and all specifications mentioned.
+3. For any specification not explicitly present but required for sensible procurement (e.g., typical ranges, common materials), mark it with the tag `[INFERRED]` and explain briefly in an internal analysis (see Validation step).
+4. Create a clear `sample_input` field for each instrument that contains every specification key/value exactly as listed in the `specifications` object.
+5. **ACCESSORY INFERENCE RULE:**
+   - If user explicitly says "no accessories", "without accessories", "only the instrument", "just the [instrument]", or similar → Do NOT add any accessories
+   - If user does NOT mention anything about accessories → Auto-infer relevant accessories of that instrument(impulse lines, isolation valves, manifolds, mounting brackets, junction boxes, power supplies, calibration kits, connectors)
+6. **VENDOR EXTRACTION RULE (CRITICAL):**
+   - If user mentions specific vendor/manufacturer names (e.g., "Honeywell", "ABB", "Emerson", "Siemens", "Yokogawa", "Endress+Hauser", "Rosemount", etc.), extract them for EACH instrument/accessory they apply to.
+   - Example: "I need a pressure transmitter from Honeywell and flow meter from Emerson" → PT gets ["Honeywell"], Flow Meter gets ["Emerson"]
+   - Example: "I need Honeywell instruments" → ALL instruments get ["Honeywell"]
+   - If NO vendor is mentioned for an instrument, leave specified_vendors as an empty array []
 
-Before providing your final list:
-1. First, understand the overall process or system being described
-2. Then, identify each measurement or control point required
-3. Determine the appropriate instrument type for each point
-4. Extract or infer specifications for each instrument
-5. Finally, organize into a comprehensive bill of materials
+=== CRITICAL: SPECIFICATION VALUE FORMAT ===
 
-**Requirements:**
+All specification values must be CLEAN technical values only - NO descriptions or explanations.
+
+CORRECT: "4-20mA", "0-100 psi", "316L SS", "-40 to +85°C", "IP67"
+WRONG: "4-20mA output signal", "typically 0-100 psi", "316L SS for corrosion resistance"
+
+Requirements:
 {requirements}
 
-**Tasks:**
-1. Extract a project name (1-2 words) describing the system
-2. Identify every instrument required
-3. For each instrument provide:
-   - Category (e.g., Pressure Transmitter, Flow Meter, Temperature Sensor)
-   - Product Name (generic name, not brand-specific)
-   - Quantity (count how many needed)
-   - Specifications (extract explicitly mentioned specs, infer critical ones with [INFERRED] tag)
-   - Procurement Strategy (detect from context if mentioned)
-   - Sample Input (comprehensive description including ALL specifications)
-
-**Strategy Detection Rules:**
-Analyze the requirements for procurement approach hints:
-- Budget constraints, cost-focused language → "Cost optimization"
-- Quality emphasis, reliability focus → "Life-cycle cost evaluation"
-- Sustainability, environmental concerns → "Sustainability and green procurement"
-- Safety-critical, high-risk applications → "Dual sourcing"
-- Standard equipment, routine applications → "Framework agreement"
-- Innovation, cutting-edge needs → "Technology partnership"
-- Local suppliers, regional focus → "Regional sourcing"
-
-**Specification Extraction Guidelines:**
-- **ALWAYS extract explicitly mentioned specifications** (e.g., "4-20mA", "0-100 psi", "Class 150")
-- **Infer critical specifications** when essential for operation but not mentioned:
-  - Pressure range if pressure application mentioned
-  - Temperature range if temperature application mentioned
-  - Output signal type for transmitters (default: 4-20mA)
-  - Process connection if not specified (default: based on industry standards)
-- **Mark inferred specs** with [INFERRED] tag in the inferred_specs list
-- **Do not over-infer** - only add specifications that are truly necessary
-
-**Instrument Categorization:**
-Use standard industrial categories:
-- Pressure: Pressure Transmitter, Pressure Gauge, Pressure Switch
-- Flow: Flow Meter, Flow Transmitter, Flow Switch
-- Level: Level Transmitter, Level Gauge, Level Switch
-- Temperature: Temperature Transmitter, Temperature Sensor, Thermocouple, RTD
-- Analytical: pH Sensor, Conductivity Sensor, Dissolved Oxygen Sensor
-- Control: Control Valve, Actuator, Positioner, I/P Converter
-- Safety: Pressure Relief Valve, Rupture Disc, Safety Instrumented System
+Instructions:
+1. Extract a unique, descriptive project name (1-2 words) from the requirements that best represents the objective of the industrial system or process described. This should be concise and professional.
+2. Identify all instruments required for the given Industrial Process Control System Problem Statement 
+3. For each instrument, provide:
+   - Category (e.g., Pressure Transmitter, Temperature Transmitter, Flow Meter, etc.)
+   - Product Name (generic name based on the requirements)
+   - Quantity
+   - Specifications (extract from requirements or infer based on industry standards - CLEAN VALUES ONLY)
+   - Strategy (analyze user requirements to identify procurement approach: budget constraints suggest "Cost optimization", quality emphasis suggests "Life-cycle cost evaluation", sustainability mentions suggest "Sustainability and green procurement", critical applications suggest "Dual sourcing", standard applications suggest "Framework agreement", or leave empty if none identified)
+   - Specified Vendors (extract vendor/manufacturer names mentioned by user for THIS specific instrument, empty array if none)
+   - Specified Model Families (extract model/series names if user mentions them, e.g., "Rosemount 3051" → ["3051"], "Honeywell STT850" → ["STT850"], empty array if none)
+   - Sample Input(must include all specification details exactly as listed in the specifications field (no field should be missing)).
+   - Ensure every parameter appears explicitly in the sample input text.
+4. Mark inferred requirements explicitly with [INFERRED] tag
 
 Return ONLY valid JSON:
 {{
-    "project_name": "<unique 1-3 word project name>",
-    "instruments": [
-        {{
-            "category": "<standard instrument category>",
-            "product_name": "<generic product name>",
-            "quantity": <number>,
-            "specifications": {{
-                "<spec_field>": "<spec_value>"
-            }},
-            "strategy": "<procurement strategy or empty string>",
-            "sample_input": "<category> with <all key specifications including inferred>",
-            "inferred_specs": ["<list of specifications that were inferred with [INFERRED] prefix>"]
-        }}
-    ],
-    "summary": "<brief 2-3 sentence summary of identified instruments and project scope>"
+  "project_name": "<unique project name describing the system>",
+  "instruments": [
+    {{
+      "category": "<category>",
+      "product_name": "<product name>",
+      "quantity": "<quantity>",
+      "specifications": {{
+        "<spec_field>": "<CLEAN spec_value - no descriptions>",
+        "<spec_field>": "<CLEAN spec_value - no descriptions>"
+      }},
+      "strategy": "<procurement strategy from user requirements or empty string>",
+      "specified_vendors": ["<vendor1>", "<vendor2>"],
+      "specified_model_families": ["<model_family1>", "<model_family2>"],
+      "sample_input": "<category> with <key specifications>",
+      "inferred_specs": ["<list of specifications that were inferred with [INFERRED] prefix>"]
+    }}
+  ],
+  "summary": "Brief summary of identified instruments"
 }}
+
+Respond ONLY with valid JSON, no additional text.
 """
+
 
 ACCESSORIES_IDENTIFICATION_PROMPT = """
 You are Engenie - an expert in Industrial Process Control Systems.
@@ -131,14 +123,31 @@ Identify all accessories and ancillary items needed for the instruments.
 - Cable/connector types
 - Power supplies
 - Calibration kits
+- Thermowells (for temperature instruments)
 - Protective accessories
 
+=== CRITICAL: SPECIFICATION VALUE FORMAT ===
+
+All specification values must be CLEAN technical values only - NO descriptions.
+
+CORRECT: "1/2 NPT", "316L SS", "Class 150", "IP66"
+WRONG: "1/2 NPT for easy connection", "316L SS material for corrosion resistance"
+
+**VENDOR PRIORITY RULE:**
+1. If user EXPLICITLY mentions a vendor for THIS accessory → use that vendor
+2. If no explicit accessory vendor BUT parent instrument has a vendor → INHERIT from parent
+3. Only leave specified_vendors empty if neither condition applies
+
 For each accessory provide:
-- Category
-- Accessory Name
+- Category (e.g., Impulse Line, Isolation Valve, Mounting Bracket, Junction Box)
+- Accessory Name (generic)
 - Quantity
-- Specifications
-- Related Instrument
+- Specifications (size, material, pressure rating, connector type - CLEAN VALUES ONLY)
+- Strategy (same as parent instrument or empty)
+- Specified Vendors (inherit from parent instrument if not explicitly mentioned)
+- Specified Model Families (inherit from parent instrument if applicable)
+- Parent Instrument Category (the instrument this accessory supports)
+- Sample Input (include every specification field)
 
 Return ONLY valid JSON:
 {{
@@ -148,15 +157,23 @@ Return ONLY valid JSON:
             "accessory_name": "<accessory name>",
             "quantity": <number>,
             "specifications": {{
-                "<spec_field>": "<spec_value>"
+                "<spec_field>": "<CLEAN spec_value>"
             }},
-            "for_instrument": "<related instrument>",
+            "strategy": "<procurement strategy from parent instrument or empty>",
+            "specified_vendors": ["<inherited from parent instrument or empty>"],
+            "specified_model_families": ["<inherited from parent instrument or empty>"],
+            "parent_instrument_category": "<category of parent instrument>",
+            "related_instrument": "<parent instrument name>",
             "sample_input": "<accessory category> for <instrument> with <specs>"
         }}
     ],
     "summary": "<brief summary of accessories>"
 }}
+
+Respond ONLY with valid JSON, no additional text.
 """
+
+
 
 
 # ============================================================================
@@ -171,7 +188,7 @@ def identify_instruments_tool(requirements: str) -> Dict[str, Any]:
     """
     try:
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
@@ -218,7 +235,7 @@ def identify_accessories_tool(
             }
 
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )

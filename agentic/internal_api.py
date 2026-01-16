@@ -111,27 +111,7 @@ class InternalAPIClient:
         }
         return InternalAPIClient._call('/api/agentic/solution', data)
 
-    @staticmethod
-    def call_comparison_workflow(message: str, session_id: str, **kwargs) -> Dict[str, Any]:
-        """
-        Call the Comparison Workflow API.
-
-        Handles multi-vendor/series/model comparisons.
-
-        Args:
-            message: User input describing comparison request
-            session_id: Session identifier
-            **kwargs: Additional workflow parameters
-
-        Returns:
-            Comparison workflow result with ranked comparisons
-        """
-        data = {
-            "message": message,
-            "session_id": session_id,
-            **kwargs
-        }
-        return InternalAPIClient._call('/api/agentic/compare', data)
+# Comparative analysis is now handled via call_product_search with auto_compare=True
 
     @staticmethod
     def call_comparison_from_spec(spec_object: Dict[str, Any], session_id: str,
@@ -183,28 +163,35 @@ class InternalAPIClient:
         return InternalAPIClient._call('/api/agentic/instrument-detail', data)
 
     @staticmethod
-    def call_grounded_chat(question: str, session_id: str, user_id: str, **kwargs) -> Dict[str, Any]:
+    def call_product_info(query: str, session_id: str, rag_type: str = None,
+                          validate: bool = True, entities: list = None, **kwargs) -> Dict[str, Any]:
         """
-        Call the Grounded Chat Workflow API.
+        Call the Product Info Query API.
 
-        Handles knowledge-based Q&A with RAG and citations.
+        Unified endpoint for knowledge queries with intelligent routing to:
+        Index RAG, Standards RAG, Strategy RAG, Deep Agent, or Web Search.
 
         Args:
-            question: User question
+            query: User question
             session_id: Session identifier
-            user_id: User identifier
+            rag_type: Optional routing hint (index_rag, standards_rag, strategy_rag,
+                     deep_agent, web_search, hybrid)
+            validate: Whether to validate response (default: True)
+            entities: Optional entity list for verification
             **kwargs: Additional workflow parameters
 
         Returns:
-            Grounded chat result with answer and citations
+            Product Info result with answer, sources, validation metadata
         """
         data = {
-            "question": question,
+            "query": query,
             "session_id": session_id,
-            "user_id": user_id,
+            "rag_type": rag_type,
+            "validate": validate,
+            "entities": entities,
             **kwargs
         }
-        return InternalAPIClient._call('/api/agentic/chat-knowledge', data)
+        return InternalAPIClient._call('/api/product-info/query', data)
 
     @staticmethod
     def call_instrument_identifier(message: str, session_id: str, **kwargs) -> Dict[str, Any]:
@@ -226,7 +213,7 @@ class InternalAPIClient:
             "session_id": session_id,
             **kwargs
         }
-        return InternalAPIClient._call('/api/agentic/identify', data)
+        return InternalAPIClient._call('/api/agentic/instrument-identifier', data)
 
     @staticmethod
     def call_potential_product_index(product_type: str, session_id: str, **kwargs) -> Dict[str, Any]:
@@ -250,8 +237,7 @@ class InternalAPIClient:
         }
         return InternalAPIClient._call('/api/agentic/potential-product-index', data)
 
-    @staticmethod
-    def call_legacy_workflow(message: str, session_id: str, workflow_type: str = "procurement", **kwargs) -> Dict[str, Any]:
+    def call_legacy_workflow(self, message: str, session_id: str, workflow_type: str = "procurement", **kwargs) -> Dict[str, Any]:
         """
         Call the Legacy Workflow API.
 
@@ -266,13 +252,36 @@ class InternalAPIClient:
         Returns:
             Legacy workflow result
         """
-        data = {
+        payload = {
             "message": message,
             "session_id": session_id,
-            "workflow_type": workflow_type,
-            **kwargs
+            "workflow_type": workflow_type
         }
-        return InternalAPIClient._call('/api/agentic/chat', data)
+        payload.update(kwargs)
+
+        return self._call('/api/agentic/legacy-workflow', payload)
+
+    def call_product_search(self, message: str, session_id: str, **kwargs) -> Dict[str, Any]:
+        """
+        Call the Product Search Workflow API.
+
+        Executed after instrument identification to find specific products.
+
+        Args:
+            message: User input (sample_input)
+            session_id: Session identifier
+            **kwargs: Additional workflow parameters
+
+        Returns:
+            Product search result with ranked products
+        """
+        payload = {
+            "message": message,
+            "session_id": session_id
+        }
+        payload.update(kwargs)
+
+        return self._call('/api/agentic/product-search', payload)
 
 
 # Create singleton instance

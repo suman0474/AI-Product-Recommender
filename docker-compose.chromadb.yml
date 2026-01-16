@@ -1,0 +1,26 @@
+# Docker Compose for ChromaDB Server
+# Self-hosted vector database for RAG
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/chroma/chroma # Persist data locally
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+      - ALLOW_RESET=TRUE
+      # Optional: Add authentication
+      # - CHROMA_SERVER_AUTH_PROVIDER=chromadb.auth.token.TokenAuthServerProvider
+      # - CHROMA_SERVER_AUTH_CREDENTIALS=your-secret-token
+    restart: unless-stopped
+    # Note: Healthcheck disabled because the minimal ChromaDB container 
+    # doesn't include python, curl, or wget. The API works fine - test manually:
+    # curl http://localhost:8000/api/v2/heartbeat
+
+    # Named volumes for persistence
+volumes:
+  chroma_data:

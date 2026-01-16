@@ -142,7 +142,7 @@ def discover_vendors_node(state: PotentialProductIndexState) -> PotentialProduct
     try:
         with LLM_SEMAPHORE:
             llm = create_llm_with_fallback(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.5-flash",
                 temperature=0.2,
                 google_api_key=os.getenv("GOOGLE_API_KEY")
             )
@@ -193,7 +193,7 @@ def discover_models_node(state: PotentialProductIndexState) -> PotentialProductI
         def discover_for_vendor(vendor: str) -> tuple:
             with LLM_SEMAPHORE:
                 llm = create_llm_with_fallback(
-                    model="gemini-2.0-flash-exp",
+                    model="gemini-2.5-flash",
                     temperature=0.2,
                     google_api_key=os.getenv("GOOGLE_API_KEY")
                 )
@@ -425,7 +425,7 @@ def generate_schema_node(state: PotentialProductIndexState) -> PotentialProductI
     try:
         with LLM_SEMAPHORE:
             llm = create_llm_with_fallback(
-                model="gemini-2.0-flash-exp",
+                model="gemini-2.5-flash",
                 temperature=0.2,
                 google_api_key=os.getenv("GOOGLE_API_KEY")
             )
@@ -469,16 +469,31 @@ def save_schema_node(state: PotentialProductIndexState) -> PotentialProductIndex
     
     try:
         if state.get("generated_schema"):
-            # In production: Save to MongoDB
-            # For now: Mark as saved
+            # Save to Azure Blob Storage
+            from azure_blob_utils import azure_blob_file_manager
+            
+            schema = state["generated_schema"]
+            product_type = state["product_type"]
+            
+            metadata = {
+                'collection_type': 'specs',
+                'product_type': product_type,
+                'normalized_product_type': product_type.lower().replace(' ', '').replace('_', ''),
+                'filename': f"{product_type.lower().replace(' ', '_')}.json",
+                'file_type': 'json',
+                'schema_version': '1.0'
+            }
+            
+            doc_id = azure_blob_file_manager.upload_json_data(schema, metadata)
+            
             state["schema_saved"] = True
             
             state["messages"] = state.get("messages", []) + [{
                 "role": "system",
-                "content": f"Schema saved for {state['product_type']}"
+                "content": f"Schema saved to Azure for {state['product_type']} (ID: {doc_id})"
             }]
             
-            logger.info(f"[PPI] Schema saved for {state['product_type']}")
+            logger.info(f"[PPI] Schema saved to Azure for {state['product_type']}")
         else:
             state["schema_saved"] = False
             logger.warning("[PPI] No schema to save")

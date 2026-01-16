@@ -771,9 +771,9 @@ def get_analysis_search_categories(detected_product_type: str) -> list:
             # Pressure transmitter → search ONLY transmitter
             return ["pressure transmitter"]
             
-    elif any(word in product_lower for word in ["temperature", "temp"]):
-        if "sensor" in product_lower:
-            # Temperature sensor → search BOTH sensor and transmitter
+    elif any(word in product_lower for word in ["temperature", "temp", "thermocouple", "rtd"]):
+        if "sensor" in product_lower or "thermocouple" in product_lower or "rtd" in product_lower:
+            # Temperature sensor/thermocouple → search BOTH sensor and transmitter
             return ["temperature sensor", "temperature transmitter"]
         else:
             # Temperature transmitter → search ONLY transmitter

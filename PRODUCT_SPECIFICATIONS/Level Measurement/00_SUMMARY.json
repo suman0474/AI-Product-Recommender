@@ -1,0 +1,98 @@
+{
+  "product_type": "Level Measurement",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_level_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "IEC 61892",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 60079",
+            "type": "IEC"
+          },
+          {
+            "code": "API 551",
+            "type": "API"
+          },
+          {
+            "code": "API 551",
+            "type": "API"
+          },
+          {
+            "code": "ISA 5.1",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 20",
+            "type": "ISA"
+          }
+        ],
+        "certifications": [
+          {
+            "name": "CLASS I, DIVISION 1",
+            "type": "Class I Div"
+          }
+        ],
+        "measurement_ranges": [],
+        "accuracy_specs": [
+          "±0.5 %",
+          "±1 %",
+          "±1 %",
+          "10 %"
+        ],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Level Measurement Instrumentation Standards\nIntroduction\nLevel measurement is essential for tank inventory management, safety interlocking and process control in refineries. These standards draw on API 551 and industry specifications for differential pressure, ultrasonic, RF admittance, submersible and float‑actuated level instruments【51948133245220†L3300-L3359】.\nApplicable Standards\nAPI 551 – Level Measurement.\nISA 5.1 and ISA 20: symbols and data sheets.\nIEC 61892 / IEC 60079: electrical equipment in explosive atmospheres (hazardous area certification).\nASTM D1248: plastic materials (for float materials).\nEquipment Types\nDifferential pressure level transmitters: flanged sensing units with 4–20 mA output and ±0.25 % accuracy【51948133245220†L3300-L3316】.\nUltrasonic level instruments: non‑contact echo‑time devices for liquids; microprocessor‑based transmitters with temperature compensation and narrow beam angle【51948133245220†L3321-L3359】.\nRF admittance/capacitance level transmitters: s"
+      },
+      "text_length": 5958,
+      "paragraphs": 53
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "IEC 61892",
+        "type": "IEC"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      },
+      {
+        "code": "IEC 60079",
+        "type": "IEC"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      }
+    ],
+    "total_certifications": [
+      {
+        "name": "CLASS I, DIVISION 1",
+        "type": "Class I Div"
+      }
+    ],
+    "total_protocols": [],
+    "document_count": 1
+  }
+}

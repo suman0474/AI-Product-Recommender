@@ -214,6 +214,13 @@ class AzureBlobFileManager:
 
     # ==================== RETRIEVAL OPERATIONS ====================
 
+    def get_file_from_mongodb(self, collection_name: str, query: Dict[str, Any]) -> Optional[bytes]:
+        """
+        Alias for get_file_from_azure for backward compatibility with code expecting MongoDB interface.
+        Required by loading.py for PDF extraction.
+        """
+        return self.get_file_from_azure(collection_name, query)
+
     def get_file_from_azure(self, collection_name: str, query: Dict[str, Any]) -> Optional[bytes]:
         """
         Retrieve file from Azure Blob Storage
@@ -335,7 +342,12 @@ class AzureBlobFileManager:
                     continue
 
                 blob_metadata = blob.metadata or {}
-                blob_pt = blob_metadata.get('product_type', '').lower()
+                blob_pt = blob_metadata.get('product_type', '')
+                
+                # Ensure blob_pt is a string before lower() (handle potential None from bad metadata)
+                if blob_pt is None:
+                    blob_pt = ""
+                blob_pt = str(blob_pt).lower()
 
                 # Check for match
                 if (normalized_type in blob_pt or
@@ -603,8 +615,15 @@ def get_cached_image(vendor_name: str, model_family: str) -> Optional[Dict[str, 
             blob_client = azure_blob_file_manager.container_client.get_blob_client(blob.name)
             metadata_data = json.loads(blob_client.download_blob().readall().decode('utf-8'))
 
+            # Extract filename for gridfs_file_id (for compatibility)
+            # blob name is path/to/images/file.jpg. We want "file.jpg" or the UUID part
+            from pathlib import Path
+            filename = Path(metadata_data.get('image_blob_path', '')).name
+
             return {
                 'blob_path': metadata_data.get('image_blob_path'),
+                # Compatibility field for main.py
+                'gridfs_file_id': filename,
                 'title': metadata_data.get('title'),
                 'source': metadata_data.get('source'),
                 'domain': metadata_data.get('domain'),
@@ -755,13 +774,15 @@ def get_vendors_for_product_type(product_type: str) -> List[str]:
                 continue
 
             metadata = blob.metadata or {}
-            blob_product_type = metadata.get('product_type', '').lower()
+            # Normalize product_type: replace underscores with spaces for matching
+            blob_product_type = metadata.get('product_type', '').lower().replace('_', ' ')
             vendor_name = metadata.get('vendor_name')
 
             # Check if product type matches any search category
             matches = False
             for category in search_categories:
-                if category.lower() in blob_product_type or blob_product_type in category.lower():
+                category_normalized = category.lower().replace('_', ' ')
+                if category_normalized in blob_product_type or blob_product_type in category_normalized:
                     matches = True
                     break
 
@@ -775,3 +796,222 @@ def get_vendors_for_product_type(product_type: str) -> List[str]:
     except Exception as e:
         logger.error(f"Failed to get vendors for product type '{product_type}': {e}")
         return get_available_vendors_from_mongodb()
+
+
+def get_pdf_content_for_vendors(vendors: List[str], product_type: str = None) -> Dict[str, str]:
+    """
+    Get PDF text content for a list of vendors.
+    
+    Args:
+        vendors: List of vendor names
+        product_type: Optional product type to filter PDFs
+        
+    Returns:
+        Dict mapping vendor name to PDF text content
+    """
+    try:
+        from azure_blob_config import Collections
+        
+        pdf_content = {}
+        
+        for vendor in vendors:
+            try:
+                # Try to find PDF for this vendor
+                prefix = f"{azure_blob_file_manager.base_path}/{Collections.VENDORS}/"
+                blobs = list(azure_blob_file_manager.container_client.list_blobs(
+                    name_starts_with=prefix,
+                    include=['metadata']
+                ))
+                
+                for blob in blobs:
+                    if not blob.name.endswith('.pdf') and not blob.name.endswith('.txt'):
+                        continue
+                        
+                    metadata = blob.metadata or {}
+                    blob_vendor = metadata.get('vendor_name', '').lower()
+                    
+                    # Check if vendor matches
+                    if vendor.lower() in blob_vendor or blob_vendor in vendor.lower():
+                        # If product_type specified, also check that
+                        if product_type:
+                            blob_pt = metadata.get('product_type', '').lower()
+                            if product_type.lower() not in blob_pt and blob_pt not in product_type.lower():
+                                continue
+                        
+                        # Download and decode content
+                        blob_client = azure_blob_file_manager.container_client.get_blob_client(blob.name)
+                        content = blob_client.download_blob().readall()
+                        
+                        # If it's a PDF, we need to extract text (simplified - assume already extracted)
+                        if blob.name.endswith('.txt'):
+                            pdf_content[vendor] = content.decode('utf-8', errors='ignore')
+                        else:
+                            # For actual PDFs, try to extract text
+                            try:
+                                import fitz  # PyMuPDF
+                                pdf_doc = fitz.open(stream=content, filetype="pdf")
+                                text = ""
+                                for page in pdf_doc:
+                                    text += page.get_text()
+                                pdf_content[vendor] = text
+                            except:
+                                # Fallback - store raw content info
+                                pdf_content[vendor] = f"[PDF content for {vendor} - {len(content)} bytes]"
+                        
+                        logger.info(f"[PDF_CONTENT] Loaded content for vendor: {vendor}")
+                        break
+                        
+            except Exception as e:
+                logger.warning(f"[PDF_CONTENT] Failed to load PDF for vendor {vendor}: {e}")
+                
+        logger.info(f"[PDF_CONTENT] Loaded PDF content for {len(pdf_content)}/{len(vendors)} vendors")
+        return pdf_content
+        
+    except Exception as e:
+        logger.error(f"[PDF_CONTENT] Failed to get PDF content: {e}")
+        return {}
+
+
+def get_products_for_vendors(vendors: List[str], product_type: str = None) -> Dict[str, List[Dict]]:
+    """
+    Get product JSON data for a list of vendors from Azure Blob Storage.
+    
+    Args:
+        vendors: List of vendor names
+        product_type: Optional product type to filter products
+        
+    Returns:
+        Dict mapping vendor name to list of product dictionaries
+    """
+    try:
+        from azure_blob_config import Collections
+        from fuzzywuzzy import fuzz
+        
+        products_data = {}
+        
+        # First, list all JSON blobs
+        prefix = f"{azure_blob_file_manager.base_path}/{Collections.VENDORS}/"
+        blobs = list(azure_blob_file_manager.container_client.list_blobs(
+            name_starts_with=prefix,
+            include=['metadata']
+        ))
+        
+        logger.info(f"[PRODUCTS] Searching {len(blobs)} blobs for vendors: {vendors}")
+        
+        for vendor in vendors:
+            vendor_lower = vendor.lower().strip()
+            
+            for blob in blobs:
+                if not blob.name.endswith('.json'):
+                    continue
+                    
+                metadata = blob.metadata or {}
+                blob_vendor = metadata.get('vendor_name', '').lower().strip()
+                
+                # Multiple matching strategies
+                matched = False
+                
+                # Strategy 1: Exact match
+                if vendor_lower == blob_vendor:
+                    matched = True
+                # Strategy 2: Substring match
+                elif vendor_lower in blob_vendor or blob_vendor in vendor_lower:
+                    matched = True
+                # Strategy 3: Fuzzy match
+                else:
+                    similarity = fuzz.ratio(vendor_lower, blob_vendor)
+                    if similarity >= 75:
+                        matched = True
+                        logger.info(f"[PRODUCTS] Fuzzy matched '{vendor}' to '{metadata.get('vendor_name')}' ({similarity}%)")
+                
+                if not matched:
+                    continue
+                    
+                # If product_type specified, check using category expansion (same logic as vendor discovery)
+                if product_type:
+                    from standardization_utils import get_analysis_search_categories
+                    search_categories = get_analysis_search_categories(product_type)
+                    
+                    # Normalize blob product type
+                    blob_pt = metadata.get('product_type', '').lower().replace('_', ' ')
+                    
+                    # Check if blob's product_type matches ANY of the search categories
+                    category_matched = False
+                    for category in search_categories:
+                        category_normalized = category.lower().replace('_', ' ')
+                        if category_normalized in blob_pt or blob_pt in category_normalized:
+                            category_matched = True
+                            break
+                    
+                    if not category_matched:
+                        continue
+                
+                # Download and parse JSON
+                try:
+                    blob_client = azure_blob_file_manager.container_client.get_blob_client(blob.name)
+                    content = blob_client.download_blob().readall()
+                    data = json.loads(content.decode('utf-8'))
+                    
+                    logger.info(f"[PRODUCTS] Loaded JSON for vendor {vendor} from {blob.name}")
+                    
+                    # Handle different JSON structures
+                    # The JSON may have been wrapped during MongoDB→Azure migration
+                    # Common format: {"data": {"vendor": "...", "product_type": "...", "models": [...]}, "metadata": {...}}
+                    if isinstance(data, list):
+                        products_data[vendor] = data
+                    elif isinstance(data, dict):
+                        # Check for common structures
+                        if 'products' in data:
+                            products_data[vendor] = data['products']
+                        elif 'models' in data:
+                            # This is the vendor JSON format with models array
+                            products_data[vendor] = [data]  # Wrap as list
+                        elif 'data' in data:
+                            # Handle the migration wrapper format: {"data": {...}, "metadata": {...}}
+                            inner_data = data['data']
+                            if isinstance(inner_data, list):
+                                products_data[vendor] = inner_data
+                            elif isinstance(inner_data, dict):
+                                # Check if inner data has models - this is the actual product catalog
+                                if 'models' in inner_data:
+                                    # The inner data IS the product catalog, wrap it as a list
+                                    products_data[vendor] = [inner_data]
+                                    logger.info(f"[PRODUCTS] Extracted catalog with {len(inner_data.get('models', []))} models for {vendor}")
+                                elif 'products' in inner_data:
+                                    products_data[vendor] = inner_data['products']
+                                else:
+                                    # Treat inner data as a single product
+                                    products_data[vendor] = [inner_data]
+                            else:
+                                products_data[vendor] = [inner_data]
+                        else:
+                            # Treat the whole object as a product
+                            products_data[vendor] = [data]
+                    
+                    product_count = len(products_data.get(vendor, []))
+                    
+                    # Enhanced logging - show structure details
+                    product_list = products_data.get(vendor, [])
+                    if product_list and isinstance(product_list[0], dict) and 'models' in product_list[0]:
+                        models_count = len(product_list[0].get('models', []))
+                        submodels_count = sum(len(m.get('sub_models', [])) for m in product_list[0].get('models', []))
+                        logger.info(f"[PRODUCTS] Vendor '{vendor}': {product_count} catalog(s), {models_count} models, {submodels_count} submodels")
+                    else:
+                        logger.info(f"[PRODUCTS] Vendor '{vendor}': {product_count} product entries loaded")
+                    
+                    break  # Found data for this vendor
+                    
+                except json.JSONDecodeError as e:
+                    logger.warning(f"[PRODUCTS] Invalid JSON for vendor {vendor}: {e}")
+                except Exception as e:
+                    logger.warning(f"[PRODUCTS] Error loading blob {blob.name}: {e}")
+        
+        logger.info(f"[PRODUCTS] Loaded product data for {len(products_data)}/{len(vendors)} vendors")
+        return products_data
+        
+    except Exception as e:
+        logger.error(f"[PRODUCTS] Failed to get products: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {}
+

@@ -1,10 +1,13 @@
 # agentic/models.py
-# Pydantic Models and State Definitions for LangGraph Workflow
+# Centralized Models, States, and Type Definitions
+#
+# This module contains all TypedDict states, Pydantic models, Enums,
+# and factory functions used across agentic workflows.
 
-from typing import Dict, List, Optional, Any, TypedDict, Annotated
-from pydantic import BaseModel, Field
+from typing import Dict, Any, List, Optional, TypedDict, Annotated, Literal
 from enum import Enum
-import operator
+from pydantic import BaseModel, Field
+from langchain_core.messages import BaseMessage
 
 
 # ============================================================================
@@ -12,845 +15,1016 @@ import operator
 # ============================================================================
 
 class IntentType(str, Enum):
-    """User intent classification types"""
+    """User intent types for workflow routing"""
     GREETING = "greeting"
     REQUIREMENTS = "requirements"
     QUESTION = "question"
-    ADDITIONAL_SPECS = "additional_specs"
     CONFIRM = "confirm"
     REJECT = "reject"
-    CHITCHAT = "chitchat"
+    ADDITIONAL_SPECS = "additionalSpecs"
     UNRELATED = "unrelated"
-
-
-class WorkflowStep(str, Enum):
-    """Workflow step identifiers"""
-    START = "start"
-    CLASSIFY_INTENT = "classify_intent"
-    VALIDATE_REQUIREMENTS = "validate_requirements"
-    COLLECT_MISSING_INFO = "collect_missing_info"
-    SEARCH_VENDORS = "search_vendors"
-    ANALYZE_PRODUCTS = "analyze_products"
-    JUDGE_RESULTS = "judge_results"
-    RANK_PRODUCTS = "rank_products"
-    GENERATE_RESPONSE = "generate_response"
-    END = "end"
+    SOLUTION = "solution"
+    PRODUCT_SEARCH = "productSearch"
+    PRODUCT_INFO = "productInfo"
+    CHAT = "chat"
+    INVALID = "invalid"
 
 
 class WorkflowType(str, Enum):
-    """Workflow types for routing - 5 workflows (3 main + invalid + chat)"""
+    """Available workflow types"""
     SOLUTION = "solution"
-    INSTRUMENT_DETAIL = "instrument_detail"
-    GROUNDED_CHAT = "grounded_chat"
-    CHAT = "chat"  # Generic conversational intents (greetings, acknowledgments)
-    INVALID = "invalid"  # Out-of-domain queries
+    INSTRUMENT_IDENTIFIER = "instrument_identifier"
+    PRODUCT_INFO = "product_info"
+    INVALID = "invalid"
+    PRODUCT_SEARCH = "product_search"
+    COMPARISON = "comparison"
+    PPI = "ppi"
 
 
-class AmbiguityLevel(str, Enum):
-    """Ambiguity level for routing decisions"""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+class WorkflowStep(str, Enum):
+    """Workflow execution steps"""
+    INTENT_CLASSIFICATION = "intentClassification"
+    VALIDATION = "validation"
+    VENDOR_SEARCH = "vendorSearch"
+    PRODUCT_ANALYSIS = "productAnalysis"
+    RANKING = "ranking"
+    RESPONSE = "response"
+    COLLECT_MISSING_INFO = "collectMissingInfo"
+    INSTRUMENT_IDENTIFICATION = "instrumentIdentification"
+    ACCESSORY_IDENTIFICATION = "accessoryIdentification"
+    BOM_FORMATTING = "bomFormatting"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
+class ComparisonType(str, Enum):
+    """Types of product comparison"""
+    COMPETITIVE = "competitive"  # Compare competing products
+    REPLACEMENT = "replacement"  # Find replacement for existing
+    UPGRADE = "upgrade"          # Upgrade analysis
+
+
+class RequestMode(str, Enum):
+    """Solution workflow request modes"""
+    DESIGN = "design"            # Design new system
+    SEARCH = "search"            # Find existing product
+    COMPARISON = "comparison"    # Compare multiple options
+
+
+class SalesAgentStep(str, Enum):
+    """Sales Agent workflow steps (FSM states)"""
+    GREETING = "greeting"
+    INITIAL_INPUT = "initialInput"
+    AWAIT_MISSING_INFO = "awaitMissingInfo"
+    AWAIT_ADDITIONAL_SPECS = "awaitAdditionalSpecs"
+    AWAIT_ADVANCED_SPECS = "awaitAdvancedSpecs"
+    SHOW_SUMMARY = "showSummary"
+    FINAL_ANALYSIS = "finalAnalysis"
+    END = "end"
+    ERROR = "error"
+
+
+class SalesAgentIntent(str, Enum):
+    """Sales Agent intent types"""
+    GREETING = "greeting"
+    PRODUCT_REQUIREMENTS = "productRequirements"
+    KNOWLEDGE_QUESTION = "knowledgeQuestion"
+    WORKFLOW = "workflow"
+    CONFIRM = "confirm"
+    REJECT = "reject"
+    CHITCHAT = "chitchat"
+    OTHER = "other"
 
 
 # ============================================================================
-# PYDANTIC MODELS - Tool Inputs/Outputs
+# PYDANTIC MODELS
 # ============================================================================
 
 class IntentClassification(BaseModel):
-    """Output of intent classification"""
-    intent: IntentType = Field(description="Classified user intent")
-    confidence: float = Field(ge=0, le=1, description="Confidence score 0-1")
-    next_step: Optional[WorkflowStep] = Field(default=None, description="Suggested next workflow step")
-    extracted_info: Optional[Dict[str, Any]] = Field(default=None, description="Extracted information from input")
+    """Intent classification result"""
+    intent: str
+    confidence: float
+    reasoning: Optional[str] = None
 
 
 class RequirementValidation(BaseModel):
-    """Validation result for user requirements"""
-    is_valid: bool = Field(description="Whether requirements are valid")
-    product_type: Optional[str] = Field(default=None, description="Detected product type")
-    provided_requirements: Dict[str, Any] = Field(default_factory=dict, description="Requirements provided by user")
-    missing_fields: List[str] = Field(default_factory=list, description="Missing required fields")
-    optional_fields: List[str] = Field(default_factory=list, description="Available optional fields")
-    validation_messages: List[str] = Field(default_factory=list, description="Validation messages")
+    """Requirement validation result"""
+    is_valid: bool
+    product_type: Optional[str] = None
+    provided_requirements: Dict[str, Any] = Field(default_factory=dict)
+    missing_fields: List[str] = Field(default_factory=list)
+    confidence: float = 0.0
 
 
 class VendorMatch(BaseModel):
     """Single vendor match result"""
-    vendor: str = Field(description="Vendor name")
-    product_name: str = Field(description="Specific product name/model")
-    model_family: str = Field(description="Product model family/series")
-    match_score: float = Field(ge=0, le=100, description="Match score 0-100")
-    requirements_match: bool = Field(description="Whether all mandatory requirements are met")
-    matched_requirements: Dict[str, str] = Field(default_factory=dict, description="Matched requirements with values")
-    unmatched_requirements: List[str] = Field(default_factory=list, description="Unmatched requirements")
-    reasoning: str = Field(description="Reasoning for the match")
-    limitations: Optional[str] = Field(default=None, description="Product limitations")
-    pdf_source: Optional[str] = Field(default=None, description="PDF datasheet source")
-    image_url: Optional[str] = Field(default=None, description="Product image URL")
+    vendor: str
+    relevance_score: float
+    reasoning: str
+    products_found: int = 0
 
 
 class VendorAnalysis(BaseModel):
-    """Complete vendor analysis result"""
-    vendor_matches: List[VendorMatch] = Field(default_factory=list, description="List of vendor matches")
-    analysis_summary: Optional[str] = Field(default=None, description="Summary of analysis")
-    total_vendors_analyzed: int = Field(default=0, description="Number of vendors analyzed")
+    """Detailed vendor analysis"""
+    vendor: str
+    product_name: str
+    model_family: Optional[str] = None
+    match_score: float
+    key_strengths: List[str] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
+    reasoning: str
+    specifications: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ProductRanking(BaseModel):
-    """Product ranking result"""
-    rank: int = Field(ge=1, description="Product rank")
-    vendor: str = Field(description="Vendor name")
-    product_name: str = Field(description="Product name")
-    model_family: str = Field(description="Model family")
-    overall_score: float = Field(ge=0, le=100, description="Overall score 0-100")
-    key_strengths: List[str] = Field(default_factory=list, description="Key product strengths")
-    concerns: List[str] = Field(default_factory=list, description="Product concerns")
-    recommendation: Optional[str] = Field(default=None, description="Recommendation text")
+    """Single product ranking"""
+    vendor: str
+    product_name: str
+    rank: int
+    overall_score: float
+    technical_score: float
+    compliance_score: float
+    recommendation: Optional[str] = None
 
 
 class OverallRanking(BaseModel):
-    """Overall ranking result"""
-    ranked_products: List[ProductRanking] = Field(default_factory=list, description="Ranked list of products")
-    ranking_summary: Optional[str] = Field(default=None, description="Summary of ranking")
-
-
-class RoutingDecision(BaseModel):
-    """Routing decision from WorkflowRouter"""
-    workflow: WorkflowType = Field(description="Selected workflow type")
-    confidence: float = Field(ge=0, le=1, description="Confidence score 0-1")
-    reasoning: str = Field(description="Reasoning for the routing decision")
-    ambiguity_level: AmbiguityLevel = Field(description="Level of ambiguity in the decision")
-    rule_match: Optional[str] = Field(default=None, description="Which rule matched (if any)")
-    llm_used: bool = Field(default=False, description="Whether LLM was used for classification")
-    alternatives: List[WorkflowType] = Field(default_factory=list, description="Alternative workflow suggestions")
-    timestamp: Optional[str] = Field(default=None, description="Timestamp of routing decision")
-
-
-class InstrumentSpecification(BaseModel):
-    """Instrument specification"""
-    category: str = Field(description="Instrument category")
-    product_name: str = Field(description="Generic product name")
-    quantity: int = Field(ge=1, description="Required quantity")
-    specifications: Dict[str, Any] = Field(default_factory=dict, description="Technical specifications")
-    strategy: Optional[str] = Field(default=None, description="Procurement strategy")
-    sample_input: Optional[str] = Field(default=None, description="Sample input for analysis")
-
-
-class AccessorySpecification(BaseModel):
-    """Accessory specification"""
-    category: str = Field(description="Accessory category")
-    accessory_name: str = Field(description="Accessory name")
-    quantity: int = Field(ge=1, description="Required quantity")
-    specifications: Dict[str, Any] = Field(default_factory=dict, description="Specifications")
-    for_instrument: Optional[str] = Field(default=None, description="Related instrument")
+    """Complete ranking results"""
+    ranked_products: List[ProductRanking]
+    summary: str
+    top_recommendation: Optional[str] = None
 
 
 class InstrumentIdentification(BaseModel):
     """Instrument identification result"""
-    project_name: str = Field(description="Project name")
-    instruments: List[InstrumentSpecification] = Field(default_factory=list, description="Identified instruments")
-    accessories: List[AccessorySpecification] = Field(default_factory=list, description="Identified accessories")
-    summary: Optional[str] = Field(default=None, description="Summary of identification")
+    project_name: str
+    instruments: List[Dict[str, Any]] = Field(default_factory=list)
+    accessories: List[Dict[str, Any]] = Field(default_factory=list)
+    summary: str
 
 
-class AgentResponse(BaseModel):
-    """Generic agent response"""
-    success: bool = Field(description="Whether the agent succeeded")
-    message: str = Field(description="Response message")
-    data: Optional[Dict[str, Any]] = Field(default=None, description="Response data")
-    next_step: Optional[WorkflowStep] = Field(default=None, description="Suggested next step")
-    requires_user_input: bool = Field(default=False, description="Whether user input is needed")
+class ConstraintContext(BaseModel):
+    """Constraint context from RAG"""
+    preferred_vendors: List[str] = Field(default_factory=list)
+    forbidden_vendors: List[str] = Field(default_factory=list)
+    required_standards: List[str] = Field(default_factory=list)
+    required_certifications: List[str] = Field(default_factory=list)
+    installed_series: List[str] = Field(default_factory=list)
+
+
+class VendorModelCandidate(BaseModel):
+    """Vendor model candidate for comparison"""
+    vendor: str
+    model_family: str
+    product_name: str
+    specifications: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ScoringBreakdown(BaseModel):
+    """Detailed scoring breakdown"""
+    mandatory_match: float = 0.0
+    optional_match: float = 0.0
+    advanced_params: float = 0.0
+    industry_fit: float = 0.0
+    total: float = 0.0
+
+
+class RankedComparisonProduct(BaseModel):
+    """Product with comparison scoring"""
+    vendor: str
+    product_name: str
+    model_family: Optional[str] = None
+    rank: int
+    overall_score: float
+    scoring_breakdown: ScoringBreakdown
+    key_differentiators: List[str] = Field(default_factory=list)
+    reasoning: str
+
+
+class ComparisonMatrix(BaseModel):
+    """Comparison matrix result"""
+    products: List[RankedComparisonProduct]
+    comparison_type: ComparisonType
+    winner: Optional[str] = None
+    summary: str
+
+
+class RAGQueryResult(BaseModel):
+    """RAG query result"""
+    query: str
+    answer: str
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+    confidence: float = 0.0
+
+
+class SpecObject(BaseModel):
+    """Specification object for UI comparison"""
+    field_name: str
+    user_value: Any
+    comparison_type: str  # "exact", "range", "fuzzy", etc.
+    importance: str = "mandatory"  # "mandatory", "optional", "advanced"
+
+
+class ComparisonInput(BaseModel):
+    """Input for comparison workflow"""
+    product_type: str
+    user_requirements: Dict[str, Any]
+    spec_objects: List[SpecObject]
+    comparison_type: ComparisonType = ComparisonType.COMPETITIVE
+
 
 
 # ============================================================================
-# LANGGRAPH STATE DEFINITION
+# TYPEDDICT STATES
 # ============================================================================
 
-class WorkflowState(TypedDict):
-    """
-    LangGraph Workflow State
-    This is the state that flows through the entire workflow graph
-    """
-    # User Input
-    user_input: str
+class WorkflowState(TypedDict, total=False):
+    """Base workflow state (original/legacy)"""
+    # Session & Context
     session_id: str
+    user_id: Optional[str]
+    user_input: str
+    messages: List[BaseMessage]
 
-    # Intent Classification
-    intent: Optional[IntentType]
+    # Intent & Classification
+    intent: str
     intent_confidence: float
+    current_step: str
 
-    # Product Information
+    # Product & Requirements
     product_type: Optional[str]
     schema: Optional[Dict[str, Any]]
+    provided_requirements: Dict[str, Any]
+    missing_fields: List[str]
+
+    # Search & Analysis
+    filtered_vendors: List[str]
+    vendor_matches: List[Dict[str, Any]]
+    analysis_results: List[Dict[str, Any]]
+    ranked_results: List[Dict[str, Any]]
+
+    # Response
+    response: str
+    error: Optional[str]
+
+
+class ProductSearchState(TypedDict, total=False):
+    """Product Search Workflow State"""
+    # Session & Context
+    session_id: str
+    user_id: Optional[str]
+    search_session_id: str
+    thread_id: Optional[str]
+
+    # User Input & Intent
+    user_input: str
+    messages: List[BaseMessage]
+    current_intent: str
+    current_step: str
+    previous_step: Optional[str]
+
+    # Product & Schema
+    product_type: Optional[str]
+    schema: Optional[Dict[str, Any]]
+    ppi_needed: bool
+    ppi_result: Optional[Dict[str, Any]]
 
     # Requirements
     provided_requirements: Dict[str, Any]
     missing_requirements: List[str]
-    is_requirements_valid: bool
+    requirements_summary: Optional[str]
 
-    # Vendor Analysis
-    available_vendors: List[str]
-    filtered_vendors: List[str]
-    vendor_analysis: Optional[VendorAnalysis]
+    # Advanced Parameters
+    available_advanced_params: List[str]
+    advanced_params_selected: Dict[str, Any]
+    advanced_params_discovery_result: Optional[Dict[str, Any]]
 
-    # PDF and Product Data
-    pdf_content: Dict[str, str]
-    products_data: List[Dict[str, Any]]
-
-    # Ranking
-    ranking: Optional[OverallRanking]
-
-    # Instrument Identification
-    instruments: List[InstrumentSpecification]
-    accessories: List[AccessorySpecification]
-
-    # Workflow Control
-    current_step: WorkflowStep
-    next_step: Optional[WorkflowStep]
-    requires_user_input: bool
-
-    # Messages (for agent communication)
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-
-    # Response
-    response: Optional[str]
-    response_data: Optional[Dict[str, Any]]
-
-    # Error Handling
-    error: Optional[str]
-    retry_count: int
-
-
-def create_initial_state(user_input: str, session_id: str) -> WorkflowState:
-    """Create initial workflow state"""
-    return WorkflowState(
-        user_input=user_input,
-        session_id=session_id,
-        intent=None,
-        intent_confidence=0.0,
-        product_type=None,
-        schema=None,
-        provided_requirements={},
-        missing_requirements=[],
-        is_requirements_valid=False,
-        available_vendors=[],
-        filtered_vendors=[],
-        vendor_analysis=None,
-        pdf_content={},
-        products_data=[],
-        ranking=None,
-        instruments=[],
-        accessories=[],
-        current_step=WorkflowStep.START,
-        next_step=WorkflowStep.CLASSIFY_INTENT,
-        requires_user_input=False,
-        messages=[],
-        response=None,
-        response_data=None,
-        error=None,
-        retry_count=0
-    )
-
-
-# ============================================================================
-# TOOL INPUT SCHEMAS
-# ============================================================================
-
-class ClassifyIntentInput(BaseModel):
-    """Input schema for intent classification tool"""
-    user_input: str = Field(description="User's input message to classify")
-    context: Optional[str] = Field(default=None, description="Conversation context")
-
-
-class ValidateRequirementsInput(BaseModel):
-    """Input schema for requirements validation tool"""
-    user_input: str = Field(description="User's requirements input")
-    product_type: Optional[str] = Field(default=None, description="Detected product type")
-    product_schema: Optional[Dict[str, Any]] = Field(default=None, description="Product schema")
-
-
-class SearchVendorsInput(BaseModel):
-    """Input schema for vendor search tool"""
-    product_type: str = Field(description="Product type to search for")
-    requirements: Dict[str, Any] = Field(description="User requirements")
-    vendor_filter: Optional[List[str]] = Field(default=None, description="List of vendors to filter by")
-
-
-class AnalyzeProductInput(BaseModel):
-    """Input schema for product analysis tool"""
-    vendor: str = Field(description="Vendor name")
-    requirements: Dict[str, Any] = Field(description="User requirements")
-    pdf_content: Optional[str] = Field(default=None, description="PDF datasheet content")
-    product_data: Optional[Dict[str, Any]] = Field(default=None, description="Product JSON data")
-
-
-class RankProductsInput(BaseModel):
-    """Input schema for product ranking tool"""
-    vendor_matches: List[Dict[str, Any]] = Field(description="List of vendor match results")
-    requirements: Dict[str, Any] = Field(description="Original requirements")
-
-
-class IdentifyInstrumentsInput(BaseModel):
-    """Input schema for instrument identification tool"""
-    requirements: str = Field(description="Process requirements description")
-
-
-class SearchImagesInput(BaseModel):
-    """Input schema for image search tool"""
-    vendor: str = Field(description="Vendor name")
-    product_name: str = Field(description="Product name")
-    product_type: str = Field(description="Product type")
-
-
-class SearchPDFsInput(BaseModel):
-    """Input schema for PDF search tool"""
-    vendor: str = Field(description="Vendor name")
-    product_type: str = Field(description="Product type")
-    model_family: Optional[str] = Field(default=None, description="Model family")
-
-
-# ============================================================================
-# ENHANCED MODELS FOR COMPARISON WORKFLOW
-# ============================================================================
-
-class RequestMode(str, Enum):
-    """Request mode classification"""
-    SINGLE_LOOKUP = "single"
-    COMPARISON = "comparison"
-
-
-class ConstraintContext(BaseModel):
-    """Unified constraint set from all RAG sources"""
-    
-    # Strategy Constraints
-    preferred_vendors: List[str] = Field(default_factory=list, description="Preferred vendors from strategy")
-    forbidden_vendors: List[str] = Field(default_factory=list, description="Forbidden vendors from strategy")
-    neutral_vendors: List[str] = Field(default_factory=list, description="Neutral vendors")
-    procurement_priorities: Dict[str, int] = Field(default_factory=dict, description="Vendor priority scores")
-    
-    # Standards Constraints
-    required_sil_rating: Optional[str] = Field(default=None, description="Required SIL rating (SIL1, SIL2, SIL3)")
-    atex_zone: Optional[str] = Field(default=None, description="Required ATEX zone (Zone 0, 1, 2)")
-    required_certifications: List[str] = Field(default_factory=list, description="Required certifications")
-    plant_codes: List[str] = Field(default_factory=list, description="Plant-specific codes")
-    
-    # Inventory Constraints
-    installed_series: Dict[str, List[str]] = Field(default_factory=dict, description="Installed series per vendor")
-    series_restrictions: List[str] = Field(default_factory=list, description="Series restrictions")
-    available_spare_parts: Dict[str, List[str]] = Field(default_factory=dict, description="Available spare parts per model")
-    standardized_vendor: Optional[str] = Field(default=None, description="Plant standardized vendor")
-    
-    # Computed
-    excluded_models: List[str] = Field(default_factory=list, description="Models to exclude")
-    boosted_models: List[str] = Field(default_factory=list, description="Models to boost")
-
-
-class SpecObject(BaseModel):
-    """
-    Finalized instrument/accessory specification from Detail Capture workflow.
-    This is the structured input for comparison workflow.
-    """
-    product_type: str = Field(description="Product type (e.g., 'pressure transmitter')")
-    category: str = Field(default="", description="Product category")
-    subcategory: Optional[str] = Field(default=None, description="Product subcategory")
-    
-    # Technical specifications
-    specifications: Dict[str, Any] = Field(default_factory=dict, description="Technical specs (range, accuracy, etc.)")
-    
-    # Certifications and standards
-    required_certifications: List[str] = Field(default_factory=list, description="Required certifications (SIL2, ATEX, etc.)")
-    sil_rating: Optional[str] = Field(default=None, description="Required SIL rating")
-    atex_zone: Optional[str] = Field(default=None, description="Required ATEX zone")
-    
-    # Environment
-    environment: Optional[str] = Field(default=None, description="Operating environment")
-    temperature_range: Optional[str] = Field(default=None, description="Temperature range")
-    
-    # Source workflow
-    source_workflow: str = Field(default="manual", description="Source workflow (solution, instrument_detail, manual)")
-    session_id: Optional[str] = Field(default=None, description="Session ID from source workflow")
-
-
-class ComparisonType(str, Enum):
-    """Types of comparison analysis"""
-    VENDOR = "vendor"       # Compare across vendors
-    SERIES = "series"       # Compare series within vendor
-    MODEL = "model"         # Compare models within series
-    FULL = "full"           # Full multi-level comparison
-
-
-class ComparisonInput(BaseModel):
-    """
-    Input for comparison workflow from UI [COMPARE VENDORS] button.
-    """
-    spec_object: SpecObject = Field(description="Finalized specification object")
-    comparison_type: ComparisonType = Field(default=ComparisonType.FULL, description="Type of comparison")
-    session_id: str = Field(default="", description="Session identifier")
-    user_id: Optional[str] = Field(default=None, description="User identifier")
-    
-    # Optional filters
-    vendor_filter: Optional[List[str]] = Field(default=None, description="Specific vendors to compare")
-    max_candidates: int = Field(default=10, description="Maximum candidates per level")
-
-
-class VendorModelCandidate(BaseModel):
-    """Single vendor/model in candidate pool"""
-    vendor: str = Field(description="Vendor name")
-    series: str = Field(description="Product series")
-    model: str = Field(description="Specific model")
-    is_preferred: bool = Field(default=False, description="Is preferred vendor")
-    priority_boost: int = Field(default=0, description="Priority boost points")
-    meets_standards: bool = Field(default=True, description="Meets standards requirements")
-    matches_installed_base: bool = Field(default=False, description="Matches installed base")
-
-
-class ScoringBreakdown(BaseModel):
-    """Detailed scoring for a product"""
-    strategy_priority: int = Field(ge=0, le=25, description="Strategy priority score /25")
-    technical_fit: int = Field(ge=0, le=25, description="Technical fit score /25")
-    asset_alignment: int = Field(ge=0, le=20, description="Asset alignment score /20")
-    standards_compliance: int = Field(ge=0, le=15, description="Standards compliance score /15")
-    data_completeness: int = Field(ge=0, le=15, description="Data completeness score /15")
-    
-    @property
-    def overall_score(self) -> int:
-        return (self.strategy_priority + self.technical_fit + 
-                self.asset_alignment + self.standards_compliance + 
-                self.data_completeness)
-
-
-class RankedComparisonProduct(BaseModel):
-    """Single ranked product in comparison output"""
-    rank: int = Field(ge=1, description="Product rank")
-    vendor: str = Field(description="Vendor name")
-    model: str = Field(description="Model name")
-    overall_score: int = Field(ge=0, le=100, description="Overall score /100")
-    scoring_breakdown: ScoringBreakdown = Field(description="Detailed scoring breakdown")
-    constraints_met: Dict[str, bool] = Field(default_factory=dict, description="Constraints met status")
-    key_advantages: List[str] = Field(default_factory=list, description="Key advantages")
-
-
-class ComparisonMatrix(BaseModel):
-    """Unified comparison results"""
-    candidates: List[VendorModelCandidate] = Field(default_factory=list, description="Candidate products")
-    within_vendor_comparisons: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict, description="Within-vendor comparisons")
-    cross_vendor_comparisons: List[Dict[str, Any]] = Field(default_factory=list, description="Cross-vendor comparisons")
-    spec_match_scores: Dict[str, float] = Field(default_factory=dict, description="Spec match scores per model")
-
-
-class RAGQueryResult(BaseModel):
-    """Result from RAG query"""
-    source: str = Field(description="RAG source (strategy, standards, inventory)")
-    relevant_chunks: List[str] = Field(default_factory=list, description="Relevant text chunks")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Result metadata")
-    confidence: float = Field(ge=0, le=1, default=0.0, description="Query confidence")
-
-
-# ============================================================================
-# ENHANCED WORKFLOW STATES
-# ============================================================================
-
-class ComparisonState(TypedDict):
-    """
-    State for Comparative Analysis Workflow
-    """
-    # User Input
-    user_input: str
-    session_id: str
-    
-    # Request Classification
-    request_mode: Optional[str]  # "single" or "comparison"
-    mode_confidence: float
-    
-    # Instrument Identification
-    instrument_type: Optional[str]
-    instrument_category: Optional[str]
-    critical_specs: Dict[str, Any]
-    
-    # RAG Constraints
-    constraint_context: Optional[Dict[str, Any]]  # Serialized ConstraintContext
-    rag_results: Dict[str, Any]  # Results from all 3 RAGs
-    
-    # Candidate Filtering
-    all_vendors: List[str]
-    filtered_candidates: List[Dict[str, Any]]  # Serialized VendorModelCandidate list
-    exclusion_reasons: List[Dict[str, str]]
-    
-    # Parallel Analysis
-    vendor_analysis_results: List[Dict[str, Any]]
-    within_vendor_comparisons: Dict[str, List[Dict[str, Any]]]
-    cross_vendor_comparisons: List[Dict[str, Any]]
-    
-    # Validation
-    validated_results: List[Dict[str, Any]]
-    flagged_results: List[Dict[str, Any]]
-    removed_results: List[Dict[str, Any]]
-    
-    # Comparison Matrix
-    comparison_matrix: Optional[Dict[str, Any]]
-    
-    # Ranked Output
-    ranked_products: List[Dict[str, Any]]  # Serialized RankedComparisonProduct list
-    
-    # Workflow Control
-    current_phase: str
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-    
-    # Response
-    response: Optional[str]
-    response_data: Optional[Dict[str, Any]]
-    formatted_output: Optional[str]
-    
-    # Error Handling
-    error: Optional[str]
-
-
-class SolutionState(TypedDict):
-    """
-    State for Solution-Based Workflow (with Comparison Mode support)
-    """
-    # User Input
-    user_input: str
-    session_id: str
-
-    # Intent Classification
-    intent: Optional[str]
-    intent_confidence: float
-
-    # Validation
-    product_type: Optional[str]
-    schema: Optional[Dict[str, Any]]
-    schema_source: Optional[str]  # "mongodb" or "generated"
-    provided_requirements: Dict[str, Any]
-    missing_requirements: List[str]
-    is_requirements_valid: bool
-
-    # RAG Data
-    rag_context: Dict[str, Any]
-    strategy_present: bool
-    allowed_vendors: List[str]
-
-    # Vendor Analysis
-    available_vendors: List[str]
-    filtered_vendors: List[str]
-    parallel_analysis_results: List[Dict[str, Any]]
-    summarized_results: List[Dict[str, Any]]
-
-    # Validation & Ranking
-    judge_validation: Dict[str, Any]
-    ranked_results: List[Dict[str, Any]]
-
-    # Comparison Mode (NEW - integrated from comparison_workflow)
-    comparison_mode: bool  # True if this is a comparison request ("compare", "vs", etc.)
-    mode_confidence: float  # Confidence in comparison detection (0.0-1.0)
-    comparison_output: Optional[Dict[str, Any]]  # Formatted comparison result with winner/trade-offs
-
-    # Workflow Control
-    current_step: str
-    next_step: Optional[str]
-    requires_user_input: bool
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-
-    # Response
-    response: Optional[str]
-    response_data: Optional[Dict[str, Any]]
-
-    # Error Handling
-    error: Optional[str]
-    retry_count: int
-
-
-class InstrumentDetailState(TypedDict):
-    """
-    State for Instrument/Accessory Detail Capture Workflow
-    """
-    # User Input
-    user_input: str
-    session_id: str
-    
-    # Intent Classification (First)
-    initial_intent: Optional[str]
-    
-    # Instrument Identification
-    identified_instruments: List[Dict[str, Any]]
-    identified_accessories: List[Dict[str, Any]]
-    project_name: Optional[str]
-    
-    # User Selection
-    selected_item: Optional[Dict[str, Any]]
-    selected_type: Optional[str]  # "instrument" or "accessory"
-    
-    # Intent Classification (Second - for detail)
-    detail_intent: Optional[str]
-    
-    # Validation
-    product_type: Optional[str]
-    schema: Optional[Dict[str, Any]]
-    provided_requirements: Dict[str, Any]
-    missing_requirements: List[str]
-    is_requirements_valid: bool
-    
-    # RAG Data
-    rag_context: Dict[str, Any]
-    strategy_present: bool
-    allowed_vendors: List[str]
-    
-    # Vendor Analysis
-    available_vendors: List[str]
-    filtered_vendors: List[str]
-    parallel_analysis_results: List[Dict[str, Any]]
-    summarized_results: List[Dict[str, Any]]
-    
-    # Validation & Ranking
-    judge_validation: Dict[str, Any]
-    ranked_results: List[Dict[str, Any]]
-    
-    # Workflow Control
-    current_step: str
-    next_step: Optional[str]
-    requires_user_input: bool
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-    
-    # Response
-    response: Optional[str]
-    response_data: Optional[Dict[str, Any]]
-    
-    # Error Handling
-    error: Optional[str]
-
-
-class InstrumentIdentifierState(TypedDict):
-    """
-    State for Instrument Identifier Workflow (List Generator Only)
-
-    This workflow identifies instruments/accessories from project requirements
-    and generates a selection list with sample_input strings.
-    It does NOT perform product search - that's handled by the SOLUTION workflow.
-    """
-    # User Input
-    user_input: str
-    session_id: str
-
-    # Intent Classification
-    initial_intent: Optional[str]
-
-    # Identification Results
-    identified_instruments: List[Dict[str, Any]]
-    identified_accessories: List[Dict[str, Any]]
-    project_name: str
-
-    # Unified Item List (with sample_input for each)
-    all_items: List[Dict[str, Any]]  # Each item has: number, type, name, category, sample_input
-    total_items: int
-
-    # Workflow Control
-    current_step: str
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-
-    # Output
-    response: Optional[str]
-    response_data: Optional[Dict[str, Any]]
-
-    # Error Handling
-    error: Optional[str]
-
-
-class PotentialProductIndexState(TypedDict):
-    """
-    State for Potential Product Index Sub-Workflow
-    """
-    # Input from Parent Workflow
-    product_type: str
-    session_id: str
-    parent_workflow: str  # "solution" or "instrument_detail"
-    
     # RAG Context
     rag_context: Dict[str, Any]
-    
-    # Vendor Discovery
-    discovered_vendors: List[str]
-    vendor_model_families: Dict[str, List[str]]
-    
-    # Parallel Processing
-    vendor_processing_status: Dict[str, str]  # vendor -> status
-    pdf_search_results: Dict[str, List[Dict[str, Any]]]
-    pdf_download_status: Dict[str, str]
-    extracted_content: Dict[str, str]
-    
-    # Azure Blob Storage
-    blob_urls: Dict[str, str]  # vendor -> blob URL
-    
-    # RAG Indexing
-    indexed_chunks: List[Dict[str, Any]]
-    vector_store_ids: List[str]
-    
-    # Schema Generation
-    generated_schema: Optional[Dict[str, Any]]
-    schema_saved: bool
-    
-    # Workflow Control
-    current_phase: str
-    messages: Annotated[List[Dict[str, Any]], operator.add]
-    
+    strategy_data: Optional[Dict[str, Any]]
+    standards_data: Optional[Dict[str, Any]]
+
+    # Vendor Search & Analysis
+    filtered_vendors: List[str]
+    parallel_analysis_results: List[Dict[str, Any]]
+    ranked_results: List[Dict[str, Any]]
+
+    # Sales Agent Integration
+    sales_agent_response: Optional[str]
+    current_sales_step: Optional[str]
+    awaiting_user_input: bool
+    user_confirmed: bool
+
+    # UI Response
+    response: str
+    response_data: Optional[Dict[str, Any]]
+    ui_phase: Optional[str]
+    premium_result_cards: Optional[List[Dict[str, Any]]]
+
     # Error Handling
     error: Optional[str]
-    failed_vendors: List[str]
+    error_recovery_count: int
+
+    # Internal Flags
+    _advanced_params_presented: bool
+    _missing_info_presented: bool
+
+
+class SolutionState(TypedDict, total=False):
+    """Solution Workflow State (Design & Search)"""
+    # Session
+    session_id: str
+    user_id: Optional[str]
+
+    # Input
+    user_input: str
+    messages: List[Dict[str, Any]]  # Changed from BaseMessage to Dict for flexibility
+
+    # Intent & Mode
+    intent: str
+    intent_confidence: float
+    request_mode: str  # "design", "search", "comparison"
+    comparison_mode: bool
+
+    # Product & Schema
+    product_type: Optional[str]
+    schema: Optional[Dict[str, Any]]
+    provided_requirements: Dict[str, Any]
+    missing_fields: List[str]
+
+    # Solution Analysis (from analyze_solution_node)
+    solution_analysis: Dict[str, Any]
+    solution_name: str
+    instrument_context: str
+    project_name: Optional[str]
+
+    # Identified Items (from identify_solution_instruments_node)
+    identified_instruments: List[Dict[str, Any]]
+    identified_accessories: List[Dict[str, Any]]
+    all_items: List[Dict[str, Any]]
+    total_items: int
+
+    # RAG Context
+    rag_strategy: Optional[Dict[str, Any]]
+    rag_standards: Optional[Dict[str, Any]]
+    rag_inventory: Optional[Dict[str, Any]]
+    constraint_context: Optional[ConstraintContext]
+
+    # Search & Analysis
+    filtered_vendors: List[str]
+    vendor_matches: List[Dict[str, Any]]
+    analysis_results: List[Dict[str, Any]]
+    judge_results: Optional[Dict[str, Any]]
+    ranked_products: List[Dict[str, Any]]
+
+    # Comparison Mode
+    comparison_output: Optional[Dict[str, Any]]
+    comparison_matrix: Optional[ComparisonMatrix]
+
+    # Response
+    response: str
+    response_data: Optional[Dict[str, Any]]
+    current_step: str
+    error: Optional[str]
+
+
+class ComparisonState(TypedDict, total=False):
+    """Comparison Workflow State"""
+    # Session
+    session_id: str
+    user_id: Optional[str]
+
+    # Input
+    user_input: str
+    product_type: str
+    comparison_type: ComparisonType
+
+    # Requirements
+    user_requirements: Dict[str, Any]
+    spec_objects: List[SpecObject]
+
+    # Candidates
+    candidates: List[VendorModelCandidate]
+    candidate_count: int
+
+    # Analysis
+    analysis_results: List[Dict[str, Any]]
+    comparison_matrix: Optional[ComparisonMatrix]
+    ranked_products: List[RankedComparisonProduct]
+
+    # Response
+    response: str
+    winner: Optional[str]
+    error: Optional[str]
+
+
+
+
+class InstrumentIdentifierState(TypedDict, total=False):
+    """Instrument Identifier Workflow State"""
+    # Session
+    session_id: str
+    user_id: Optional[str]
+
+    # Input
+    user_input: str
+    messages: List[BaseMessage]
+
+    # Classification
+    input_type: str  # "requirements", "greeting", "question", "unrelated"
+    classification_confidence: str
+    classification_reasoning: str
+
+    # Identification
+    project_name: Optional[str]
+    identified_instruments: List[Dict[str, Any]]
+    identified_accessories: List[Dict[str, Any]]
+    all_items: List[Dict[str, Any]]  # Combined list
+    total_items: int
+
+    # Response
+    response: str
+    response_data: Optional[Dict[str, Any]]  # Detailed UI data
+    instrument_list: Optional[str]
+    current_step: str
+    error: Optional[str]
+
+
+class PotentialProductIndexState(TypedDict, total=False):
+    """Potential Product Index (PPI) Workflow State"""
+    # Session
+    session_id: str
+    parent_workflow: str  # Parent workflow that triggered PPI
+    rag_context: Dict[str, Any]  # Context from parent workflow
+
+    # Input
+    product_type: str
+    user_requirements: Optional[Dict[str, Any]]
+
+    # Messages
+    messages: List[Dict[str, Any]]  # Workflow messages for tracking
+    current_phase: str  # Current workflow phase
+
+    # Vendor Discovery
+    potential_vendors: List[str]  # Legacy field
+    discovered_vendors: List[str]  # Active field used by workflow
+    vendor_model_families: Dict[str, List[str]]
+    vendor_processing_status: Dict[str, str]  # Track vendor processing status
+    failed_vendors: List[str]  # Vendors that failed processing
+
+    # PDF Search & Processing
+    pdf_search_results: Dict[str, List[Dict[str, Any]]]  # Changed to Dict for per-vendor results
+    downloaded_pdfs: List[Dict[str, Any]]
+    processed_pdfs: List[Dict[str, Any]]
+    pdf_download_status: Dict[str, str]  # Track download status per vendor
+    pdf_success_rate: float
+    extracted_content: str  # JSON string of extracted content
+
+    # RAG Indexing
+    indexed_content: List[Dict[str, Any]]
+    indexed_chunks: List[Dict[str, Any]]  # Indexed content chunks
+    vector_store_ids: List[str]  # Vector store IDs
+    index_success: bool
+
+    # Schema Generation
+    generated_schema: Optional[Dict[str, Any]]
+    schema_version: int
+    schema_validated: bool
+    schema_saved: bool  # Flag indicating schema was saved
+
+    # Output
+    ppi_success: bool
+    retry_count: int
+    max_retries: int
+    error: Optional[str]
+    current_step: str
+
+
+class GroundedChatState(TypedDict, total=False):
+    """Grounded Knowledge Chat Workflow State"""
+    # Question & Session
+    user_question: str
+    session_id: str
+    user_id: Optional[str]
+    question_type: Optional[str]
+
+    # Product Context
+    product_type: Optional[str]
+    entities: List[str]
+    is_valid_question: bool
+
+    # PPI Integration
+    ppi_needed: bool
+    ppi_result: Optional[Dict[str, Any]]
+    schema_available: bool
+
+    # RAG Context
+    rag_context: Dict[str, Any]
+    constraint_context: Optional[ConstraintContext]
+    preferred_vendors: List[str]
+    required_standards: List[str]
+    installed_series: List[str]
+
+    # Response Generation
+    generated_answer: Optional[str]
+    citations: List[str]
+    rag_sources_used: List[str]
+    confidence: float
+
+    # Validation
+    is_valid: bool
+    validation_score: float
+    validation_issues: List[str]
+    hallucination_detected: bool
+    retry_count: int
+    max_retries: int
+    validation_feedback: Optional[str]
+
+    # Session Management
+    total_interactions: int
+    conversation_context: List[Dict[str, Any]]
+    final_response: Optional[str]
+
+    # Workflow
+    current_node: str
+    messages: List[BaseMessage]
+    error: Optional[str]
+    completed: bool
+
+
+class SalesAgentState(TypedDict, total=False):
+    """Sales Agent Conversational Workflow State"""
+    # Session Management
+    session_id: str
+    user_id: Optional[str]
+    search_session_id: str
+
+    # User Input & Intent
+    user_input: str
+    current_intent: str
+    current_step: str
+    previous_step: Optional[str]
+
+    # Product & Schema
+    product_type: Optional[str]
+    schema: Optional[Dict[str, Any]]
+
+    # Requirements Collection
+    provided_requirements: Dict[str, Any]
+    missing_requirements: List[str]
+
+    # Additional Parameters
+    available_additional_params: List[str]
+    selected_additional_params: Dict[str, Any]
+
+    # Advanced Parameters
+    available_advanced_params: List[str]
+    selected_advanced_params: Dict[str, Any]
+
+    # Search Results
+    filtered_vendors: List[str]
+    analysis_results: List[Dict[str, Any]]
+    ranked_results: List[Dict[str, Any]]
+
+    # Sales Agent Response
+    sales_agent_response: Optional[str]
+    response_data: Optional[Dict[str, Any]]
+
+    # Conversation
+    messages: List[BaseMessage]
+
+    # Error Handling
+    error: Optional[str]
+    error_recovery_count: int
+
+
+class StandardsRAGState(TypedDict, total=False):
+    """Standards RAG Workflow State"""
+    # Input
+    question: str
+    session_id: str
+    top_k: int
+
+    # Validation
+    question_valid: bool
+    key_terms: List[str]
+
+    # Retrieval
+    retrieved_docs: List[Dict[str, Any]]
+    context: str
+    source_metadata: List[Dict[str, Any]]
+
+    # Generation
+    answer: Optional[str]
+    citations: List[str]
+    confidence: float
+    sources_used: List[str]
+    generation_count: int
+
+    # Validation & Retry
+    validation_result: Optional[Dict[str, Any]]
+    is_valid: bool
+    retry_count: int
+    max_retries: int
+    validation_feedback: Optional[str]
+
+    # Output
+    final_response: Optional[str]
+    status: str
+    error: Optional[str]
+
+    # Metrics
+    start_time: Optional[float]
+    processing_time_ms: Optional[float]
 
 
 # ============================================================================
-# STATE FACTORY FUNCTIONS
+# FACTORY FUNCTIONS
 # ============================================================================
 
-def create_comparison_state(user_input: str, session_id: str) -> ComparisonState:
-    """Create initial comparison workflow state"""
-    return ComparisonState(
-        user_input=user_input,
+def create_initial_state(
+    user_input: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None
+) -> WorkflowState:
+    """Create initial workflow state"""
+    return WorkflowState(
         session_id=session_id,
-        request_mode=None,
-        mode_confidence=0.0,
-        instrument_type=None,
-        instrument_category=None,
-        critical_specs={},
-        constraint_context=None,
-        rag_results={},
-        all_vendors=[],
-        filtered_candidates=[],
-        exclusion_reasons=[],
-        vendor_analysis_results=[],
-        within_vendor_comparisons={},
-        cross_vendor_comparisons=[],
-        validated_results=[],
-        flagged_results=[],
-        removed_results=[],
-        comparison_matrix=None,
-        ranked_products=[],
-        current_phase="classify_request",
+        user_id=user_id,
+        user_input=user_input,
         messages=[],
-        response=None,
-        response_data=None,
-        formatted_output=None,
-        error=None
-    )
-
-
-def create_solution_state(user_input: str, session_id: str) -> SolutionState:
-    """Create initial solution workflow state (with comparison mode support)"""
-    return SolutionState(
-        user_input=user_input,
-        session_id=session_id,
-        intent=None,
+        intent="",
         intent_confidence=0.0,
-        product_type=None,
-        schema=None,
-        schema_source=None,
-        provided_requirements={},
-        missing_requirements=[],
-        is_requirements_valid=False,
-        rag_context={},
-        strategy_present=False,
-        allowed_vendors=[],
-        available_vendors=[],
-        filtered_vendors=[],
-        parallel_analysis_results=[],
-        summarized_results=[],
-        judge_validation={},
-        ranked_results=[],
-        comparison_mode=False,  # NEW: Default to regular search mode
-        mode_confidence=0.0,  # NEW: Will be set by comparison detection
-        comparison_output=None,  # NEW: Will be populated if comparison mode
-        current_step="classify_intent",
-        next_step=None,
-        requires_user_input=False,
-        messages=[],
-        response=None,
-        response_data=None,
-        error=None,
-        retry_count=0
-    )
-
-
-def create_instrument_detail_state(user_input: str, session_id: str) -> InstrumentDetailState:
-    """Create initial instrument detail workflow state"""
-    return InstrumentDetailState(
-        user_input=user_input,
-        session_id=session_id,
-        initial_intent=None,
-        identified_instruments=[],
-        identified_accessories=[],
-        project_name=None,
-        selected_item=None,
-        selected_type=None,
-        detail_intent=None,
+        current_step="intent_classification",
         product_type=None,
         schema=None,
         provided_requirements={},
-        missing_requirements=[],
-        is_requirements_valid=False,
-        rag_context={},
-        strategy_present=False,
-        allowed_vendors=[],
-        available_vendors=[],
+        missing_fields=[],
         filtered_vendors=[],
-        parallel_analysis_results=[],
-        summarized_results=[],
-        judge_validation={},
+        vendor_matches=[],
+        analysis_results=[],
         ranked_results=[],
-        current_step="classify_intent",
-        next_step=None,
-        requires_user_input=False,
-        messages=[],
-        response=None,
-        response_data=None,
+        response="",
         error=None
     )
 
 
-def create_instrument_identifier_state(user_input: str, session_id: str) -> InstrumentIdentifierState:
-    """Create initial instrument identifier workflow state"""
-    return InstrumentIdentifierState(
-        user_input=user_input,
+def create_product_search_state(
+    user_input: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None,
+    search_session_id: Optional[str] = None
+) -> ProductSearchState:
+    """Create product search workflow state"""
+    return ProductSearchState(
         session_id=session_id,
-        initial_intent=None,
+        user_id=user_id,
+        search_session_id=search_session_id or session_id,
+        thread_id=None,
+        user_input=user_input,
+        messages=[],
+        current_intent="",
+        current_step="intent_classification",
+        previous_step=None,
+        product_type=None,
+        schema=None,
+        ppi_needed=False,
+        ppi_result=None,
+        provided_requirements={},
+        missing_requirements=[],
+        requirements_summary=None,
+        available_advanced_params=[],
+        advanced_params_selected={},
+        advanced_params_discovery_result=None,
+        rag_context={},
+        strategy_data=None,
+        standards_data=None,
+        filtered_vendors=[],
+        parallel_analysis_results=[],
+        ranked_results=[],
+        sales_agent_response=None,
+        current_sales_step=None,
+        awaiting_user_input=False,
+        user_confirmed=False,
+        response="",
+        response_data=None,
+        ui_phase=None,
+        premium_result_cards=None,
+        error=None,
+        error_recovery_count=0,
+        _advanced_params_presented=False,
+        _missing_info_presented=False
+    )
+
+
+def create_solution_state(
+    user_input: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None
+) -> SolutionState:
+    """Create solution workflow state"""
+    return SolutionState(
+        session_id=session_id,
+        user_id=user_id,
+        user_input=user_input,
+        messages=[],
+        intent="",
+        intent_confidence=0.0,
+        request_mode="search",
+        comparison_mode=False,
+        product_type=None,
+        schema=None,
+        provided_requirements={},
+        missing_fields=[],
+        # Solution Analysis fields
+        solution_analysis={},
+        solution_name="",
+        instrument_context="",
+        project_name=None,
+        # Identified Items fields
         identified_instruments=[],
         identified_accessories=[],
-        project_name="Project",
         all_items=[],
         total_items=0,
-        current_step="classify_intent",
-        messages=[],
-        response=None,
+        # RAG Context
+        rag_strategy=None,
+        rag_standards=None,
+        rag_inventory=None,
+        constraint_context=None,
+        filtered_vendors=[],
+        vendor_matches=[],
+        analysis_results=[],
+        judge_results=None,
+        ranked_products=[],
+        comparison_output=None,
+        comparison_matrix=None,
+        response="",
         response_data=None,
+        current_step="analyze_solution",
+        error=None
+    )
+
+
+def create_comparison_state(
+    user_input: str,
+    product_type: str,
+    user_requirements: Dict[str, Any],
+    spec_objects: List[SpecObject],
+    session_id: str = "default",
+    user_id: Optional[str] = None,
+    comparison_type: ComparisonType = ComparisonType.COMPETITIVE
+) -> ComparisonState:
+    """Create comparison workflow state"""
+    return ComparisonState(
+        session_id=session_id,
+        user_id=user_id,
+        user_input=user_input,
+        product_type=product_type,
+        comparison_type=comparison_type,
+        user_requirements=user_requirements,
+        spec_objects=spec_objects,
+        candidates=[],
+        candidate_count=0,
+        analysis_results=[],
+        comparison_matrix=None,
+        ranked_products=[],
+        response="",
+        winner=None,
+        error=None
+    )
+
+
+
+
+def create_instrument_identifier_state(
+    user_input: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None
+) -> InstrumentIdentifierState:
+    """Create instrument identifier workflow state"""
+    return InstrumentIdentifierState(
+        session_id=session_id,
+        user_id=user_id,
+        user_input=user_input,
+        messages=[],
+        input_type="",
+        classification_confidence="",
+        classification_reasoning="",
+        project_name=None,
+        identified_instruments=[],
+        identified_accessories=[],
+        response="",
+        instrument_list=None,
+        current_step="classify_input",
         error=None
     )
 
 
 def create_potential_product_index_state(
-    product_type: str, 
-    session_id: str, 
-    parent_workflow: str,
-    rag_context: Dict[str, Any] = None
+    product_type: str,
+    session_id: str = "default",
+    user_requirements: Optional[Dict[str, Any]] = None,
+    parent_workflow: str = "solution",
+    rag_context: Optional[Dict[str, Any]] = None
 ) -> PotentialProductIndexState:
-    """Create initial potential product index state"""
+    """Create PPI workflow state"""
     return PotentialProductIndexState(
-        product_type=product_type,
         session_id=session_id,
         parent_workflow=parent_workflow,
         rag_context=rag_context or {},
+        product_type=product_type,
+        user_requirements=user_requirements or {},
+        messages=[],
+        current_phase="discover_vendors",
+        potential_vendors=[],
         discovered_vendors=[],
         vendor_model_families={},
         vendor_processing_status={},
+        failed_vendors=[],
         pdf_search_results={},
+        downloaded_pdfs=[],
+        processed_pdfs=[],
         pdf_download_status={},
-        extracted_content={},
-        blob_urls={},
+        pdf_success_rate=0.0,
+        extracted_content="",
+        indexed_content=[],
         indexed_chunks=[],
         vector_store_ids=[],
+        index_success=False,
         generated_schema=None,
+        schema_version=1,
+        schema_validated=False,
         schema_saved=False,
-        current_phase="discover_vendors",
-        messages=[],
+        ppi_success=False,
+        retry_count=0,
+        max_retries=2,
         error=None,
-        failed_vendors=[]
+        current_step="discover_vendors"
     )
 
+
+def create_grounded_chat_state(
+    user_question: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None,
+    product_type: Optional[str] = None
+) -> GroundedChatState:
+    """Create grounded chat workflow state"""
+    return GroundedChatState(
+        user_question=user_question,
+        session_id=session_id,
+        user_id=user_id,
+        question_type=None,
+        product_type=product_type,
+        entities=[],
+        is_valid_question=True,
+        ppi_needed=False,
+        ppi_result=None,
+        schema_available=False,
+        rag_context={},
+        constraint_context=None,
+        preferred_vendors=[],
+        required_standards=[],
+        installed_series=[],
+        generated_answer=None,
+        citations=[],
+        rag_sources_used=[],
+        confidence=0.0,
+        is_valid=True,
+        validation_score=0.0,
+        validation_issues=[],
+        hallucination_detected=False,
+        retry_count=0,
+        max_retries=2,
+        validation_feedback=None,
+        total_interactions=0,
+        conversation_context=[],
+        final_response=None,
+        current_node="classify_question",
+        messages=[],
+        error=None,
+        completed=False
+    )
+
+
+def create_sales_agent_state(
+    user_input: str,
+    session_id: str = "default",
+    user_id: Optional[str] = None,
+    search_session_id: Optional[str] = None
+) -> SalesAgentState:
+    """Create sales agent workflow state"""
+    return SalesAgentState(
+        session_id=session_id,
+        user_id=user_id,
+        search_session_id=search_session_id or session_id,
+        user_input=user_input,
+        current_intent="",
+        current_step=SalesAgentStep.GREETING.value,
+        previous_step=None,
+        product_type=None,
+        schema=None,
+        provided_requirements={},
+        missing_requirements=[],
+        available_additional_params=[],
+        selected_additional_params={},
+        available_advanced_params=[],
+        selected_advanced_params={},
+        filtered_vendors=[],
+        analysis_results=[],
+        ranked_results=[],
+        sales_agent_response=None,
+        response_data=None,
+        messages=[],
+        error=None,
+        error_recovery_count=0
+    )
+
+
+def create_standards_rag_state(
+    question: str,
+    session_id: str = "default",
+    top_k: int = 5
+) -> StandardsRAGState:
+    """Create standards RAG workflow state"""
+    return StandardsRAGState(
+        question=question,
+        session_id=session_id,
+        top_k=top_k,
+        question_valid=True,
+        key_terms=[],
+        retrieved_docs=[],
+        context="",
+        source_metadata=[],
+        answer=None,
+        citations=[],
+        confidence=0.0,
+        sources_used=[],
+        generation_count=0,
+        validation_result=None,
+        is_valid=True,
+        retry_count=0,
+        max_retries=2,
+        validation_feedback=None,
+        final_response=None,
+        status="started",
+        error=None,
+        start_time=None,
+        processing_time_ms=None
+    )
+
+
+# ============================================================================
+# EXPORTS
+# ============================================================================
+
+__all__ = [
+    # Enums
+    "IntentType",
+    "WorkflowType",
+    "WorkflowStep",
+    "AmbiguityLevel",
+    "ComparisonType",
+    "RequestMode",
+    "SalesAgentStep",
+    "SalesAgentIntent",
+
+    # Pydantic Models
+    "IntentClassification",
+    "RequirementValidation",
+    "VendorMatch",
+    "VendorAnalysis",
+    "ProductRanking",
+    "OverallRanking",
+    "InstrumentIdentification",
+    "ConstraintContext",
+    "VendorModelCandidate",
+    "ScoringBreakdown",
+    "RankedComparisonProduct",
+    "ComparisonMatrix",
+    "RAGQueryResult",
+    "SpecObject",
+    "ComparisonInput",
+
+
+    # TypedDict States
+    "WorkflowState",
+    "ProductSearchState",
+    "SolutionState",
+    "ComparisonState",
+    "InstrumentIdentifierState",
+    "PotentialProductIndexState",
+    "GroundedChatState",
+    "SalesAgentState",
+    "StandardsRAGState",
+
+    # Factory Functions
+    "create_initial_state",
+    "create_product_search_state",
+    "create_solution_state",
+    "create_comparison_state",
+    "create_instrument_identifier_state",
+    "create_potential_product_index_state",
+    "create_grounded_chat_state",
+    "create_sales_agent_state",
+    "create_standards_rag_state",
+]

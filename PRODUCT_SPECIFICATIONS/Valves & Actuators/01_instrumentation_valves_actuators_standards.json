@@ -1,0 +1,71 @@
+{
+  "source_file": "instrumentation_valves_actuators_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "IEC 61508",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 60534",
+        "type": "IEC"
+      },
+      {
+        "code": "ISO 15848",
+        "type": "ISO"
+      },
+      {
+        "code": "API 553",
+        "type": "API"
+      },
+      {
+        "code": "API 553",
+        "type": "API"
+      },
+      {
+        "code": "API 598",
+        "type": "API"
+      },
+      {
+        "code": "ISA 75",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 75.01.01",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 75.02",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 75",
+        "type": "ISA"
+      },
+      {
+        "code": "ASME B16",
+        "type": "ASME"
+      }
+    ],
+    "certifications": [],
+    "measurement_ranges": [],
+    "accuracy_specs": [
+      "70 %"
+    ],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [
+      "HART",
+      "DIGITAL"
+    ],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Control Valves and Actuators Standards\nIntroduction\nControl valves are the final control elements that modulate flow, pressure and level in a refinery. Proper specification and maintenance ensure precise control, long life and safety. These standards align with API 553 for refinery control valves, ISA 75 series for sizing and ASME B16 for valve construction.\nApplicable Standards\nAPI 553 – Refinery Control Valves: design and construction of control valves and actuators.\nAPI 598 / API 6D: valve inspection and testing.\nISA 75.01.01 – Flow Equations for Sizing Control Valves.\nISA 75.02 – Control Valve Capacity Test Procedures.\nIEC 61508/61511 – Safety Instrumented Systems: for Emergency Shut‑Down (ESD) valves and actuators.\nEquipment Types\nGlobe control valves: single‑port or double‑port valves providing precise throttling.\nButterfly and ball valves: high‑capacity, lower‑pressure drop; quarter‑turn.\nSegmented ball and V‑notch valves: for slurry and pulp services.\nActuators: pneumatic diaph"
+  },
+  "text_length": 4404,
+  "paragraphs": 45
+}

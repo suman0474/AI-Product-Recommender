@@ -1,0 +1,23 @@
+{
+  "stage1_default_value": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2 per IEC 60079",
+  "stage1_standards": [
+    "IEC 60079",
+    "ATEX II 1",
+    "IECEx"
+  ],
+  "stage2_extract_result": {
+    "value": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2 per IEC 60079",
+    "source": "standards_specifications",
+    "standards_referenced": [
+      "IEC 60079",
+      "ATEX"
+    ],
+    "confidence": 0.9
+  },
+  "stage3_compliance_field": {
+    "value": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2 per IEC 60079",
+    "source": "standards_specifications",
+    "standards_referenced": [],
+    "confidence": 0.9
+  }
+}

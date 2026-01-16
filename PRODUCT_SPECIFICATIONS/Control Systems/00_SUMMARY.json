@@ -1,0 +1,139 @@
+{
+  "product_type": "Control Systems",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_control_systems_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "IEC 61511",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61131",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61508",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61804",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61511",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 62443",
+            "type": "IEC"
+          },
+          {
+            "code": "API 554",
+            "type": "API"
+          },
+          {
+            "code": "API 554",
+            "type": "API"
+          },
+          {
+            "code": "ISA 84",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 50",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 50",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 84",
+            "type": "ISA"
+          }
+        ],
+        "certifications": [],
+        "measurement_ranges": [],
+        "accuracy_specs": [
+          "60 %"
+        ],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [
+          "FOUNDATION FIELDBUS",
+          "PROFIBUS",
+          "DIGITAL",
+          "ANALOG",
+          "HART",
+          "MODBUS"
+        ],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Instrumentation Control Systems Standards\nIntroduction\nDistributed control systems (DCS), programmable logic controllers (PLC) and safety instrumented systems (SIS) form the backbone of refinery automation. These systems provide continuous monitoring, control, interlocking and data acquisition. Standards here align with API 554 (refinery process control systems), ISA 84/IEC 61511 (SIS), and ISA 50 for fieldbus.\nApplicable Standards\nAPI 554 – Process Control Systems: design and integration of DCS, PLC and Human‑Machine Interface (HMI) in refineries.\nIEC 61131 – PLC Programming Languages.\nIEC 61508/61511 – Functional Safety / SIS.\nISA 50 and IEC 61804 – Field Device Integration (FDI), Foundation Fieldbus and HART.\nNEMA ICS 1 / IEEE 518: installation wiring and grounding practices.\nEquipment Types\nDistributed Control System (DCS): redundant controllers, I/O modules, communication networks, operator workstations and historians.\nProgrammable Logic Controllers (PLC): modular processors with "
+      },
+      "text_length": 4249,
+      "paragraphs": 43
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "IEC 61511",
+        "type": "IEC"
+      },
+      {
+        "code": "API 554",
+        "type": "API"
+      },
+      {
+        "code": "API 554",
+        "type": "API"
+      },
+      {
+        "code": "ISA 50",
+        "type": "ISA"
+      },
+      {
+        "code": "IEC 61508",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61131",
+        "type": "IEC"
+      },
+      {
+        "code": "ISA 84",
+        "type": "ISA"
+      },
+      {
+        "code": "IEC 62443",
+        "type": "IEC"
+      },
+      {
+        "code": "ISA 50",
+        "type": "ISA"
+      },
+      {
+        "code": "IEC 61804",
+        "type": "IEC"
+      }
+    ],
+    "total_certifications": [],
+    "total_protocols": [
+      "FOUNDATION FIELDBUS",
+      "PROFIBUS",
+      "DIGITAL",
+      "ANALOG",
+      "HART",
+      "MODBUS"
+    ],
+    "document_count": 1
+  }
+}

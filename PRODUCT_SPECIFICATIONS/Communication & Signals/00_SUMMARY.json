@@ -1,0 +1,115 @@
+{
+  "product_type": "Communication & Signals",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_comm_signal_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "IEC 61158",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61158",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61784",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 61804",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 60079",
+            "type": "IEC"
+          },
+          {
+            "code": "IEC 60364",
+            "type": "IEC"
+          },
+          {
+            "code": "ISA 50",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 50",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA100",
+            "type": "ISA"
+          }
+        ],
+        "certifications": [],
+        "measurement_ranges": [],
+        "accuracy_specs": [],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [
+          "FOUNDATION FIELDBUS",
+          "PROFIBUS",
+          "ETHERNET",
+          "DIGITAL",
+          "ANALOG",
+          "HART",
+          "MODBUS"
+        ],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Instrumentation Communication and Signal Conditioning Standards\nIntroduction\nModern refinery instrumentation relies on both analogue and digital communication networks. Signal conditioning, intrinsic safety barriers and industrial communication protocols ensure accurate and safe data transfer from field devices to control systems. These standards integrate ISA 50, IEC 61158 for Fieldbus and IEEE 802.3 for Ethernet.\nApplicable Standards\nIEC 61158 / IEC 61784: Fieldbus protocols (FOUNDATION Fieldbus, Profibus).\nHART Protocol Specification: hybrid analogue/digital communication over 4–20 mA.\nISA 50 / IEC 61804: Electronic Device Description Language (EDDL) and FDI.\nIEC 60079‑11: Intrinsically safe apparatus.\nIEEE 802.3 / 802.11: Industrial Ethernet and wireless communications.\nCommunication Technologies\n4–20 mA with HART: analogue current loop with superimposed digital signal; widely used; supports device diagnostics.\nFOUNDATION Fieldbus H1: all‑digital, two‑wire network powering and comm"
+      },
+      "text_length": 4548,
+      "paragraphs": 47
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "IEC 60079",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61784",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61158",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 60364",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61804",
+        "type": "IEC"
+      },
+      {
+        "code": "ISA 50",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA100",
+        "type": "ISA"
+      }
+    ],
+    "total_certifications": [],
+    "total_protocols": [
+      "FOUNDATION FIELDBUS",
+      "PROFIBUS",
+      "ETHERNET",
+      "DIGITAL",
+      "ANALOG",
+      "HART",
+      "MODBUS"
+    ],
+    "document_count": 1
+  }
+}

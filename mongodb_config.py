@@ -173,13 +173,21 @@ def ensure_indexes():
         ])
 
         # Advanced parameters cache indexes
+        # Advanced parameters cache indexes
         collections['advanced_parameters'].create_index([
             ("product_type", 1)
         ], unique=True)
-        collections['advanced_parameters'].create_index(
-            "created_at",
-            expireAfterSeconds=60 * 60 * 24 * 30  # ~30 days
-        )
+        # Drop TTL index if it exists (we want permanent storage now)
+        try:
+            collections['advanced_parameters'].drop_index("created_at_1")
+            logger.info("Dropped TTL index 'created_at_1' from advanced_parameters")
+        except Exception:
+            pass # Index probably doesn't exist
+            
+        # collections['advanced_parameters'].create_index(
+        #     "created_at",
+        #     expireAfterSeconds=60 * 60 * 24 * 30  # ~30 days
+        # )
         
         # Images cache indexes
         collections['images'].create_index([

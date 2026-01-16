@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Literal, Optional, TypedDict
 from datetime import datetime
 from langgraph.graph import StateGraph, END
 
-from .chat_agents import ChatAgent, ResponseValidatorAgent, SessionManagerAgent
+from .shared_agents import ChatAgent, ResponseValidatorAgent, SessionManagerAgent
 from .rag_components import RAGAggregator, create_rag_aggregator
 from .checkpointing import compile_with_checkpointing
 from .potential_product_index import run_potential_product_index_workflow
@@ -238,7 +238,7 @@ def classify_question_node(state: GroundedChatState) -> GroundedChatState:
         
         # Classify using LLM
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )

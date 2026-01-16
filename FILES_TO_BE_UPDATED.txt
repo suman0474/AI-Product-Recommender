@@ -1,0 +1,145 @@
+==============================================================================
+LIST OF FILES TO BE UPDATED BY GEMINI MODEL VERSION SCRIPTS
+==============================================================================
+
+Generated: 2026-01-16
+Total Files: 37
+
+Replacements to be made:
+  - gemini-2.0-flash-exp  →  gemini-2.5-flash
+  - gemini-2.0-flash      →  gemini-2.5-flash  
+  - gemini-1.5-flash      →  gemini-2.5-flash
+
+==============================================================================
+
+ABSOLUTE PATHS (Windows format):
+=================================
+
+D:\AI PR\AIPR\backend\advanced_parameters.py
+D:\AI PR\AIPR\backend\agentic\api.py
+D:\AI PR\AIPR\backend\agentic\deep_agent\llm_specs_generator.py
+D:\AI PR\AIPR\backend\agentic\deep_agent\schema_populator.py
+D:\AI PR\AIPR\backend\agentic\deep_agent\standards_deep_agent.py
+D:\AI PR\AIPR\backend\agentic\deep_agent\user_specs_extractor.py
+D:\AI PR\AIPR\backend\agentic\deep_agent\workflow.py
+D:\AI PR\AIPR\backend\agentic\grounded_chat_workflow.py
+D:\AI PR\AIPR\backend\agentic\index_rag\index_rag_agent.py
+D:\AI PR\AIPR\backend\agentic\index_rag\index_rag_memory.py
+D:\AI PR\AIPR\backend\agentic\instrument_identifier_workflow.py
+D:\AI PR\AIPR\backend\agentic\potential_product_index.py
+D:\AI PR\AIPR\backend\agentic\product_info_orchestrator.py
+D:\AI PR\AIPR\backend\agentic\rag_components.py
+D:\AI PR\AIPR\backend\agentic\shared_agents.py
+D:\AI PR\AIPR\backend\agentic\solution_workflow.py
+D:\AI PR\AIPR\backend\agentic\standards_rag\standards_chat_agent.py
+D:\AI PR\AIPR\backend\agentic\standards_rag\standards_rag_workflow.py
+D:\AI PR\AIPR\backend\agentic\strategy_rag\strategy_chat_agent.py
+D:\AI PR\AIPR\backend\agentic\workflow_orchestrator.py
+D:\AI PR\AIPR\backend\diagnose_llm.py
+D:\AI PR\AIPR\backend\llm_fallback.py
+D:\AI PR\AIPR\backend\llm_standardization.py
+D:\AI PR\AIPR\backend\loading.py
+D:\AI PR\AIPR\backend\main.py
+D:\AI PR\AIPR\backend\pdf_processor.py
+D:\AI PR\AIPR\backend\pdf_utils.py
+D:\AI PR\AIPR\backend\product_search_workflow\ppi_tools.py
+D:\AI PR\AIPR\backend\test.py
+D:\AI PR\AIPR\backend\tools\analysis_tools.py
+D:\AI PR\AIPR\backend\tools\instrument_tools.py
+D:\AI PR\AIPR\backend\tools\intent_tools.py
+D:\AI PR\AIPR\backend\tools\metadata_filter.py
+D:\AI PR\AIPR\backend\tools\parallel_indexer.py
+D:\AI PR\AIPR\backend\tools\ranking_tools.py
+D:\AI PR\AIPR\backend\tools\sales_agent_tools.py
+D:\AI PR\AIPR\backend\tools\sales_workflow_tools.py
+D:\AI PR\AIPR\backend\tools\schema_tools.py
+
+==============================================================================
+
+UNIX/LINUX FORMAT (for reference):
+===================================
+
+D:/AI PR/AIPR/backend/advanced_parameters.py
+D:/AI PR/AIPR/backend/agentic/api.py
+D:/AI PR/AIPR/backend/agentic/deep_agent/llm_specs_generator.py
+D:/AI PR/AIPR/backend/agentic/deep_agent/schema_populator.py
+D:/AI PR/AIPR/backend/agentic/deep_agent/standards_deep_agent.py
+D:/AI PR/AIPR/backend/agentic/deep_agent/user_specs_extractor.py
+D:/AI PR/AIPR/backend/agentic/deep_agent/workflow.py
+D:/AI PR/AIPR/backend/agentic/grounded_chat_workflow.py
+D:/AI PR/AIPR/backend/agentic/index_rag/index_rag_agent.py
+D:/AI PR/AIPR/backend/agentic/index_rag/index_rag_memory.py
+D:/AI PR/AIPR/backend/agentic/instrument_identifier_workflow.py
+D:/AI PR/AIPR/backend/agentic/potential_product_index.py
+D:/AI PR/AIPR/backend/agentic/product_info_orchestrator.py
+D:/AI PR/AIPR/backend/agentic/rag_components.py
+D:/AI PR/AIPR/backend/agentic/shared_agents.py
+D:/AI PR/AIPR/backend/agentic/solution_workflow.py
+D:/AI PR/AIPR/backend/agentic/standards_rag/standards_chat_agent.py
+D:/AI PR/AIPR/backend/agentic/standards_rag/standards_rag_workflow.py
+D:/AI PR/AIPR/backend/agentic/strategy_rag/strategy_chat_agent.py
+D:/AI PR/AIPR/backend/agentic/workflow_orchestrator.py
+D:/AI PR/AIPR/backend/diagnose_llm.py
+D:/AI PR/AIPR/backend/llm_fallback.py
+D:/AI PR/AIPR/backend/llm_standardization.py
+D:/AI PR/AIPR/backend/loading.py
+D:/AI PR/AIPR/backend/main.py
+D:/AI PR/AIPR/backend/pdf_processor.py
+D:/AI PR/AIPR/backend/pdf_utils.py
+D:/AI PR/AIPR/backend/product_search_workflow/ppi_tools.py
+D:/AI PR/AIPR/backend/test.py
+D:/AI PR/AIPR/backend/tools/analysis_tools.py
+D:/AI PR/AIPR/backend/tools/instrument_tools.py
+D:/AI PR/AIPR/backend/tools/intent_tools.py
+D:/AI PR/AIPR/backend/tools/metadata_filter.py
+D:/AI PR/AIPR/backend/tools/parallel_indexer.py
+D:/AI PR/AIPR/backend/tools/ranking_tools.py
+D:/AI PR/AIPR/backend/tools/sales_agent_tools.py
+D:/AI PR/AIPR/backend/tools/sales_workflow_tools.py
+D:/AI PR/AIPR/backend/tools/schema_tools.py
+
+==============================================================================
+
+RELATIVE PATHS (from backend directory):
+==========================================
+
+advanced_parameters.py
+agentic/api.py
+agentic/deep_agent/llm_specs_generator.py
+agentic/deep_agent/schema_populator.py
+agentic/deep_agent/standards_deep_agent.py
+agentic/deep_agent/user_specs_extractor.py
+agentic/deep_agent/workflow.py
+agentic/grounded_chat_workflow.py
+agentic/index_rag/index_rag_agent.py
+agentic/index_rag/index_rag_memory.py
+agentic/instrument_identifier_workflow.py
+agentic/potential_product_index.py
+agentic/product_info_orchestrator.py
+agentic/rag_components.py
+agentic/shared_agents.py
+agentic/solution_workflow.py
+agentic/standards_rag/standards_chat_agent.py
+agentic/standards_rag/standards_rag_workflow.py
+agentic/strategy_rag/strategy_chat_agent.py
+agentic/workflow_orchestrator.py
+diagnose_llm.py
+llm_fallback.py
+llm_standardization.py
+loading.py
+main.py
+pdf_processor.py
+pdf_utils.py
+product_search_workflow/ppi_tools.py
+test.py
+tools/analysis_tools.py
+tools/instrument_tools.py
+tools/intent_tools.py
+tools/metadata_filter.py
+tools/parallel_indexer.py
+tools/ranking_tools.py
+tools/sales_agent_tools.py
+tools/sales_workflow_tools.py
+tools/schema_tools.py
+
+==============================================================================

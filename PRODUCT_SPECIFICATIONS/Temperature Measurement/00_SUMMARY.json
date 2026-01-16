@@ -1,0 +1,98 @@
+{
+  "product_type": "Temperature Measurement",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_temperature_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "API 551",
+            "type": "API"
+          },
+          {
+            "code": "API 551",
+            "type": "API"
+          },
+          {
+            "code": "ISA 20",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 5.1",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 5.1",
+            "type": "ISA"
+          },
+          {
+            "code": "ISA 20",
+            "type": "ISA"
+          },
+          {
+            "code": "ASME PTC 19.3",
+            "type": "ASME"
+          },
+          {
+            "code": "ASME PTC 19.3",
+            "type": "ASME"
+          },
+          {
+            "code": "ASME PTC 19.3",
+            "type": "ASME"
+          }
+        ],
+        "certifications": [],
+        "measurement_ranges": [],
+        "accuracy_specs": [
+          "±0.25 %",
+          "±0.1 %",
+          "±0.1 %",
+          "±0.25 %",
+          "±1 %",
+          "±0.1 %"
+        ],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Temperature Measurement Instrumentation Standards\nIntroduction\nTemperature measurement is fundamental to controlling reaction rates, product quality and equipment integrity in a refinery. These standards draw on API 551, ISA 20, ISA 5.1 and ASME PTC 19.3 requirements to ensure reliable and accurate temperature measurement devices.\nApplicable Standards\nAPI 551 – Process Measurement Instrumentation: temperature measurement guidelines.\nISA 5.1 – Instrumentation Symbols and Identification: P&ID symbols.\nISA 20 – Data Sheets: information to capture for temperature instruments.\nASME PTC 19.3 TW – Thermowell Design: rules for thermowell stress and vibration.\nASTM E1137/E1137M – Standard Specification for Industrial Platinum RTDs.\nEquipment Types\nResistance Temperature Detectors (RTDs): spring‑loaded platinum RTDs with 316 SS thermowells; 4–20 mA transmitters with ±0.1 % of span accuracy【51948133245220†L3910-L3925】.\nThermocouples: type K, J or T; mineral insulated with stainless steel sheaths;"
+      },
+      "text_length": 5212,
+      "paragraphs": 47
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      },
+      {
+        "code": "ASME PTC 19.3",
+        "type": "ASME"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      },
+      {
+        "code": "ASME PTC 19.3",
+        "type": "ASME"
+      }
+    ],
+    "total_certifications": [],
+    "total_protocols": [],
+    "document_count": 1
+  }
+}

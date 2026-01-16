@@ -1,0 +1,73 @@
+{
+  "source_file": "instrumentation_pressure_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "IEC 60770",
+        "type": "IEC"
+      },
+      {
+        "code": "ISO 5167",
+        "type": "ISO"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "API 553",
+        "type": "API"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      },
+      {
+        "code": "ASME B40",
+        "type": "ASME"
+      },
+      {
+        "code": "ASME B40.100",
+        "type": "ASME"
+      },
+      {
+        "code": "ASME PTC 19.3",
+        "type": "ASME"
+      }
+    ],
+    "certifications": [],
+    "measurement_ranges": [],
+    "accuracy_specs": [
+      "±1 %",
+      "75 %",
+      "±0.25 %",
+      "±1 %",
+      "±1 %",
+      "100 %"
+    ],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Pressure Measurement Instrumentation Standards\nIntroduction\nAccurate pressure measurement is critical to the safe and efficient operation of a large refinery. Pressure instruments provide feedback for process control loops, over‑pressure protection and equipment health monitoring. These standards are based on industry best practice, including API 551 for pressure, temperature, level and flow measurement, ISA guidelines for data sheets and symbols, ASME B40 for pressure gauges and ISO 5167 for differential pressure elements.\nApplicable Standards\nAPI 551 – Process Measurement Instrumentation: guidelines for pressure, temperature, level and flow measurement instruments.\nAPI 553 – Refinery Control Valves: requirements for pressure control valves and associated accessories.\nISA 5.1 – Instrumentation Symbols and Identification: standard symbols for P&IDs and loop diagrams.\nISA 20 – Instrumentation Data Sheets: outlines the information to include on instrument specification sheets.\nASME B40.1"
+  },
+  "text_length": 6924,
+  "paragraphs": 52
+}

@@ -1,0 +1,63 @@
+{
+  "product_type": "Calibration & Maintenance",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_calibration_maintenance_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "ISO 10012",
+            "type": "ISO"
+          },
+          {
+            "code": "ISO 17025",
+            "type": "ISO"
+          },
+          {
+            "code": "API 551",
+            "type": "API"
+          }
+        ],
+        "certifications": [],
+        "measurement_ranges": [],
+        "accuracy_specs": [],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [
+          "HART"
+        ],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Instrumentation Calibration and Maintenance Standards\nIntroduction\nRegular calibration and maintenance underpin the accuracy and reliability of refinery instrumentation. This document establishes procedures and intervals for calibrating instruments, managing spares and documenting maintenance activities.\nApplicable Standards\nAPI 551 – Instrument Calibration.\nISO 10012 – Measurement Management Systems.\nMIL‑STD‑45662A / ISO 17025: calibration system requirements.\nISA RP 12.6.01: maintenance and testing of fire & gas detectors.\nCalibration Equipment\nPressure calibrators: deadweight testers, pressure pumps and electronic calibrators with NIST‑traceable accuracy.\nTemperature calibrators: dry‑block calibrators, fluid baths, reference RTDs and thermocouples.\nFlow calibrators: primary standards (provers), portable ultrasonic or Coriolis calibrators.\nElectrical loop calibrators: simulate and measure 4–20 mA signals, voltage and resistance.\nCommunicators: HART/Fieldbus communicators for configur"
+      },
+      "text_length": 3574,
+      "paragraphs": 38
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "ISO 17025",
+        "type": "ISO"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISO 10012",
+        "type": "ISO"
+      }
+    ],
+    "total_certifications": [],
+    "total_protocols": [
+      "HART"
+    ],
+    "document_count": 1
+  }
+}

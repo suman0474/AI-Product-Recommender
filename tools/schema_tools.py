@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 class LoadSchemaInput(BaseModel):
     """Input for loading product schema"""
     product_type: str = Field(description="Product type to load schema for")
+    enable_ppi: bool = Field(
+        default=True,
+        description="Enable PPI (Product-Price-Information) workflow if schema not found in database"
+    )
 
 
 class ValidateRequirementsInput(BaseModel):
@@ -100,11 +104,11 @@ Return ONLY valid JSON:
 # HELPER FUNCTIONS
 # ============================================================================
 
-def get_schema_from_mongodb(product_type: str) -> Optional[Dict[str, Any]]:
-    """Load schema from Azure Blob Storage (MongoDB API compatible)"""
+def get_schema_from_azure(product_type: str) -> Optional[Dict[str, Any]]:
+    """Load schema from Azure Blob Storage"""
     try:
-        from azure_blob_utils import get_schema_from_mongodb as azure_get_schema
-        schema = azure_get_schema(product_type)
+        from azure_blob_utils import azure_blob_file_manager
+        schema = azure_blob_file_manager.get_schema_from_azure(product_type)
         return schema
     except Exception as e:
         logger.warning(f"Failed to load schema from Azure Blob: {e}")
@@ -194,36 +198,131 @@ def get_default_schema(product_type: str) -> Dict[str, Any]:
 # ============================================================================
 
 @tool("load_schema", args_schema=LoadSchemaInput)
-def load_schema_tool(product_type: str) -> Dict[str, Any]:
+def load_schema_tool(product_type: str, enable_ppi: bool = True) -> Dict[str, Any]:
     """
     Load the requirements schema for a specific product type.
-    First tries MongoDB, then falls back to default schemas.
+
+    Priority order:
+    1. Try Azure Blob Storage (and enrich with Standards RAG field values)
+    2. If not found and enable_ppi=True, invoke LangGraph PPI workflow to generate schema
+    3. Fall back to default schemas only as last resort
+
+    All schemas are enriched with Standards RAG to fill field values with:
+    - Allowed values/ranges from standards
+    - Standard units and typical specifications
+    - References to specific standards for each field
+
+    Args:
+        product_type: Product type to load schema for
+        enable_ppi: Enable PPI (Product-Price-Information) workflow if schema not found
+
+    Returns:
+        Dict with success, schema, and metadata about source
     """
     try:
-        # Try MongoDB first
-        schema = get_schema_from_mongodb(product_type)
+        # Step 1: Try Azure Blob first
+        schema = get_schema_from_azure(product_type)
 
-        if not schema:
-            # Fall back to default schemas
-            schema = get_default_schema(product_type)
-            logger.info(f"Using default schema for {product_type}")
+        if schema and schema.get("mandatory_requirements") and schema.get("optional_requirements"):
+            logger.info(f"✓ Loaded schema from Azure Blob for {product_type}")
+            
+            # Step 1.1: Enrich loaded schema with Standards RAG field values
+            try:
+                from tools.standards_enrichment_tool import (
+                    populate_schema_fields_from_standards,
+                    enrich_schema_with_standards
+                )
+                
+                # Check if schema already has standards population
+                if not schema.get("_standards_population"):
+                    logger.info(f"  ⚙ Enriching Azure schema with Standards RAG field values")
+                    enriched_schema = populate_schema_fields_from_standards(product_type, schema)
+                    
+                    # Also add standards section if not present
+                    if "standards" not in enriched_schema:
+                        enriched_schema = enrich_schema_with_standards(product_type, enriched_schema)
+                    
+                    fields_populated = enriched_schema.get("_standards_population", {}).get("fields_populated", 0)
+                    logger.info(f"  ✓ Enriched schema with {fields_populated} standards-based field values")
+                    schema = enriched_schema
+                else:
+                    logger.info(f"  ✓ Schema already enriched with Standards RAG")
+                    
+            except Exception as enrich_error:
+                logger.warning(f"  ⚠ Standards enrichment failed (using original): {enrich_error}")
+            
+            return {
+                "success": True,
+                "product_type": product_type,
+                "schema": schema,
+                "from_database": True,
+                "ppi_used": False,
+                "source": "azure",
+                "standards_enriched": schema.get("_standards_population") is not None
+            }
+
+        # Step 2: Schema not found in Azure - invoke LangGraph PPI workflow if enabled
+        logger.info(f"Schema not found in Azure for {product_type}")
+
+        if enable_ppi:
+            logger.info(f"⚙ Invoking LangGraph PPI workflow to generate schema for {product_type}")
+            try:
+                # Import the LangGraph PPI workflow
+                from product_search_workflow.ppi_workflow import run_ppi_workflow
+
+                # Run the PPI workflow
+                ppi_result = run_ppi_workflow(product_type)
+
+                if ppi_result.get("success") and ppi_result.get("schema"):
+                    generated_schema = ppi_result["schema"]
+                    logger.info(f"✓ Successfully generated schema via LangGraph PPI for {product_type}")
+                    logger.info(f"  Vendors processed: {ppi_result.get('vendors_processed', 0)}")
+                    logger.info(f"  PDFs processed: {ppi_result.get('pdfs_processed', 0)}")
+                    
+                    return {
+                        "success": True,
+                        "product_type": product_type,
+                        "schema": generated_schema,
+                        "from_database": False,
+                        "ppi_used": True,
+                        "source": "ppi_langgraph_workflow",
+                        "ppi_details": {
+                            "vendors_processed": ppi_result.get("vendors_processed", 0),
+                            "pdfs_processed": ppi_result.get("pdfs_processed", 0)
+                        }
+                    }
+                else:
+                    logger.warning(f"⚠ LangGraph PPI workflow returned no schema for {product_type}")
+                    logger.warning(f"  Error: {ppi_result.get('error', 'Unknown')}")
+
+            except Exception as ppi_error:
+                logger.error(f"✗ LangGraph PPI workflow failed for {product_type}: {ppi_error}", exc_info=True)
         else:
-            logger.info(f"Loaded schema from MongoDB for {product_type}")
+            logger.info(f"PPI workflow disabled for {product_type}")
+
+        # Step 3: Fall back to default schema only as last resort
+        logger.warning(f"⚠ Using default schema for {product_type} (Azure: not found, PPI: {'disabled' if not enable_ppi else 'failed'})")
+        default_schema = get_default_schema(product_type)
 
         return {
             "success": True,
             "product_type": product_type,
-            "schema": schema,
-            "source": "mongodb" if schema else "default"
+            "schema": default_schema,
+            "from_database": False,
+            "ppi_used": False,
+            "source": "default_fallback"
         }
 
     except Exception as e:
-        logger.error(f"Failed to load schema: {e}")
+        logger.error(f"✗ Failed to load schema for {product_type}: {e}", exc_info=True)
         return {
             "success": False,
             "product_type": product_type,
             "schema": get_default_schema(product_type),
-            "error": str(e)
+            "from_database": False,
+            "ppi_used": False,
+            "error": str(e),
+            "source": "error_fallback"
         }
 
 
@@ -244,7 +343,7 @@ def validate_requirements_tool(
             product_schema = schema_result.get("schema", {})
 
         llm = create_llm_with_fallback(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash",
             temperature=0.1,
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )

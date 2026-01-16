@@ -1,0 +1,107 @@
+{
+  "product_type": "Condition Monitoring",
+  "total_documents": 1,
+  "documents": [
+    {
+      "source_file": "instrumentation_condition_monitoring_standards.docx",
+      "specifications": {
+        "standards": [
+          {
+            "code": "IEC 61589",
+            "type": "IEC"
+          },
+          {
+            "code": "ISO 10816",
+            "type": "ISO"
+          },
+          {
+            "code": "ISO 20816",
+            "type": "ISO"
+          },
+          {
+            "code": "API 670",
+            "type": "API"
+          },
+          {
+            "code": "API 674",
+            "type": "API"
+          },
+          {
+            "code": "API 1101",
+            "type": "API"
+          },
+          {
+            "code": "API 1130",
+            "type": "API"
+          },
+          {
+            "code": "API 5",
+            "type": "API"
+          }
+        ],
+        "certifications": [],
+        "measurement_ranges": [],
+        "accuracy_specs": [],
+        "response_time": [],
+        "environmental_specs": [],
+        "communication_protocols": [
+          "DIGITAL",
+          "ETHERNET",
+          "MODBUS"
+        ],
+        "safety_requirements": [
+          "Safety-related requirements present"
+        ],
+        "calibration_info": [
+          "Calibration requirements present"
+        ],
+        "raw_text_preview": "Condition Monitoring and Metering Standards\nIntroduction\nCondition monitoring instruments provide early warning of equipment degradation, enabling proactive maintenance and avoiding unplanned downtime. Custody transfer and metering systems ensure accurate measurement of hydrocarbons for fiscal and inventory purposes. These standards integrate API, ISO and ASTM requirements.\nApplicable Standards\nAPI 670 – Machinery Protection Systems: vibration and overspeed monitoring.\nAPI 674 / 686: for reciprocating compressor and rotating equipment diagnostics.\nISO 10816 / ISO 20816: vibration severity.\nAPI 1101 / API MPMS: measurement of hydrocarbons for custody transfer.\nAPI 1130 / API 5: pipeline metering.\nIEC 61589: condition monitoring devices.\nEquipment Types\nVibration monitoring systems: accelerometers, velocity sensors and proximity probes connected to vibration monitors; provide overall vibration and spectral analysis.\nMachine protection systems: overspeed detectors, bearing temperature and"
+      },
+      "text_length": 3781,
+      "paragraphs": 42
+    }
+  ],
+  "aggregated_specs": {
+    "total_standards": [
+      {
+        "code": "ISO 10816",
+        "type": "ISO"
+      },
+      {
+        "code": "API 5",
+        "type": "API"
+      },
+      {
+        "code": "ISO 20816",
+        "type": "ISO"
+      },
+      {
+        "code": "IEC 61589",
+        "type": "IEC"
+      },
+      {
+        "code": "API 670",
+        "type": "API"
+      },
+      {
+        "code": "API 1101",
+        "type": "API"
+      },
+      {
+        "code": "API 1130",
+        "type": "API"
+      },
+      {
+        "code": "API 674",
+        "type": "API"
+      }
+    ],
+    "total_certifications": [],
+    "total_protocols": [
+      "ETHERNET",
+      "DIGITAL",
+      "MODBUS"
+    ],
+    "document_count": 1
+  }
+}

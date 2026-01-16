@@ -35,34 +35,19 @@ from .models import (
     # Enhanced States
     ComparisonState,
     SolutionState,
-    InstrumentDetailState,
+    ComparisonState,
+    SolutionState,
     InstrumentIdentifierState,  # NEW: Identifier workflow state
     PotentialProductIndexState,
 
     # State Factory Functions
     create_comparison_state,
     create_solution_state,
-    create_instrument_detail_state,
+    create_solution_state,
     create_instrument_identifier_state,  # NEW: Identifier state factory
     create_potential_product_index_state
 )
 
-# ============================================================================
-# AGENTS
-# ============================================================================
-from .agents import (
-    BaseAgent,
-    IntentClassifierAgent,
-    ValidationAgent,
-    VendorSearchAgent,
-    ProductAnalysisAgent,
-    RankingAgent,
-    SalesAgent,
-    InstrumentIdentifierAgent,
-    ImageSearchAgent,
-    PDFSearchAgent,
-    AgentFactory
-)
 
 # ============================================================================
 # RAG COMPONENTS
@@ -72,6 +57,42 @@ from .rag_components import (
     StrategyFilter,
     create_rag_aggregator,
     create_strategy_filter
+)
+
+# Strategy RAG (TRUE RAG with vector store)
+from .strategy_rag.strategy_chat_agent import (
+    StrategyChatAgent,
+    create_strategy_chat_agent,
+    ask_strategy_question,
+    get_strategy_for_product as get_strategy_for_product_agent
+)
+
+from .strategy_rag.strategy_rag_workflow import (
+    StrategyRAGState,
+    create_strategy_rag_state,
+    run_strategy_rag_workflow,
+    get_strategy_for_product
+)
+
+# CSV-based strategy filter
+from .strategy_rag.strategy_csv_filter import (
+    StrategyCSVFilter,
+    get_strategy_filter,
+    filter_vendors_by_strategy
+)
+
+# Index RAG (LLM-powered product indexing)
+from .index_rag.index_rag_agent import (
+    IndexRAGAgent,
+    create_index_rag_agent,
+    run_index_rag
+)
+
+from .index_rag.index_rag_workflow import (
+    IndexRAGState,
+    create_index_rag_state,
+    create_index_rag_workflow,
+    run_index_rag_workflow
 )
 
 # ============================================================================
@@ -100,45 +121,86 @@ from .solution_workflow import (
     run_solution_workflow
 )
 
-from .comparison_workflow import (
-    create_comparison_workflow,
-    run_comparison_workflow,
-    run_comparison_from_spec,
-    discover_candidates_from_ppi
-)
 
-from .instrument_detail_workflow import (
-    create_instrument_detail_workflow,
-    run_instrument_detail_workflow,
-    run_instrument_detail_with_comparison,
-    build_spec_object_from_state
-)
+
 
 from .instrument_identifier_workflow import (
     create_instrument_identifier_workflow,
     run_instrument_identifier_workflow
 )
 
+
+
 from .potential_product_index import (
     create_potential_product_index_workflow,
     run_potential_product_index_workflow
 )
 
-from .grounded_chat_workflow import (
-    create_grounded_chat_workflow,
-    run_grounded_chat_workflow,
-    GroundedChatState,
-    create_grounded_chat_state
+# ============================================================================
+# DEEP AGENT (Memory-centric workflow with planner)
+# ============================================================================
+from .deep_agent import (
+    # Memory
+    DeepAgentMemory,
+    StandardsDocumentAnalysis,
+    UserContextMemory,
+    IdentifiedItemMemory,
+    ThreadInfo,
+    ExecutionPlan,
+    SectionAnalysis,
+    PRODUCT_TYPE_DOCUMENT_MAP,
+    get_relevant_documents_for_product,
+    
+    # Document Loader
+    populate_memory_with_documents,
+    populate_memory_with_items,
+    STANDARDS_DIRECTORY,
+    
+    # Workflow
+    DeepAgentState,
+    create_deep_agent_state,
+    get_deep_agent_workflow,
+    run_deep_agent_workflow,
+    get_memory,
+    get_or_create_memory,
+    clear_memory,
+    
+    # Integration
+    prepare_deep_agent_input,
+    run_deep_agent_for_specifications,
+    integrate_deep_agent_specifications,
+    format_deep_agent_specs_for_display,
+    load_schema_for_product,
+    populate_schema_from_deep_agent,
+    
+    # Sub Agents
+    ExtractorAgent,
+    CriticAgent,
+    extract_specifications_with_validation,
+    extract_specifications_for_products,
+    get_schema_fields_for_product,
+    PRODUCT_TYPE_SCHEMA_FIELDS,
+    
+    # API
+    deep_agent_bp,
+    
+    # Standards Deep Agent
+    StandardsDeepAgentState,
+    run_standards_deep_agent,
+    run_standards_deep_agent_batch,
 )
 
-# ============================================================================
-# CHAT AGENTS
-# ============================================================================
-from .chat_agents import (
-    ChatAgent,
-    ResponseValidatorAgent,
-    SessionManagerAgent
-)
+# Alias for backward compatibility
+analyze_user_input_deep_agent = None  # deprecated
+try:
+    from .deep_agent.document_loader import analyze_user_input as analyze_user_input_deep_agent
+except ImportError:
+    pass
+
+# Create alias for create_deep_agent_workflow to maintain backward compatibility
+def create_deep_agent_workflow():
+    """Backward compatibility alias for get_deep_agent_workflow"""
+    return get_deep_agent_workflow()
 
 # ============================================================================
 # API
@@ -173,33 +235,38 @@ __all__ = [
     # Enhanced States
     'ComparisonState',
     'SolutionState',
-    'InstrumentDetailState',
     'PotentialProductIndexState',
     
     # State Factories
     'create_comparison_state',
     'create_solution_state',
-    'create_instrument_detail_state',
     'create_potential_product_index_state',
     
-    # ==================== AGENTS ====================
-    'BaseAgent',
-    'IntentClassifierAgent',
-    'ValidationAgent',
-    'VendorSearchAgent',
-    'ProductAnalysisAgent',
-    'RankingAgent',
-    'SalesAgent',
-    'InstrumentIdentifierAgent',
-    'ImageSearchAgent',
-    'PDFSearchAgent',
-    'AgentFactory',
     
     # ==================== RAG ====================
     'RAGAggregator',
     'StrategyFilter',
     'create_rag_aggregator',
     'create_strategy_filter',
+    
+    # Strategy RAG (TRUE RAG with vector store)
+    'StrategyChatAgent',
+    'create_strategy_chat_agent',
+    'ask_strategy_question',
+    'get_strategy_for_product',
+    'StrategyRAGState',
+    'create_strategy_rag_state',
+    'create_strategy_rag_workflow',
+    'run_strategy_rag_workflow',
+    
+    # Index RAG (LLM-powered product indexing)
+    'IndexRAGAgent',
+    'create_index_rag_agent',
+    'run_index_rag',
+    'IndexRAGState',
+    'create_index_rag_state',
+    'create_index_rag_workflow',
+    'run_index_rag_workflow',
     
     # ==================== CHECKPOINTING ====================
     'get_checkpointer',
@@ -214,21 +281,13 @@ __all__ = [
     # ==================== ENHANCED WORKFLOWS ====================
     'create_solution_workflow',
     'run_solution_workflow',
-    'create_comparison_workflow',
-    'run_comparison_workflow',
-    'run_comparison_from_spec',
-    'discover_candidates_from_ppi',
-    'create_instrument_detail_workflow',
-    'run_instrument_detail_workflow',
-    'run_instrument_detail_with_comparison',
+    'create_solution_workflow',
+    'run_solution_workflow',
     'build_spec_object_from_state',
+
     'create_potential_product_index_workflow',
     'run_potential_product_index_workflow',
-    'create_grounded_chat_workflow',
-    'run_grounded_chat_workflow',
-    'GroundedChatState',
-    'create_grounded_chat_state',
-    
+
     # ==================== SPEC OBJECT MODELS ====================
     'SpecObject',
     'ComparisonType',
@@ -238,7 +297,40 @@ __all__ = [
     'ChatAgent',
     'ResponseValidatorAgent',
     'SessionManagerAgent',
-    
+
+    # ==================== DEEP AGENT ====================
+    'DeepAgentMemory',
+    'StandardsDocumentAnalysis',
+    'UserContextMemory',
+    'IdentifiedItemMemory',
+    'ThreadInfo',
+    'ExecutionPlan',
+    'SectionAnalysis',
+    'PRODUCT_TYPE_DOCUMENT_MAP',
+    'get_relevant_documents_for_product',
+    'populate_memory_with_documents',
+    'populate_memory_with_items',
+    'analyze_user_input_deep_agent',
+    'STANDARDS_DIRECTORY',
+    'DeepAgentState',
+    'create_deep_agent_state',
+    'create_deep_agent_workflow',
+    'get_deep_agent_workflow',
+    'run_deep_agent_workflow',
+    'get_memory',
+    'get_or_create_memory',
+    'clear_memory',
+
+    # ==================== DEEP AGENT INTEGRATION ====================
+    'prepare_deep_agent_input',
+    'run_deep_agent_for_specifications',
+    'integrate_deep_agent_specifications',
+    'format_deep_agent_specs_for_display',
+    # Schema Population Functions
+    'load_schema_for_product',
+    'populate_schema_from_deep_agent',
+    'get_schema_population_stats',
+
     # ==================== API ====================
     'agentic_bp'
 ]

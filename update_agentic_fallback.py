@@ -8,7 +8,6 @@ import re
 files_to_update = [
     "agentic/solution_workflow.py",
     "agentic/router_agent.py",
-    "agentic/instrument_detail_workflow.py",
     "agentic/comparison_workflow.py",
     "agentic/grounded_chat_workflow.py",
     "agentic/chat_agents.py",

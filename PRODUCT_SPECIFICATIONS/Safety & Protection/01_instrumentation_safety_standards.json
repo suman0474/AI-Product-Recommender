@@ -1,0 +1,69 @@
+{
+  "source_file": "instrumentation_safety_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "IEC 61511",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61511",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 61508",
+        "type": "IEC"
+      },
+      {
+        "code": "ANSI/ISA 60079",
+        "type": "ANSI"
+      },
+      {
+        "code": "ISA 84",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 84.00.07",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 60079",
+        "type": "ISA"
+      },
+      {
+        "code": "NFPA 72",
+        "type": "NFPA"
+      },
+      {
+        "code": "NFPA 72",
+        "type": "NFPA"
+      }
+    ],
+    "certifications": [
+      {
+        "name": "IP66",
+        "type": "IP Rating"
+      },
+      {
+        "name": "NEMA 4X",
+        "type": "NEMA"
+      }
+    ],
+    "measurement_ranges": [],
+    "accuracy_specs": [],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [
+      "DIGITAL"
+    ],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Instrumentation Safety and Protection Standards\nIntroduction\nInstrumentation safety systems protect personnel, equipment and the environment from hazardous conditions in a refinery. This includes fire and gas detection, safety instrumented functions, emergency shutdown (ESD) and high‑integrity pressure protection systems (HIPPS). These standards are aligned with IEC 61511, NFPA 72 and API 14C, and draw detailed requirements from industry specifications for combustible and toxic gas monitoring【51948133245220†L4273-L4376】.\nApplicable Standards\nIEC 61511 / ISA 84 – Safety Instrumented Systems: lifecycle requirements for SIFs.\nIEC 61508 – Functional Safety: basis for safety PLC design.\nNFPA 72 / ISA 84.00.07: fire and gas detection system design.\nAPI 14C – Safety Analysis and Devices: offshore production safety.\nANSI/ISA 60079: electrical equipment for hazardous locations.\nEquipment Types\nGas detection systems: electronic catalytic bead sensors for combustible gas; electrochemical sensors "
+  },
+  "text_length": 6233,
+  "paragraphs": 53
+}

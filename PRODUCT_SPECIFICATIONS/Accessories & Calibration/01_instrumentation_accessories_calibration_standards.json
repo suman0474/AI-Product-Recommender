@@ -1,0 +1,53 @@
+{
+  "source_file": "instrumentation_accessories_calibration_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "IEC 60529",
+        "type": "IEC"
+      },
+      {
+        "code": "IEC 60079",
+        "type": "IEC"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISA 7.0.01",
+        "type": "ISA"
+      },
+      {
+        "code": "ASME B31.3",
+        "type": "ASME"
+      }
+    ],
+    "certifications": [
+      {
+        "name": "NEMA 250",
+        "type": "NEMA"
+      },
+      {
+        "name": "NEMA 4X",
+        "type": "NEMA"
+      }
+    ],
+    "measurement_ranges": [],
+    "accuracy_specs": [],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [
+      "ANALOG"
+    ],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Instrument Accessories and Installation Standards\nIntroduction\nBeyond primary instruments, successful refinery instrumentation depends on quality accessories and meticulous installation. This document covers mounting hardware, impulse tubing, fittings, regulators, enclosures, instrument air systems, cables and junction boxes. These elements ensure that instruments perform reliably in the harsh refinery environment.\nApplicable Standards\nAPI 551 – Instrument Installation Practices.\nASTM A269 / ASTM A213: stainless steel tubing specifications.\nASME B31.3 – Process Piping: piping design and materials.\nNEMA 250 / IEC 60529: enclosure ratings.\nIEC 60079: explosion protection for enclosures and glands.\nAccessories\nMounting hardware: brackets, stands and clamps fabricated from 316 SS; designed for rigidity and ease of maintenance.\nImpulse tubing: seamless stainless steel tubing (typically 316 SS, ½ inch OD); used for pressure and DP transmitters; include tube fittings and support saddles.\nMani"
+  },
+  "text_length": 4183,
+  "paragraphs": 42
+}

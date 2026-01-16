@@ -1,0 +1,54 @@
+{
+  "source_file": "instrumentation_analytical_standards.docx",
+  "specifications": {
+    "standards": [
+      {
+        "code": "ISO 15859",
+        "type": "ISO"
+      },
+      {
+        "code": "ISO 2186",
+        "type": "ISO"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "API 551",
+        "type": "API"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 5.1",
+        "type": "ISA"
+      },
+      {
+        "code": "ISA 20",
+        "type": "ISA"
+      }
+    ],
+    "certifications": [],
+    "measurement_ranges": [],
+    "accuracy_specs": [],
+    "response_time": [],
+    "environmental_specs": [],
+    "communication_protocols": [
+      "ETHERNET",
+      "DIGITAL",
+      "MODBUS"
+    ],
+    "safety_requirements": [
+      "Safety-related requirements present"
+    ],
+    "calibration_info": [
+      "Calibration requirements present"
+    ],
+    "raw_text_preview": "Analytical Instrumentation Standards\nIntroduction\nAnalytical instruments provide on‑line measurement of process composition and quality parameters such as pH, conductivity, dissolved oxygen, turbidity, sulphur and gas composition. High‑quality analysers enable continuous control of product specifications and environmental compliance. These standards integrate guidance from API 551 and ISA 5.1, along with detailed specifications for turbidity, pH and dissolved oxygen systems【51948133245220†L4037-L4149】.\nApplicable Standards\nAPI 551 – Analytical Instrumentation.\nISA 5.1 and ISA 20: symbols and data sheets.\nASTM D1785: sample system materials.\nISO 15859 / ISO 2186: sampling lines and sample probes.\nEPA and ASTM methods for measurement of specific analytes (e.g., ASTM D664 for acid number).\nEquipment Types\nGas chromatographs (GCs): on‑line gas chromatographs for hydrocarbon composition, BTU and distillation curves; field‑mounted with shelter; integrated with sample conditioning systems.\nSp"
+  },
+  "text_length": 4726,
+  "paragraphs": 47
+}

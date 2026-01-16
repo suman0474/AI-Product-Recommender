@@ -15,10 +15,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pymongo.errors import PyMongoError
 
-from azure_blob_config import get_azure_blob_connection as get_mongodb_connection
+# Use REAL MongoDB for advanced parameters storage (not Azure Blob)
+from mongodb_config import get_mongodb_connection
 from llm_fallback import create_llm_with_fallback
 
-MONGO_TTL_DAYS = 30
+# MONGO_TTL_DAYS removed - advanced parameters persist indefinitely
 IN_MEMORY_CACHE_TTL_MINUTES = 10
 SCHEMA_CACHE_TTL_MINUTES = 30
 MONGO_COLLECTION_CACHE = None
@@ -150,14 +151,14 @@ def _load_cached_specifications(product_type: str) -> Optional[List[Dict[str, An
     if collection is None or not product_type:
         return None
 
-    cutoff = datetime.utcnow() - timedelta(days=MONGO_TTL_DAYS)
     normalized = _normalize_product_type(product_type)
 
+    # No TTL for advanced parameters - retrieve regardless of age
     try:
         doc = collection.find_one(
             {
                 "normalized_product_type": normalized,
-                "created_at": {"$gte": cutoff},
+                # "created_at": {"$gte": cutoff}, # TTL removed
             }
         )
         if doc:

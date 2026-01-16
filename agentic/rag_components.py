@@ -118,7 +118,7 @@ class RAGAggregator:
     Supports parallel queries and constraint merging.
     """
     
-    def __init__(self, model_name: str = "gemini-2.0-flash-exp", temperature: float = 0.1):
+    def __init__(self, model_name: str = "gemini-2.5-flash", temperature: float = 0.1):
         self.llm = create_llm_with_fallback(
             model=model_name,
             temperature=temperature,
@@ -132,7 +132,62 @@ class RAGAggregator:
         product_type: str, 
         requirements: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Query the Strategy RAG for procurement strategy data"""
+        """
+        Query the Strategy RAG for procurement strategy data.
+        
+        This method now uses TRUE RAG with vector store retrieval from Pinecone.
+        Falls back to LLM-based inference if the strategy knowledge base is empty.
+        """
+        try:
+            # Try TRUE RAG first (vector store based)
+            from .strategy_rag_workflow import get_strategy_for_product
+            
+            logger.info(f"[Strategy RAG] Querying TRUE RAG for {product_type}...")
+            
+            result = get_strategy_for_product(
+                product_type=product_type,
+                requirements=requirements,
+                top_k=7
+            )
+            
+            # Check if we got results from vector store
+            if result.get('sources_used') and len(result.get('sources_used', [])) > 0:
+                logger.info(f"[Strategy RAG] TRUE RAG success - {len(result['sources_used'])} sources used")
+                return {
+                    "success": True,
+                    "source": "strategy_rag",  # Indicates TRUE RAG was used
+                    "data": {
+                        "preferred_vendors": result.get("preferred_vendors", []),
+                        "forbidden_vendors": result.get("forbidden_vendors", []),
+                        "neutral_vendors": result.get("neutral_vendors", []),
+                        "procurement_priorities": result.get("procurement_priorities", {}),
+                        "strategy_notes": result.get("strategy_notes", ""),
+                        "confidence": result.get("confidence", 0.0),
+                        "sources_used": result.get("sources_used", []),
+                        "citations": result.get("citations", [])
+                    }
+                }
+            else:
+                logger.warning("[Strategy RAG] No documents in vector store, falling back to LLM inference")
+                # Fall back to LLM-based inference
+                return self._query_strategy_rag_fallback(product_type, requirements)
+                
+        except ImportError as ie:
+            logger.warning(f"[Strategy RAG] Import error, using fallback: {ie}")
+            return self._query_strategy_rag_fallback(product_type, requirements)
+        except Exception as e:
+            logger.error(f"[Strategy RAG] Error: {e}, using fallback")
+            return self._query_strategy_rag_fallback(product_type, requirements)
+    
+    def _query_strategy_rag_fallback(
+        self,
+        product_type: str,
+        requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Fallback to LLM-based strategy inference when vector store is empty.
+        This is the ORIGINAL implementation (LLM inference, not TRUE RAG).
+        """
         try:
             prompt = ChatPromptTemplate.from_template(STRATEGY_RAG_PROMPT)
             chain = prompt | self.llm | self.parser
@@ -142,15 +197,15 @@ class RAGAggregator:
                 "requirements": json.dumps(requirements, indent=2)
             })
             
-            logger.info(f"Strategy RAG query completed with confidence: {result.get('confidence', 0)}")
+            logger.info(f"[Strategy RAG Fallback] LLM inference completed with confidence: {result.get('confidence', 0)}")
             return {
                 "success": True,
-                "source": "strategy",
+                "source": "strategy_llm_inference",  # Indicates fallback was used
                 "data": result
             }
             
         except Exception as e:
-            logger.error(f"Strategy RAG query failed: {e}")
+            logger.error(f"[Strategy RAG Fallback] Failed: {e}")
             return {
                 "success": False,
                 "source": "strategy",
@@ -168,7 +223,84 @@ class RAGAggregator:
         product_type: str, 
         requirements: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Query the Standards RAG for certification and compliance data"""
+        """
+        Query the Standards RAG for certification and compliance data.
+        
+        Uses the LLM-Powered Standards RAG Agent:
+        1. Retrieves top 5 documents from Pinecone vector store
+        2. Processes with Gemini LLM to generate grounded answer
+        3. Validates response for hallucination
+        4. Returns structured data with citations
+        """
+        try:
+            # Try TRUE LLM-Powered RAG first (vector retrieval + LLM processing)
+            from .standards_rag_workflow import run_standards_rag_workflow
+            
+            logger.info(f"[Standards RAG] Querying LLM-Powered RAG for {product_type}...")
+            
+            # Build comprehensive question for the LLM-powered agent
+            question = f"""What are the standards, certifications, SIL ratings, ATEX zones, 
+            API standards, plant codes, and compliance requirements for {product_type}?
+            
+            Context from user requirements:
+            {json.dumps(requirements, indent=2)}
+            """
+            
+            # Call LLM-Powered Standards RAG Agent (retrieval + LLM + validation)
+            result = run_standards_rag_workflow(
+                question=question,
+                top_k=5  # Retrieve 5 closest documents
+            )
+            
+            if result.get('status') == 'success':
+                final_response = result.get('final_response', {})
+                sources_used = final_response.get('sources_used', [])
+                
+                # Check if we got results from vector store
+                if sources_used and len(sources_used) > 0:
+                    logger.info(f"[Standards RAG] LLM-Powered RAG success - {len(sources_used)} sources used")
+                    
+                    # Parse the LLM's answer to extract structured data
+                    answer = final_response.get('answer', '')
+                    
+                    return {
+                        "success": True,
+                        "source": "standards_rag_llm_powered",  # Indicates TRUE LLM-powered RAG
+                        "data": {
+                            "required_sil_rating": self._extract_sil_from_answer(answer),
+                            "atex_zone": self._extract_atex_from_answer(answer),
+                            "required_certifications": self._extract_certifications_from_answer(answer),
+                            "api_standards": self._extract_api_standards_from_answer(answer),
+                            "plant_codes": [],
+                            "standards_notes": answer[:500] if answer else "",
+                            "confidence": final_response.get('confidence', 0.0),
+                            "sources_used": sources_used,
+                            "citations": final_response.get('citations', [])
+                        }
+                    }
+                else:
+                    logger.warning("[Standards RAG] No documents in vector store, using fallback")
+                    return self._query_standards_rag_fallback(product_type, requirements)
+            else:
+                logger.warning(f"[Standards RAG] LLM-Powered RAG failed: {result.get('error')}")
+                return self._query_standards_rag_fallback(product_type, requirements)
+                
+        except ImportError as ie:
+            logger.warning(f"[Standards RAG] Import error, using fallback: {ie}")
+            return self._query_standards_rag_fallback(product_type, requirements)
+        except Exception as e:
+            logger.error(f"[Standards RAG] Error: {e}, using fallback")
+            return self._query_standards_rag_fallback(product_type, requirements)
+    
+    def _query_standards_rag_fallback(
+        self,
+        product_type: str,
+        requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Fallback to LLM-based standards inference when vector store is empty.
+        This uses the ORIGINAL implementation (LLM inference without vector retrieval).
+        """
         try:
             prompt = ChatPromptTemplate.from_template(STANDARDS_RAG_PROMPT)
             chain = prompt | self.llm | self.parser
@@ -178,15 +310,15 @@ class RAGAggregator:
                 "requirements": json.dumps(requirements, indent=2)
             })
             
-            logger.info(f"Standards RAG query completed with confidence: {result.get('confidence', 0)}")
+            logger.info(f"[Standards RAG Fallback] LLM inference completed with confidence: {result.get('confidence', 0)}")
             return {
                 "success": True,
-                "source": "standards",
+                "source": "standards_llm_inference",  # Indicates fallback was used
                 "data": result
             }
             
         except Exception as e:
-            logger.error(f"Standards RAG query failed: {e}")
+            logger.error(f"[Standards RAG Fallback] Failed: {e}")
             return {
                 "success": False,
                 "source": "standards",
@@ -199,6 +331,34 @@ class RAGAggregator:
                     "plant_codes": []
                 }
             }
+    
+    def _extract_sil_from_answer(self, answer: str) -> Optional[str]:
+        """Extract SIL rating from LLM answer."""
+        import re
+        match = re.search(r'SIL\s*([1-4])', answer, re.IGNORECASE)
+        return f"SIL{match.group(1)}" if match else None
+
+    def _extract_atex_from_answer(self, answer: str) -> Optional[str]:
+        """Extract ATEX zone from LLM answer."""
+        import re
+        match = re.search(r'(?:ATEX\s*)?Zone\s*([0-2])', answer, re.IGNORECASE)
+        return f"Zone {match.group(1)}" if match else None
+
+    def _extract_certifications_from_answer(self, answer: str) -> List[str]:
+        """Extract certifications from LLM answer."""
+        import re
+        patterns = ['SIL[1-4]', 'ATEX', 'IECEx', 'CE', 'UL', 'CSA', 'FM', 'TUV', 'IP[0-9]{2}', 'NEMA']
+        certs = []
+        for pattern in patterns:
+            matches = re.findall(pattern, answer, re.IGNORECASE)
+            certs.extend([m.upper() for m in matches])
+        return list(set(certs))
+
+    def _extract_api_standards_from_answer(self, answer: str) -> List[str]:
+        """Extract API standards from LLM answer."""
+        import re
+        matches = re.findall(r'API\s*\d+(?:\.\d+)?', answer, re.IGNORECASE)
+        return list(set([m.upper().replace(' ', '') for m in matches]))
     
     def query_inventory_rag(
         self, 
