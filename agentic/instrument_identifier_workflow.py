@@ -243,12 +243,27 @@ def identify_instruments_and_accessories_node(state: InstrumentIdentifierState) 
     for accessory in state["identified_accessories"]:
         # Construct sample_input for accessories
         acc_sample_input = f"{accessory.get('category', 'Accessory')} for {accessory.get('related_instrument', 'instruments')}"
+        
+        # Smart category extraction: If category is generic "Accessories" or "Accessory",
+        # extract the product type from accessory_name (e.g., "Thermowell for X" -> "Thermowell")
+        raw_category = accessory.get("category", "Accessory")
+        accessory_name = accessory.get("accessory_name", "Unknown Accessory")
+        
+        if raw_category.lower() in ["accessories", "accessory", ""]:
+            # Extract product type from accessory name (before " for ")
+            if " for " in accessory_name:
+                extracted_type = accessory_name.split(" for ")[0].strip()
+                smart_category = extracted_type if extracted_type else raw_category
+            else:
+                smart_category = accessory_name  # Use full name if no " for " pattern
+        else:
+            smart_category = raw_category
 
         all_items.append({
             "number": item_number,
             "type": "accessory",
-            "name": accessory.get("accessory_name", "Unknown Accessory"),
-            "category": accessory.get("category", "Accessory"),
+            "name": accessory_name,
+            "category": smart_category,  # Use smart category instead of raw
             "quantity": accessory.get("quantity", 1),
             "sample_input": acc_sample_input,
             "related_instrument": accessory.get("related_instrument", "")
@@ -637,20 +652,24 @@ def enrich_with_standards_node(state: InstrumentIdentifierState) -> InstrumentId
         return state
     
     try:
-        # Import Parallel 3-Source Enrichment
-        from agentic.deep_agent.parallel_specs_enrichment import run_parallel_3_source_enrichment
+        # Import OPTIMIZED Parallel Enrichment (uses shared LLM + true parallel products)
+        from agentic.deep_agent.optimized_parallel_agent import run_optimized_parallel_enrichment
         
-        logger.info(f"[IDENTIFIER] Starting parallel enrichment for {len(all_items)} items...")
+        logger.info(f"[IDENTIFIER] Starting OPTIMIZED parallel enrichment for {len(all_items)} items...")
         
         # =====================================================
-        # PARALLEL 3-SOURCE ENRICHMENT
+        # OPTIMIZED PARALLEL ENRICHMENT
+        # - Single shared LLM instance (no repeated test calls)
+        # - All products processed in parallel
+        # - Significant time savings vs sequential processing
         # =====================================================
-        result = run_parallel_3_source_enrichment(
+        result = run_optimized_parallel_enrichment(
             items=all_items,
             user_input=user_input,
-            session_id=state.get("session_id", "identifier-parallel"),
+            session_id=state.get("session_id", "identifier-opt-parallel"),
             domain_context=None,
-            safety_requirements=None
+            safety_requirements=None,
+            max_parallel_products=5  # Process up to 5 products simultaneously
         )
         
         if result.get("success"):

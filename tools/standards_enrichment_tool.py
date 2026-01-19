@@ -157,7 +157,7 @@ def _call_standards_rag(question: str, top_k: int = 5) -> Dict[str, Any]:
         Standards RAG response with answer, citations, confidence
     """
     try:
-        from agentic.standards_rag_workflow import run_standards_rag_workflow
+        from agentic.standards_rag import run_standards_rag_workflow
 
         result = run_standards_rag_workflow(
             question=question,
@@ -418,7 +418,7 @@ def get_applicable_standards(
     
     # Always use LLM-powered RAG (fast_mode is deprecated)
     try:
-        from agentic.standards_rag_workflow import run_standards_rag_workflow
+        from agentic.standards_rag import run_standards_rag_workflow
         
         # Build comprehensive standards question
         question = f"""What are the applicable engineering standards (ISO, IEC, API, ANSI, ISA),
@@ -873,87 +873,244 @@ def _extract_all_schema_fields(schema: Dict[str, Any]) -> List[str]:
 def _extract_field_value_from_answer(answer: str, field_name: str, product_type: str) -> Optional[str]:
     """
     Extract a specific field value from a comprehensive answer.
-    Uses multiple strategies: regex patterns, keyword search, and LLM-style extraction.
+    Uses multiple strategies with flexible patterns: regex, keyword search, semantic extraction.
+
+    [FIX #3] Improved regex patterns to handle textual descriptions from LLM
+    - More flexible separators (not just colons)
+    - Allow descriptive text ("typically", "of", "around", etc.)
+    - Multiple pattern variations per field
     """
     import re
-    
+
     answer_lower = answer.lower()
     field_lower = field_name.lower().replace("_", " ").replace("-", " ")
-    
-    # Strategy 1: Specific regex patterns for known field types
+
+    # Strategy 1: [FIX #3] IMPROVED regex patterns - Much more flexible!
+    # These patterns now match textual descriptions from LLM, not just structured data
     patterns = {
-        "accuracy": r"accuracy[:\s]+[±]?\s*(\d+\.?\d*\s*%)",
-        "repeatability": r"repeatability[:\s]+[±]?\s*(\d+\.?\d*\s*%)",
-        "temperature range": r"temperature range[:\s]+(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*(?:°C|°F|K|degrees?))",
-        "temperaturerange": r"temperature[:\s]+(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*(?:°C|°F|K))",
-        "output signal": r"output signal[:\s]+(4-20\s*mA|HART|Profibus|Modbus|\d+-\d+\s*mA)",
-        "outputsignal": r"output[:\s]+(4-20\s*mA|HART|Profibus|\d+-\d+\s*mA)",
-        "ingress protection": r"(IP\s*\d{2})",
-        "ingressprotection": r"(IP\s*\d{2})",
-        "ip rating": r"(IP\s*\d{2})",
-        "hazardous area": r"(ATEX|IECEx|Class\s*[I]+\s*Div\s*[12]|Zone\s*[012])",
-        "hazardousarearating": r"(ATEX|IECEx|Class\s*I|Zone\s*[012])",
-        "sil": r"(SIL\s*[1-4])",
-        "safety": r"(SIL\s*[1-4])",
-        "certifications": r"(CE|UL|CSA|FM|TUV|ATEX|IECEx)",
-        "probe diameter": r"probe diameter[:\s]+(\d+\.?\d*\s*(?:mm|inch|in))",
-        "probediameter": r"diameter[:\s]+(\d+\.?\d*\s*(?:mm|inch|in))",
-        "probe length": r"probe length[:\s]+(\d+\.?\d*\s*(?:mm|cm|m|inch|in|ft))",
-        "probelength": r"length[:\s]+(\d+\.?\d*\s*(?:mm|cm|m|inch))",
-        "sheath material": r"sheath[:\s]+(\w+(?:\s+\w+)?(?:\s*stainless steel|\s*inconel|\s*hastelloy)?)",
-        "sheathmaterial": r"sheath[:\s]+(\w+)",
-        "process connection": r"connection[:\s]+(NPT|BSP|flanged|\d+[/\"]+\s*NPT)",
-        "processconnection": r"connection[:\s]+(\S+)",
-        "junction type": r"junction[:\s]+(grounded|ungrounded|exposed|isolated)",
-        "junctiontype": r"junction[:\s]+(\w+)",
-        "sensor type": r"sensor type[:\s]+(\S+(?:\s+\S+)?)",
-        "sensortype": r"sensor[:\s]+(\S+)",
-        "measurement type": r"measurement[:\s]+(\S+(?:\s+\S+)?)",
-        "measurementtype": r"type[:\s]+(\S+)",
-        "lead wire type": r"lead wire[:\s]+(\S+)",
-        "leadwiretype": r"wire[:\s]+(\S+)",
-        "insulation resistance": r"insulation[:\s]+(\d+\s*(?:MΩ|megohm|ohm))",
-        "insulationresistance": r"resistance[:\s]+(\d+\s*\w+)",
-        "power supply": r"power[:\s]+(\d+\.?\d*\s*(?:to|[-–])\s*\d+\.?\d*\s*(?:V|VDC|VAC))",
-        "powersupply": r"(\d+\.?\d*\s*(?:to|[-–])\s*\d+\.?\d*\s*(?:V|VDC))",
-        "ambient temperature": r"ambient[:\s]+(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*(?:°C|°F))",
-        "ambienttemperaturerange": r"ambient[:\s]+(-?\d+[^\n]{3,30})",
-        "storage temperature": r"storage[:\s]+(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*(?:°C|°F))",
-        "storagetemperature": r"storage[:\s]+(-?\d+[^\n]{3,30})",
-        "response time": r"response time[:\s]+(\d+\.?\d*\s*(?:ms|s|sec|seconds?))",
-        "responsetime": r"response[:\s]+(\d+\.?\d*\s*\w+)",
+        # Percentage-based fields (flexible: "accuracy: 0.25%" OR "accuracy of 0.25%" OR "accuracy typically 0.25%")
+        "accuracy": [
+            r"accuracy[:\s]*(?:of\s+)?[~]?\s*(\d+\.?\d*\s*%)",
+            r"accuracy[:\s]*(?:typically\s+)?[~]?\s*(\d+\.?\d*\s*%)",
+            r"accuracy[:\s]*(?:is\s+)?[±~]?\s*(\d+\.?\d*\s*%)",
+            r"accuracy.*?(\d+\.?\d*\s*%)",  # Catch-all for "accuracy ... X%"
+        ],
+        "repeatability": [
+            r"repeatability[:\s]*(?:of\s+)?[±]?\s*(\d+\.?\d*\s*%)",
+            r"repeatability[:\s]*(?:typically\s+)?[±]?\s*(\d+\.?\d*\s*%)",
+            r"repeatability.*?(\d+\.?\d*\s*%)",
+        ],
+
+        # Temperature range patterns (flexible separators)
+        "temperature range": [
+            r"temperature\s+range[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+            r"temperature[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+            r"(?:operating\s+)?temperature.*?(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
+        "temperaturerange": [
+            r"temperature[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+            r"(?:operating\s+)?temperature.*?(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
+
+        # Output signal patterns
+        "output signal": [
+            r"output\s+signal[:\s]+(4-20\s*mA|HART|Profibus|Modbus)",
+            r"output[:\s]+(4-20\s*mA|HART|Profibus|Modbus|Fieldbus)",
+            r"(?:standard\s+)?signal.*?(4-20\s*mA|HART|Profibus)",
+        ],
+        "outputsignal": [
+            r"output[:\s]+(4-20\s*mA|HART|Profibus|Modbus|Fieldbus)",
+            r"signal.*?(4-20\s*mA|HART|Profibus)",
+        ],
+
+        # IP rating / Ingress protection
+        "ingress protection": [
+            r"\b(IP\s*\d{2})\b",
+            r"(?:ingress\s+)?protection[:\s]*(IP\s*\d{2})",
+        ],
+        "ingressprotection": [
+            r"\b(IP\s*\d{2})\b",
+            r"protection[:\s]*(IP\s*\d{2})",
+        ],
+        "ip rating": [
+            r"\b(IP\s*\d{2})\b",
+        ],
+
+        # Hazardous area / Safety certifications
+        "hazardous area": [
+            r"\b(ATEX|IECEx|SIL\s*[1-4]|Zone\s*[012])\b",
+            r"(?:hazardous|explosive|safety)[:\s]*(ATEX|IECEx|SIL)",
+        ],
+        "hazardousarearating": [
+            r"\b(ATEX|IECEx|SIL\s*[1-4])\b",
+        ],
+
+        # SIL rating
+        "sil": [
+            r"\b(SIL\s*[1-4])\b",
+            r"(?:safety\s+)?integrity.*?(SIL\s*[1-4])",
+        ],
+        "safety": [
+            r"\b(SIL\s*[1-4])\b",
+        ],
+
+        # Certifications (CE, UL, CSA, etc.)
+        "certifications": [
+            r"\b(CE|UL|CSA|FM|TUV|ATEX|IECEx)\b",
+            r"(?:certified|certifications?)[:\s]*(CE|UL|CSA|FM)",
+        ],
+
+        # Probe/Sensor dimensions
+        "probe diameter": [
+            r"diameter[:\s]*(\d+\.?\d*\s*(?:mm|inch|in))",
+            r"probe[:\s]*.*?(\d+\.?\d*\s*mm)",
+        ],
+        "probediameter": [
+            r"diameter[:\s]*(\d+\.?\d*\s*(?:mm|inch|in))",
+        ],
+        "probe length": [
+            r"length[:\s]*(\d+\.?\d*\s*(?:mm|cm|m|inch|in|ft))",
+            r"immersion[:\s]*(\d+\.?\d*\s*(?:mm|cm|m))",
+        ],
+        "probelength": [
+            r"length[:\s]*(\d+\.?\d*\s*(?:mm|cm|m|inch|in|ft))",
+        ],
+
+        # Material specifications
+        "sheath material": [
+            r"sheath[:\s]*(\w+(?:\s+\w+)?(?:stainless|steel|inconel|hastelloy)?)",
+            r"material[:\s]*(\w+\s+steel|stainless|hastelloy|inconel)",
+        ],
+        "sheathmaterial": [
+            r"sheath[:\s]*(\w+)",
+            r"material[:\s]*(\S+)",
+        ],
+
+        # Connection types
+        "process connection": [
+            r"connection[:\s]+(NPT|BSP|flanged|G\d+|M\d+)",
+            r"(?:process\s+)?connection.*?(NPT|BSP|flanged)",
+        ],
+        "processconnection": [
+            r"connection[:\s]+(\S+)",
+        ],
+
+        # Junction/sensor types
+        "junction type": [
+            r"junction[:\s]+(grounded|ungrounded|exposed|isolated)",
+            r"(?:junction|terminal)[:\s]*(\w+)",
+        ],
+        "junctiontype": [
+            r"junction[:\s]+(\w+)",
+        ],
+        "sensor type": [
+            r"sensor\s+type[:\s]+(\w+(?:\s+\w+)?)",
+            r"sensor[:\s]+(\w+(?:\s+\w+)?)",
+        ],
+        "sensortype": [
+            r"sensor[:\s]+(\S+)",
+        ],
+
+        # Measurement/Response specifications
+        "measurement type": [
+            r"measurement[:\s]+(\S+(?:\s+\S+)?)",
+            r"measures[:\s]*(\w+)",
+        ],
+        "measurementtype": [
+            r"(?:measurement|measures)\s+type[:\s]+(\S+)",
+            r"type[:\s]+(\S+)",
+        ],
+        "response time": [
+            r"response\s+time[:\s]*(\d+\.?\d*\s*(?:ms|s|sec|seconds?))",
+            r"response[:\s]*(\d+\.?\d*\s*(?:ms|s))",
+        ],
+        "responsetime": [
+            r"response[:\s]*(\d+\.?\d*\s*(?:ms|s|seconds?))",
+        ],
+
+        # Power/Voltage specifications
+        "power supply": [
+            r"power[:\s]*(\d+\.?\d*\s*(?:to|[-–])\s*\d+\.?\d*\s*(?:V|VDC|VAC))",
+            r"supply[:\s]*(\d+\.?\d*\s*(?:to|[-–])\s*\d+\.?\d*\s*V)",
+        ],
+        "powersupply": [
+            r"power[:\s]*(\d+\.?\d*\s*(?:to|[-–])\s*\d+\.?\d*\s*V)",
+        ],
+        "ambient temperature": [
+            r"ambient[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+            r"ambient.*?(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
+        "ambienttemperaturerange": [
+            r"ambient[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
+        "storage temperature": [
+            r"storage[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+            r"storage.*?(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
+        "storagetemperature": [
+            r"storage[:\s]*(-?\d+\.?\d*\s*(?:to|[-–])\s*-?\d+\.?\d*\s*°[CF])",
+        ],
     }
-    
-    # Try field-specific pattern first
+
+    # Try field-specific patterns first
     field_key = field_lower.replace(" ", "")
-    if field_key in patterns:
-        match = re.search(patterns[field_key], answer, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    
-    # Try with spaces
+
+    # Try with space-separated field name
     if field_lower in patterns:
-        match = re.search(patterns[field_lower], answer, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    
-    # Strategy 2: Look for field name followed by colon or equals
-    field_pattern = rf"{re.escape(field_name)}[:\s=]+([^\n,;]+)"
+        pattern_list = patterns[field_lower]
+        if not isinstance(pattern_list, list):
+            pattern_list = [pattern_list]
+        for pattern in pattern_list:
+            match = re.search(pattern, answer, re.IGNORECASE)
+            if match:
+                value = match.group(1).strip()
+                if value:
+                    logger.debug(f"[FIX #3] Extracted '{value}' for field '{field_name}' (pattern: {pattern[:50]}...)")
+                    return value
+
+    # Try without spaces in field name
+    if field_key in patterns:
+        pattern_list = patterns[field_key]
+        if not isinstance(pattern_list, list):
+            pattern_list = [pattern_list]
+        for pattern in pattern_list:
+            match = re.search(pattern, answer, re.IGNORECASE)
+            if match:
+                value = match.group(1).strip()
+                if value:
+                    logger.debug(f"[FIX #3] Extracted '{value}' for field '{field_name}' (no-space pattern: {pattern[:50]}...)")
+                    return value
+
+    # Strategy 2: [FIX #3] Generic fallback - Look for field name followed by value
+    # This handles textual descriptions like "accuracy of 0.25% to 0.5%"
+    field_pattern = rf"{re.escape(field_name)}[:\s=]*([^\n,\.]+)"
     match = re.search(field_pattern, answer, re.IGNORECASE)
     if match:
         value = match.group(1).strip()
-        if value and len(value) < 100:
-            return value
-    
-    # Strategy 3: Look for field name (with spaces) followed by value
+        if value and len(value) < 150 and len(value) > 1:
+            # Extract just the numerical/categorical part if possible
+            # Remove extra text like "of the measured value" or "typically"
+            cleaned = re.sub(r'\b(?:of\s+the|typically|around|approximately|roughly)\b', '', value, flags=re.IGNORECASE)
+            cleaned = cleaned.strip()
+            if cleaned and len(cleaned) < 100:
+                logger.debug(f"[FIX #3] Extracted '{cleaned}' for field '{field_name}' (generic fallback)")
+                return cleaned
+
+    # Strategy 3: [FIX #3] Try with spaced field name
     spaced_field = field_name.replace("_", " ").replace("-", " ")
-    field_pattern = rf"{re.escape(spaced_field)}[:\s=]+([^\n,;]+)"
-    match = re.search(field_pattern, answer, re.IGNORECASE)
-    if match:
-        value = match.group(1).strip()
-        if value and len(value) < 100:
-            return value
-    
+    if spaced_field != field_name:
+        field_pattern = rf"{re.escape(spaced_field)}[:\s=]*([^\n,\.]+)"
+        match = re.search(field_pattern, answer, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if value and len(value) < 150 and len(value) > 1:
+                cleaned = re.sub(r'\b(?:of\s+the|typically|around|approximately)\b', '', value, flags=re.IGNORECASE)
+                cleaned = cleaned.strip()
+                if cleaned and len(cleaned) < 100:
+                    logger.debug(f"[FIX #3] Extracted '{cleaned}' for field '{field_name}' (spaced fallback)")
+                    return cleaned
+
+    logger.debug(f"[FIX #3] Could not extract value for field '{field_name}'")
     return None
 
 

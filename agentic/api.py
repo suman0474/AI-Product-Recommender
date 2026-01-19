@@ -2372,16 +2372,23 @@ def agentic_advanced_parameters():
 @login_required
 def product_search():
     """
-    Product Search Agentic Workflow with Proper Awaits
+    Product Search Deep Agentic Workflow
 
-    This endpoint implements a STATEFUL workflow with user interaction points:
-    
-    Flow:
-    1. Initial call → Run VALIDATION ONLY → Return schema to UI → AWAIT user decision
-    2. User responds (add_fields/continue) → Process decision → Move to next step
-    3. If user continues → AWAIT advanced params decision
-    4. If user wants advanced params → Run discovery → Return results
-    5. Complete workflow → Return final results
+    This endpoint implements a STATEFUL workflow with Deep Agent capabilities:
+
+    Flow (handled by DeepAgenticWorkflowOrchestrator):
+    1. VALIDATION - Product type detection & schema generation (with failure memory)
+    2. AWAIT_MISSING_FIELDS - User decision on missing fields
+    3. ADVANCED_DISCOVERY - Discover specifications from vendors
+    4. VENDOR_ANALYSIS - Parallel vendor matching
+    5. RANKING - Final product ranking
+
+    Features:
+    - Session state management with persistence
+    - User decision parsing and handling
+    - Failure memory and learning from past errors
+    - Adaptive prompt optimization
+    - Automatic phase progression
 
     Request Body:
         {
@@ -2399,671 +2406,91 @@ def product_search():
             "success": bool,
             "data": {
                 "thread_id": str,               # For resuming conversation
+                "session_id": str,              # Session identifier
                 "awaiting_user_input": bool,    # True if workflow is paused
                 "current_phase": str,           # Current workflow phase
                 "sales_agent_response": str,    # Message to display to user
                 "schema": dict,                 # Schema for left sidebar display
                 "missing_fields": list,         # Missing mandatory fields
                 "validation_result": dict,
-                "available_advanced_params": list
+                "available_advanced_params": list,
+                "completed": bool               # True if workflow is complete
             }
         }
     """
-    import uuid
-    
     try:
-        from product_search_workflow import ValidationTool, AdvancedParametersTool
-        
+        # Import the Deep Agentic Workflow Orchestrator
+        from .deep_agent.deep_agentic_workflow import get_deep_agentic_orchestrator
+
         data = request.get_json()
         if not data:
             return api_response(False, error="Request body is required", status_code=400)
-        
-        # Extract parameters
+
+        # Extract parameters from request
         user_input = data.get('user_input') or data.get('message', '')
         thread_id = data.get('thread_id')
         user_decision = data.get('user_decision')
         user_provided_fields = data.get('user_provided_fields', {})
         product_type_hint = data.get('product_type')
-        session_id = data.get('session_id') or data.get('search_session_id') or f"ps_{uuid.uuid4().hex[:8]}"
-        
-        # Generate thread_id if not provided (new conversation)
-        if not thread_id:
-            thread_id = f"thread_{uuid.uuid4().hex[:12]}"
-            logger.info(f"[PRODUCT_SEARCH] New conversation, thread_id: {thread_id}")
-        else:
-            logger.info(f"[PRODUCT_SEARCH] Resuming conversation, thread_id: {thread_id}")
-        
-        # Get or create workflow state from session
-        workflow_state = get_workflow_state(thread_id)
-        current_phase = workflow_state.get('phase', 'initial_validation')
-        
-        # If resuming and user_input not provided, try to restore from state
-        if not user_input and workflow_state.get('user_input'):
-            user_input = workflow_state['user_input']
-            logger.info(f"[PRODUCT_SEARCH] Restored user_input from state: {user_input[:50]}...")
-        
-        logger.info(f"[PRODUCT_SEARCH] Session: {session_id}, Phase: {current_phase}")
-        logger.info(f"[PRODUCT_SEARCH] User decision: {user_decision}, Has fields: {bool(user_provided_fields)}")
-        
-        # Initialize result
-        result = {
-            "session_id": session_id,
-            "thread_id": thread_id,
-            "success": True,
-            "awaiting_user_input": False,
-            "current_phase": current_phase,
-            "steps_completed": workflow_state.get('steps_completed', [])
-        }
-        
-        # Helper function to normalize schema format for frontend
-        def normalize_schema_for_frontend(schema: Dict[str, Any]) -> Dict[str, Any]:
-            """
-            Normalize schema to frontend expected format.
-            
-            Backend schemas may have:
-            - "mandatory_requirements" / "optional_requirements" (Azure Blob)
-            - "mandatory" / "optional" (default fallback)
-            
-            Frontend expects:
-            - "mandatoryRequirements" / "optionalRequirements" (camelCase)
-            """
-            if not schema:
-                return {"mandatoryRequirements": {}, "optionalRequirements": {}}
-            
-            # Extract mandatory fields (try all possible keys)
-            mandatory = (
-                schema.get("mandatoryRequirements") or 
-                schema.get("mandatory_requirements") or 
-                schema.get("mandatory") or 
-                {}
+        session_id = data.get('session_id') or data.get('search_session_id')
+
+        logger.info(
+            f"\n{'='*60}\n"
+            f"[PRODUCT_SEARCH] Deep Agentic Workflow Request\n"
+            f"   Session: {session_id}\n"
+            f"   Thread: {thread_id}\n"
+            f"   Decision: {user_decision}\n"
+            f"   Input: {user_input[:50] if user_input else 'None'}...\n"
+            f"{'='*60}"
+        )
+
+        # Get the orchestrator and process the request
+        orchestrator = get_deep_agentic_orchestrator()
+
+        result = orchestrator.process_request(
+            user_input=user_input,
+            session_id=session_id,
+            thread_id=thread_id,
+            user_decision=user_decision,
+            user_provided_fields=user_provided_fields,
+            product_type_hint=product_type_hint
+        )
+
+        # Check if orchestrator returned an error
+        if not result.get('success', True):
+            return api_response(
+                False,
+                error=result.get('error', 'Workflow failed'),
+                status_code=500
             )
-            
-            # Extract optional fields (try all possible keys)
-            optional = (
-                schema.get("optionalRequirements") or 
-                schema.get("optional_requirements") or 
-                schema.get("optional") or 
-                {}
-            )
-            
-            logger.debug(f"[SCHEMA_NORMALIZE] Input keys: {list(schema.keys())}")
-            logger.debug(f"[SCHEMA_NORMALIZE] Mandatory fields: {len(mandatory)}, Optional fields: {len(optional)}")
-            
-            return {
-                "mandatoryRequirements": mandatory,
-                "optionalRequirements": optional
-            }
-        
-        # ====================================================================
-        # PHASE 1: INITIAL VALIDATION
-        # Run validation, return schema, await user decision on missing fields
-        # ====================================================================
-        if current_phase == 'initial_validation':
-            # If thread_id was provided but no state found, session was lost
-            if data.get('thread_id') and not workflow_state:
-                logger.warning(f"[PRODUCT_SEARCH] Session state lost for thread_id: {thread_id}")
-                return api_response(
-                    False, 
-                    error="Session expired or lost. Please start a new search.", 
-                    status_code=400,
-                    data={"session_expired": True, "restart_required": True}
-                )
-            
-            if not user_input:
-                return api_response(False, error="user_input is required for initial validation", status_code=400)
-            
-            logger.info(f"[PRODUCT_SEARCH] Running VALIDATION ONLY")
-            logger.info(f"[PRODUCT_SEARCH] Input: {user_input[:100]}...")
-            
-            # Run validation tool (standalone - does NOT call other tools)
-            validation_tool = ValidationTool(enable_ppi=True)
-            validation_result = validation_tool.validate(
-                user_input=user_input,
-                expected_product_type=product_type_hint,
-                session_id=session_id
-            )
-            
-            if not validation_result.get('success'):
-                return api_response(False, error=validation_result.get('error', 'Validation failed'), status_code=500)
-            
-            product_type = validation_result['product_type']
-            schema = validation_result['schema']
-            missing_fields = validation_result['missing_fields']
-            is_valid = validation_result['is_valid']
-            provided_reqs = validation_result['provided_requirements']
-            
-            logger.info(f"[PRODUCT_SEARCH] Product Type: {product_type}")
-            logger.info(f"[PRODUCT_SEARCH] Schema loaded: {bool(schema)}")
-            logger.info(f"[PRODUCT_SEARCH] Schema keys (raw): {list(schema.keys()) if schema else 'None'}")
-            logger.info(f"[PRODUCT_SEARCH] Missing fields: {missing_fields}")
-            
-            # Normalize schema before saving to state (so all phases return correct format)
-            normalized_schema = normalize_schema_for_frontend(schema)
-            logger.info(f"[PRODUCT_SEARCH] Normalized schema keys: {list(normalized_schema.keys())}")
-            logger.info(f"[PRODUCT_SEARCH] Mandatory fields count: {len(normalized_schema.get('mandatoryRequirements', {}))}")
-            logger.info(f"[PRODUCT_SEARCH] Optional fields count: {len(normalized_schema.get('optionalRequirements', {}))}")
-            
-            # Save state
-            workflow_state = {
-                'phase': 'await_missing_fields' if missing_fields else 'await_advanced_params',
-                'user_input': user_input,
-                'product_type': product_type,
-                'schema': normalized_schema,  # Store normalized schema
-                'provided_requirements': provided_reqs,
-                'missing_fields': missing_fields,
-                'is_valid': is_valid,
-                'ppi_used': validation_result.get('ppi_workflow_used', False),
-                'steps_completed': ['validation']
-            }
-            set_workflow_state(thread_id, workflow_state)
-            
-            # Build response message
-            if missing_fields:
-                response_message = (
-                    f"I've analyzed your requirements for **{product_type}**.\n\n"
-                    f"These fields are available for this product type. "
-                    f"The following fields are missing: {', '.join(missing_fields)}.\n\n"
-                    f"Would you like to add the missing details so we can continue with your product selection, "
-                    f"or would you like to continue anyway?"
-                )
-            else:
-                response_message = (
-                    f"All required fields are provided for **{product_type}**.\n\n"
-                    f"Would you like to discover advanced specifications from top vendors?"
-                )
-            
-            # Schema is already normalized (normalized_schema from above)
-            
-            result.update({
-                "current_phase": workflow_state['phase'],
-                "awaiting_user_input": True,
-                "sales_agent_response": response_message,
-                "product_type": product_type,
-                "schema": normalized_schema,  # Normalized for left sidebar display
-                "validation_result": {
-                    "productType": product_type,
-                    "detectedSchema": normalized_schema,
-                    "providedRequirements": provided_reqs,
-                    "isValid": is_valid,
-                    "missingFields": missing_fields,
-                    "ppiWorkflowUsed": validation_result.get('ppi_workflow_used', False)
-                },
-                "missing_fields": missing_fields,
-                "steps_completed": ['validation'],
-                "completed": False
-            })
-            
-            return api_response(True, data=result)
-        
-        # ====================================================================
-        # PHASE 2: AWAIT MISSING FIELDS DECISION
-        # User decides to add fields or continue anyway
-        # ====================================================================
-        elif current_phase == 'await_missing_fields':
-            if not user_decision:
-                return api_response(False, error="user_decision required (add_fields or continue)", status_code=400)
-            
-            decision = user_decision.lower()
-            logger.info(f"[PRODUCT_SEARCH] User decision on missing fields: {decision}")
-            
-            if 'add' in decision or 'yes' in decision or 'missing' in decision:
-                # User wants to add missing fields
-                workflow_state['phase'] = 'collect_missing_fields'
-                set_workflow_state(thread_id, workflow_state)
-                
-                missing_fields = workflow_state.get('missing_fields', [])
-                response_message = (
-                    f"Please provide values for the following fields:\n\n" +
-                    "\n".join([f"• {field}" for field in missing_fields])
-                )
-                
-                result.update({
-                    "current_phase": "collect_missing_fields",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": response_message,
-                    "missing_fields": missing_fields,
-                    "product_type": workflow_state.get('product_type'),
-                    "schema": workflow_state.get('schema'),
-                    "completed": False
-                })
-                
-            elif 'continue' in decision or 'anyway' in decision or 'skip' in decision or 'no' in decision:
-                # User wants to continue without filling missing fields
-                # DISCOVER ADVANCED PARAMETERS and ask user which to add
-                
-                logger.info(f"[PRODUCT_SEARCH] User chose to continue. Running ADVANCED PARAMETERS DISCOVERY")
-                
-                product_type = workflow_state.get('product_type')
-                
-                # Run discovery
-                advanced_tool = AdvancedParametersTool()
-                advanced_result = advanced_tool.discover(
-                    product_type=product_type,
-                    session_id=session_id,
-                    existing_schema=workflow_state.get('schema')
-                )
-                
-                discovered_specs = advanced_result.get('unique_specifications', [])
-                logger.info(f"[PRODUCT_SEARCH] Discovered {len(discovered_specs)} specifications")
-                
-                # Store discovered specs but DON'T complete yet - wait for user selection
-                workflow_state['discovered_advanced_params'] = discovered_specs
-                workflow_state['phase'] = 'await_advanced_selection'
-                workflow_state['steps_completed'].append('advanced_parameters_discovery')
-                set_workflow_state(thread_id, workflow_state)
-                
-                # Formulate response asking user which specs to add
-                if discovered_specs:
-                    specs_display = "\n".join([f"• {s.get('name', s.get('key'))}" for s in discovered_specs[:10]])
-                    if len(discovered_specs) > 10:
-                        specs_display += f"\n• ... and {len(discovered_specs) - 10} more"
-                    
-                    response_message = (
-                        f"Proceeding with available information.\n\n"
-                        f"I've discovered {len(discovered_specs)} advanced specifications from top vendors:\n\n"
-                        f"{specs_display}\n\n"
-                        f"Would you like to add any of these to your requirements?\n"
-                        f"• Say **'all'** to include all specifications\n"
-                        f"• Say the **names** of specific specs you want\n"
-                        f"• Say **'no'** or **'skip'** to proceed without them"
-                    )
-                else:
-                    # No specs found - proceed to complete
-                    workflow_state['phase'] = 'complete'
-                    workflow_state['advanced_params'] = []
-                    set_workflow_state(thread_id, workflow_state)
-                    
-                    response_message = (
-                        "Proceeding with available information.\n\n"
-                        "No additional advanced specifications were found.\n\n"
-                        "Ready to proceed with product search!"
-                    )
-                    
-                    result.update({
-                        "current_phase": "complete",
-                        "awaiting_user_input": False,
-                        "sales_agent_response": response_message,
-                        "product_type": product_type,
-                        "schema": workflow_state.get('schema'),
-                        "available_advanced_params": [],
-                        "steps_completed": workflow_state['steps_completed'],
-                        "ready_for_vendor_search": True,
-                        "completed": True,
-                        "final_requirements": {
-                            "productType": product_type,
-                            "mandatoryRequirements": workflow_state.get('provided_requirements', {}).get('mandatory', {}),
-                            "optionalRequirements": workflow_state.get('provided_requirements', {}).get('optional', {}),
-                            "advancedParameters": []
-                        }
-                    })
-                    return api_response(True, data=result)
-                
-                # Return with await_advanced_selection phase
-                result.update({
-                    "current_phase": "await_advanced_selection",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": response_message,
-                    "product_type": product_type,
-                    "schema": workflow_state.get('schema'),
-                    "available_advanced_params": discovered_specs,
-                    "advanced_parameters_result": {
-                        "discovered_specifications": discovered_specs,
-                        "total_discovered": len(discovered_specs)
-                    },
-                    "steps_completed": workflow_state['steps_completed'],
-                    "completed": False
-                })
-            else:
-                # Invalid decision
-                result.update({
-                    "current_phase": "await_missing_fields",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": (
-                        "I didn't understand. Please respond with:\n"
-                        "• 'Add missing fields' to provide the required information\n"
-                        "• 'Continue anyway' to proceed without missing fields"
-                    ),
-                    "completed": False
-                })
-            
-            return api_response(True, data=result)
-        
-        # ====================================================================
-        # PHASE 3: COLLECT MISSING FIELDS
-        # User provides missing field values, re-validate
-        # ====================================================================
-        elif current_phase == 'collect_missing_fields':
-            if not user_provided_fields and not user_input:
-                return api_response(False, error="user_provided_fields or user_input required", status_code=400)
-            
-            logger.info(f"[PRODUCT_SEARCH] Received user fields: {list(user_provided_fields.keys()) if user_provided_fields else 'from input'}")
-            
-            # Merge fields with existing requirements
-            existing_reqs = workflow_state.get('provided_requirements', {})
-            
-            if user_provided_fields:
-                # Direct field values provided
-                for key, value in user_provided_fields.items():
-                    if 'mandatory' in existing_reqs:
-                        existing_reqs['mandatory'][key] = value
-                    else:
-                        existing_reqs[key] = value
-            
-            # Re-validate with updated requirements
-            validation_tool = ValidationTool(enable_ppi=True)
-            product_type = workflow_state.get('product_type')
-            original_input = workflow_state.get('user_input', '')
-            
-            # Append new fields to input for re-validation
-            combined_input = original_input
-            if user_provided_fields:
-                combined_input += ". " + ", ".join([f"{k}: {v}" for k, v in user_provided_fields.items()])
-            elif user_input:
-                combined_input += ". " + user_input
-            
-            validation_result = validation_tool.validate(
-                user_input=combined_input,
-                expected_product_type=product_type,
-                session_id=session_id
-            )
-            
-            new_missing = validation_result.get('missing_fields', [])
-            
-            # Update state
-            workflow_state['provided_requirements'] = validation_result['provided_requirements']
-            workflow_state['missing_fields'] = new_missing
-            workflow_state['is_valid'] = validation_result['is_valid']
-            
-            if new_missing:
-                # Still have missing fields
-                workflow_state['phase'] = 'await_missing_fields'
-                set_workflow_state(thread_id, workflow_state)
-                
-                result.update({
-                    "current_phase": "await_missing_fields",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": (
-                        f"Thanks! I've updated your requirements.\n\n"
-                        f"There are still some fields missing: {', '.join(new_missing)}.\n\n"
-                        f"Would you like to add these, or continue anyway?"
-                    ),
-                    "missing_fields": new_missing,
-                    "product_type": product_type,
-                    "schema": workflow_state.get('schema'),
-                    "validation_result": {
-                        "providedRequirements": validation_result['provided_requirements'],
-                        "missingFields": new_missing,
-                        "isValid": validation_result['is_valid']
-                    },
-                    "completed": False
-                })
-            else:
-                # All fields provided, proceed
-                workflow_state['phase'] = 'await_advanced_params'
-                workflow_state['steps_completed'].append('field_collection')
-                set_workflow_state(thread_id, workflow_state)
-                
-                result.update({
-                    "current_phase": "await_advanced_params",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": (
-                        f"All required fields are now provided for **{product_type}**.\n\n"
-                        f"Would you like to discover advanced specifications from top vendors?"
-                    ),
-                    "product_type": product_type,
-                    "schema": workflow_state.get('schema'),
-                    "completed": False
-                })
-            
-            return api_response(True, data=result)
-        
-        # ====================================================================
-        # PHASE 4: AWAIT ADVANCED PARAMS DECISION
-        # User decides to run advanced params discovery or skip
-        # ====================================================================
-        elif current_phase == 'await_advanced_params':
-            if not user_decision:
-                return api_response(False, error="user_decision required (yes/no)", status_code=400)
-            
-            decision = user_decision.lower()
-            logger.info(f"[PRODUCT_SEARCH] User decision on advanced params: {decision}")
-            
-            product_type = workflow_state.get('product_type')
-            
-            if 'yes' in decision or 'discover' in decision or 'show' in decision:
-                # User wants advanced parameters - run discovery
-                logger.info(f"[PRODUCT_SEARCH] Running ADVANCED PARAMETERS DISCOVERY")
-                
-                advanced_tool = AdvancedParametersTool()
-                advanced_result = advanced_tool.discover(
-                    product_type=product_type,
-                    session_id=session_id,
-                    existing_schema=workflow_state.get('schema')
-                )
-                
-                discovered_specs = advanced_result.get('unique_specifications', [])
-                logger.info(f"[PRODUCT_SEARCH] Discovered {len(discovered_specs)} specifications")
-                
-                workflow_state['advanced_params'] = discovered_specs
-                workflow_state['phase'] = 'complete'
-                workflow_state['steps_completed'].append('advanced_parameters')
-                set_workflow_state(thread_id, workflow_state)
-                
-                if discovered_specs:
-                    specs_display = "\n".join([f"• {s.get('name', s.get('key'))}" for s in discovered_specs[:10]])
-                    if len(discovered_specs) > 10:
-                        specs_display += f"\n• ... and {len(discovered_specs) - 10} more"
-                    
-                    response_message = (
-                        f"Discovered {len(discovered_specs)} advanced specifications:\n\n"
-                        f"{specs_display}\n\n"
-                        f"Ready to proceed with product search!"
-                    )
-                else:
-                    response_message = (
-                        "No additional advanced specifications found.\n\n"
-                        "Ready to proceed with product search!"
-                    )
-                
-                result.update({
-                    "current_phase": "complete",
-                    "awaiting_user_input": False,
-                    "sales_agent_response": response_message,
-                    "product_type": product_type,
-                    "schema": workflow_state.get('schema'),
-                    "available_advanced_params": discovered_specs,
-                    "advanced_parameters_result": {
-                        "discovered_specifications": discovered_specs,
-                        "total_discovered": len(discovered_specs)
-                    },
-                    "steps_completed": workflow_state['steps_completed'],
-                    "ready_for_vendor_search": True,
-                    "completed": True,
-                    "final_requirements": {
-                        "productType": product_type,
-                        "mandatoryRequirements": workflow_state.get('provided_requirements', {}).get('mandatory', {}),
-                        "optionalRequirements": workflow_state.get('provided_requirements', {}).get('optional', {}),
-                        "advancedParameters": discovered_specs
-                    }
-                })
-                
-            elif 'no' in decision or 'skip' in decision or 'continue' in decision:
-                # User wants to skip advanced params
-                logger.info(f"[PRODUCT_SEARCH] User skipped advanced parameters")
-                
-                workflow_state['phase'] = 'complete'
-                set_workflow_state(thread_id, workflow_state)
-                
-                result.update({
-                    "current_phase": "complete",
-                    "awaiting_user_input": False,
-                    "sales_agent_response": (
-                        f"Skipping advanced parameters.\n\n"
-                        f"Ready to proceed with product search for **{product_type}**!"
-                    ),
-                    "product_type": product_type,
-                    "schema": workflow_state.get('schema'),
-                    "available_advanced_params": [],
-                    "steps_completed": workflow_state['steps_completed'],
-                    "ready_for_vendor_search": True,
-                    "completed": True,
-                    "final_requirements": {
-                        "productType": product_type,
-                        "mandatoryRequirements": workflow_state.get('provided_requirements', {}).get('mandatory', {}),
-                        "optionalRequirements": workflow_state.get('provided_requirements', {}).get('optional', {})
-                    }
-                })
-            else:
-                # Invalid decision
-                result.update({
-                    "current_phase": "await_advanced_params",
-                    "awaiting_user_input": True,
-                    "sales_agent_response": (
-                        "Would you like to discover advanced specifications?\n"
-                        "Please respond with 'Yes' or 'No'."
-                    ),
-                    "completed": False
-                })
-            
-            return api_response(True, data=result)
-        
-        # ====================================================================
-        # PHASE 4.5: AWAIT ADVANCED SELECTION
-        # User selects which discovered advanced specs to add
-        # ====================================================================
-        elif current_phase == 'await_advanced_selection':
-            if not user_decision and not user_input:
-                return api_response(False, error="user_decision or user_input required", status_code=400)
-            
-            decision_text = (user_decision or user_input or '').lower().strip()
-            logger.info(f"[PRODUCT_SEARCH] Processing advanced spec selection: {decision_text}")
-            
-            product_type = workflow_state.get('product_type')
-            discovered_specs = workflow_state.get('discovered_advanced_params', [])
-            selected_specs = []
-            
-            if 'all' in decision_text or 'everything' in decision_text or 'yes' in decision_text:
-                # User wants all specs
-                selected_specs = discovered_specs
-                logger.info(f"[PRODUCT_SEARCH] User selected ALL {len(selected_specs)} advanced specs")
-                
-                param_list = ", ".join([s.get('name', s.get('key', '')).replace('_', ' ').title() for s in selected_specs[:5]])
-                if len(selected_specs) > 5:
-                    param_list += f", and {len(selected_specs) - 5} more"
-                
-                response_message = (
-                    f"Great! I've added these latest advanced specifications: {param_list}.\n\n"
-                    f"Ready to proceed with product search!"
-                )
-                
-            elif 'no' in decision_text or 'skip' in decision_text or 'none' in decision_text or 'proceed' in decision_text:
-                # User wants to skip all specs
-                selected_specs = []
-                logger.info(f"[PRODUCT_SEARCH] User skipped advanced specs")
-                
-                response_message = (
-                    "No problem! Proceeding without advanced specifications.\n\n"
-                    "Ready to proceed with product search!"
-                )
-                
-            else:
-                # Try to match specific spec names from user input
-                for spec in discovered_specs:
-                    spec_name = spec.get('name', spec.get('key', '')).lower()
-                    spec_key = spec.get('key', '').lower()
-                    if spec_name in decision_text or spec_key in decision_text:
-                        selected_specs.append(spec)
-                
-                if selected_specs:
-                    param_list = ", ".join([s.get('name', s.get('key', '')) for s in selected_specs])
-                    logger.info(f"[PRODUCT_SEARCH] User selected {len(selected_specs)} specific specs: {param_list}")
-                    
-                    response_message = (
-                        f"Great! I've added these advanced specifications: {param_list}.\n\n"
-                        f"Ready to proceed with product search!"
-                    )
-                else:
-                    # Couldn't find any matching specs - ask again
-                    logger.info(f"[PRODUCT_SEARCH] No matching specs found in user input")
-                    
-                    available_names = ", ".join([s.get('name', s.get('key', '')) for s in discovered_specs[:5]])
-                    if len(discovered_specs) > 5:
-                        available_names += f", and {len(discovered_specs) - 5} more"
-                    
-                    result.update({
-                        "current_phase": "await_advanced_selection",
-                        "awaiting_user_input": True,
-                        "sales_agent_response": (
-                            f"I didn't find any matching specifications in your input.\n\n"
-                            f"Available specifications: {available_names}\n\n"
-                            f"Please specify which ones you'd like to add, say 'all', or say 'no' to skip."
-                        ),
-                        "available_advanced_params": discovered_specs,
-                        "completed": False
-                    })
-                    return api_response(True, data=result)
-            
-            # Update workflow state with selected specs and complete
-            workflow_state['advanced_params'] = selected_specs
-            workflow_state['phase'] = 'complete'
-            workflow_state['steps_completed'].append('advanced_parameters_selection')
-            set_workflow_state(thread_id, workflow_state)
-            
-            result.update({
-                "current_phase": "complete",
-                "awaiting_user_input": False,
-                "sales_agent_response": response_message,
-                "product_type": product_type,
-                "schema": workflow_state.get('schema'),
-                "available_advanced_params": selected_specs,
-                "advanced_parameters_result": {
-                    "discovered_specifications": discovered_specs,
-                    "selected_specifications": selected_specs,
-                    "total_discovered": len(discovered_specs),
-                    "total_selected": len(selected_specs)
-                },
-                "steps_completed": workflow_state['steps_completed'],
-                "ready_for_vendor_search": True,
-                "completed": True,
-                "final_requirements": {
-                    "productType": product_type,
-                    "mandatoryRequirements": workflow_state.get('provided_requirements', {}).get('mandatory', {}),
-                    "optionalRequirements": workflow_state.get('provided_requirements', {}).get('optional', {}),
-                    "advancedParameters": selected_specs
-                }
-            })
-            
-            return api_response(True, data=result)
-        
-        # ====================================================================
-        # PHASE 5: COMPLETE
-        # Workflow is complete, return final state
-        # ====================================================================
-        elif current_phase == 'complete':
-            result.update({
-                "current_phase": "complete",
-                "awaiting_user_input": False,
-                "sales_agent_response": "Workflow complete. Ready for vendor search.",
-                "product_type": workflow_state.get('product_type'),
-                "schema": workflow_state.get('schema'),
-                "available_advanced_params": workflow_state.get('advanced_params', []),
-                "steps_completed": workflow_state.get('steps_completed', []),
-                "ready_for_vendor_search": True,
-                "completed": True,
-                "final_requirements": {
-                    "productType": workflow_state.get('product_type'),
-                    "mandatoryRequirements": workflow_state.get('provided_requirements', {}).get('mandatory', {}),
-                    "optionalRequirements": workflow_state.get('provided_requirements', {}).get('optional', {})
-                }
-            })
-            return api_response(True, data=result)
-        
-        else:
-            return api_response(False, error=f"Unknown phase: {current_phase}", status_code=400)
+
+        # Add available_advanced_params for backward compatibility
+        if 'discovered_specs' in result:
+            result['available_advanced_params'] = result.get('discovered_specs', [])
+
+        # Classify response and generate tags for frontend
+        tags = classify_response(
+            user_input=user_input or '',
+            response_data=result,
+            workflow_type='product_search'
+        )
+
+        return api_response(True, data=result, tags=tags)
+
+    except ImportError as e:
+        logger.error(f"[PRODUCT_SEARCH] Import error - Deep Agentic Workflow not available: {e}")
+        return api_response(
+            False,
+            error="Deep Agentic Workflow module not available. Please check installation.",
+            status_code=500
+        )
 
     except Exception as e:
         logger.error(f"[PRODUCT_SEARCH] Workflow failed: {e}", exc_info=True)
         return api_response(False, error=str(e), status_code=500)
+
+# DEPRECATED: Old manual phase handling code removed
+# Now using DeepAgenticWorkflowOrchestrator for all workflow management
 
 
 @agentic_bp.route('/run-analysis', methods=['POST'])
@@ -3361,7 +2788,7 @@ def standards_query():
     logger.info(f"[STANDARDS-RAG] top_k: {top_k}")
 
     try:
-        from agentic.standards_rag_workflow import run_standards_rag_workflow
+        from agentic.standards_rag import run_standards_rag_workflow
 
         # Run the Standards RAG workflow
         result = run_standards_rag_workflow(

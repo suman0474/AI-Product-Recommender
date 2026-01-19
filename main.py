@@ -635,7 +635,7 @@ def health_check():
 # =========================================================================
 # === IMAGE SERVING ENDPOINT (Azure Blob Storage Primary)
 # =========================================================================
-@app.route('/api/images/<file_id>', methods=['GET'])
+@app.route('/api/images/<path:file_id>', methods=['GET'])
 def serve_image(file_id):
     """
     Serve images from Azure Blob Storage
@@ -700,40 +700,58 @@ def serve_image(file_id):
         blob_name = None
         content_type = 'image/png'  # Default content type
         
-        try:
-            for path in search_paths:
-                if image_blob: 
-                    break
-                    
-                # List blobs and find the one with matching file_id in the name or metadata
-                blobs = container_client.list_blobs(
-                    name_starts_with=path,
-                    include=['metadata']
-                )
-                
-                for blob in blobs:
-                    # Check if file_id is in the blob name (UUID match or simple filename match)
-                    # Note: We check if the passed file_id is contained in the blob name
-                    # This handles UUIDs "uuid_filename.png" and simple names "vendor_model.jpg"
-                    if file_id in blob.name:
-                        image_blob = blob
-                        blob_name = blob.name
-                        if blob.content_settings and blob.content_settings.content_type:
-                            content_type = blob.content_settings.content_type
-                        break
-                    
-                    # Also check metadata for file_id
-                    if blob.metadata and blob.metadata.get('file_id') == file_id:
-                        image_blob = blob
-                        blob_name = blob.name
-                        if blob.content_settings and blob.content_settings.content_type:
-                            content_type = blob.content_settings.content_type
-                        break
+        # Optimization: Check if file_id is a full blob path (e.g., "generic_images/filename.png")
+        # Try direct access first before searching all blobs
+        if '/' in file_id:
+            try:
+                # file_id might be a relative path like "generic_images/viscousliquidflowtransmitter.png"
+                full_blob_path = f"{base_path}/{file_id}"
+                blob_client = container_client.get_blob_client(full_blob_path)
+                blob_properties = blob_client.get_blob_properties()
+                if blob_properties:
+                    blob_name = full_blob_path
+                    if blob_properties.content_settings and blob_properties.content_settings.content_type:
+                        content_type = blob_properties.content_settings.content_type
+                    logging.info(f"[SERVE_IMAGE] Direct access successful for blob path: {file_id}")
+            except Exception as direct_err:
+                logging.debug(f"[SERVE_IMAGE] Direct access failed for {file_id}: {direct_err}, falling back to search")
         
-        except Exception as e:
-            logging.warning(f"Error searching for image blob {file_id}: {e}")
+        # Only search if direct access didn't find the blob
+        if blob_name is None:
+            try:
+                for path in search_paths:
+                    if image_blob: 
+                        break
+                        
+                    # List blobs and find the one with matching file_id in the name or metadata
+                    blobs = container_client.list_blobs(
+                        name_starts_with=path,
+                        include=['metadata']
+                    )
+                    
+                    for blob in blobs:
+                        # Check if file_id is in the blob name (UUID match or simple filename match)
+                        # Note: We check if the passed file_id is contained in the blob name
+                        # This handles UUIDs "uuid_filename.png" and simple names "vendor_model.jpg"
+                        if file_id in blob.name:
+                            image_blob = blob
+                            blob_name = blob.name
+                            if blob.content_settings and blob.content_settings.content_type:
+                                content_type = blob.content_settings.content_type
+                            break
+                        
+                        # Also check metadata for file_id
+                        if blob.metadata and blob.metadata.get('file_id') == file_id:
+                            image_blob = blob
+                            blob_name = blob.name
+                            if blob.content_settings and blob.content_settings.content_type:
+                                content_type = blob.content_settings.content_type
+                            break
+            
+            except Exception as e:
+                logging.warning(f"Error searching for image blob {file_id}: {e}")
         
-        if image_blob is None or blob_name is None:
+        if blob_name is None:
             logging.error(f"Image not found in Azure Blob Storage: {file_id}")
             return jsonify({"error": "Image not found"}), 404
         

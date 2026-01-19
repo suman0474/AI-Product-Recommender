@@ -153,7 +153,7 @@ def is_exempt() -> bool:
 def create_limiter(app: Flask) -> Limiter:
     """
     Create and configure Flask-Limiter instance.
-    Automatically falls back to in-memory storage if Redis is unavailable.
+    FIX #6: Automatically falls back to in-memory storage if Redis is unavailable.
 
     Args:
         app: Flask application instance
@@ -162,19 +162,51 @@ def create_limiter(app: Flask) -> Limiter:
         Limiter: Configured limiter instance
     """
     storage_uri = RateLimitConfig.STORAGE_URI
-    
-    # Test Redis connection if configured, fallback to memory if unavailable
+    redis_status = "not configured"
+
+    # FIX #6: Test Redis connection if configured, fallback to memory if unavailable
     if RateLimitConfig.USE_REDIS and 'redis' in storage_uri:
         try:
             import redis
+            logger.info(f"[FIX6] Testing Redis connection: {RateLimitConfig.REDIS_URL}")
+
             # Quick connection test with 1 second timeout
-            r = redis.from_url(RateLimitConfig.REDIS_URL, socket_timeout=1, socket_connect_timeout=1)
-            r.ping()
-            logger.info(f"[RATE_LIMIT] Redis connection successful")
-        except Exception as e:
-            logger.warning(f"[RATE_LIMIT] Redis unavailable ({e}), falling back to memory storage")
+            try:
+                r = redis.from_url(
+                    RateLimitConfig.REDIS_URL,
+                    socket_timeout=1,
+                    socket_connect_timeout=1,
+                    decode_responses=True,
+                    retry_on_timeout=False
+                )
+                # Perform ping with explicit timeout handling
+                r.ping()
+                logger.info(f"[FIX6] ✅ Redis connection successful")
+                redis_status = "connected"
+
+            except redis.ConnectionError as e:
+                logger.warning(f"[FIX6] ❌ Redis connection failed (ConnectionError): {e}")
+                logger.warning(f"[FIX6] Falling back to in-memory rate limiting")
+                storage_uri = 'memory://'
+                redis_status = "connection_error_fallback"
+
+            except redis.TimeoutError as e:
+                logger.warning(f"[FIX6] ❌ Redis timeout (socket/connect timeout): {e}")
+                logger.warning(f"[FIX6] Falling back to in-memory rate limiting")
+                storage_uri = 'memory://'
+                redis_status = "timeout_fallback"
+
+        except ImportError:
+            logger.warning(f"[FIX6] Redis client library not installed, using in-memory storage")
             storage_uri = 'memory://'
-    
+            redis_status = "no_redis_library"
+
+        except Exception as e:
+            logger.warning(f"[FIX6] ❌ Unexpected error testing Redis ({type(e).__name__}): {e}")
+            logger.warning(f"[FIX6] Falling back to in-memory rate limiting")
+            storage_uri = 'memory://'
+            redis_status = "error_fallback"
+
     limiter = Limiter(
         app=app,
         key_func=get_user_identifier,
@@ -190,8 +222,10 @@ def create_limiter(app: Flask) -> Limiter:
         enabled=RateLimitConfig.ENABLED
     )
 
-    logger.info(f"Rate limiter initialized with storage: {storage_uri}")
-    logger.info(f"Rate limiting enabled: {RateLimitConfig.ENABLED}")
+    logger.info(f"[FIX6] Rate limiter initialized")
+    logger.info(f"[FIX6]   Storage backend: {storage_uri}")
+    logger.info(f"[FIX6]   Redis status: {redis_status}")
+    logger.info(f"[FIX6]   Rate limiting enabled: {RateLimitConfig.ENABLED}")
 
     return limiter
 

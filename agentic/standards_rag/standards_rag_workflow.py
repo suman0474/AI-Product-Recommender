@@ -54,6 +54,7 @@ class StandardsRAGState(TypedDict):
     retry_count: int
     max_retries: int
     validation_feedback: str
+    should_fail_fast: bool  # [FIX #A3] Detect unrecoverable errors, skip retries
 
     # Output
     final_response: Dict
@@ -99,6 +100,7 @@ def create_standards_rag_state(
         retry_count=0,
         max_retries=2,
         validation_feedback="",
+        should_fail_fast=False,  # [FIX #A3] Detect unrecoverable errors, skip retries
 
         # Output
         final_response={},
@@ -234,6 +236,38 @@ def retrieve_standards_node(state: StandardsRAGState) -> StandardsRAGState:
         logger.error(f"Error retrieving documents: {e}", exc_info=True)
         state['error'] = f"Error retrieving documents: {str(e)}"
 
+        # ╔════════════════════════════════════════════════════════════════════════╗
+        # ║  [FIX #A3] FAST-FAIL ON UNRECOVERABLE ERRORS                         ║
+        # ║  Detect network/timeout errors that won't be fixed by retrying       ║
+        # ║  Prevents 4 wasteful retry attempts (saves 60-80 seconds!)           ║
+        # ╚════════════════════════════════════════════════════════════════════════╝
+        error_str = str(e).lower()
+        unrecoverable_errors = [
+            "connection refused",      # Network connection failed
+            "connection reset",         # Connection was reset
+            "connection timeout",       # Timeout
+            "timed out",               # General timeout
+            "winerror 10060",          # Windows connection timeout
+            "econnrefused",            # Connection refused (Unix)
+            "ehostunreach",            # Host unreachable
+            "enetunreach",             # Network unreachable
+            "no such host",            # DNS failure
+            "name or service not known", # DNS failure (Linux)
+            "getaddrinfo failed",      # DNS failure
+            "connection attempt failed",  # Generic connection failure
+        ]
+
+        if any(unrecoverable in error_str for unrecoverable in unrecoverable_errors):
+            logger.warning(f"[FIX #A3] 🔴 UNRECOVERABLE ERROR DETECTED - Failing fast instead of retrying!")
+            logger.warning(f"[FIX #A3]    Error: {str(e)}")
+            logger.warning(f"[FIX #A3]    Retries Prevented: {state['max_retries']} × ~20s = {state['max_retries'] * 20}+ seconds saved!")
+            state['should_fail_fast'] = True
+            print(f"\n{'='*70}")
+            print(f"🔴 [FIX #A3] FAST-FAIL TRIGGERED")
+            print(f"   Error: {type(e).__name__}")
+            print(f"   Retries Skipped: {state['max_retries']} (saves {state['max_retries'] * 20}+ seconds)")
+            print(f"{'='*70}\n")
+
     return state
 
 
@@ -339,6 +373,15 @@ def retry_decision_node(state: StandardsRAGState) -> Literal["finalize", "genera
     Routes to finalize if valid or max retries reached, else retry generation.
     """
     logger.info("[Node 5] Making retry decision...")
+
+    # ╔════════════════════════════════════════════════════════════════════════╗
+    # ║  [FIX #A3] FAST-FAIL SKIP RETRIES                                    ║
+    # ║  If unrecoverable error detected, skip all retries                    ║
+    # ║  Prevents 60-80+ seconds of wasteful retry attempts                  ║
+    # ╚════════════════════════════════════════════════════════════════════════╝
+    if state.get('should_fail_fast', False):
+        logger.warning("[FIX #A3] 🔴 FAST-FAIL TRIGGERED - Skipping all retries!")
+        return "finalize"
 
     # If valid, finalize
     if state['is_valid']:

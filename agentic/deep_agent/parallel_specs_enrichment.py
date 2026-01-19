@@ -28,8 +28,8 @@ from .memory import (
     ParallelEnrichmentResult,
     SpecificationSource
 )
-from .user_specs_extractor import extract_user_specified_specs, extract_user_specs_batch, _get_user_specs_llm
-from .llm_specs_generator import generate_llm_specs, generate_llm_specs_batch, generate_llm_specs_true_batch, _get_llm_specs_llm
+from .user_specs_extractor import extract_user_specified_specs
+from .llm_specs_generator import generate_llm_specs
 from .standards_deep_agent import run_standards_deep_agent_batch
 from .spec_output_normalizer import normalize_specification_output, normalize_key
 
@@ -199,31 +199,21 @@ def run_parallel_3_source_enrichment(
     standards_specs_results = {}
 
     # =========================================================================
-    # PRE-INITIALIZE LLM SINGLETONS (PERFORMANCE: avoids race conditions)
-    # =========================================================================
-    logger.info("[PARALLEL_3SOURCE] Pre-initializing LLM singletons...")
-    try:
-        _get_user_specs_llm()
-        _get_llm_specs_llm()
-        logger.info("[PARALLEL_3SOURCE] LLM singletons ready")
-    except Exception as e:
-        logger.warning(f"[PARALLEL_3SOURCE] LLM pre-init warning: {e}")
-
-    # =========================================================================
-    # PARALLEL EXECUTION: 3 SOURCES (with internal parallelism)
+    # PARALLEL EXECUTION: 3 SOURCES
     # =========================================================================
 
     def run_user_specs_extraction():
-        """Thread 1: Extract user-specified specs (PARALLEL within thread)"""
-        logger.info("[THREAD-USER] Starting parallel user specs extraction...")
+        """Thread 1: Extract user-specified specs"""
+        logger.info("[THREAD-USER] Starting user specs extraction...")
         try:
-            # Use parallel batch extraction (ThreadPoolExecutor inside)
-            batch_results = extract_user_specs_batch(items, user_input, max_workers=5)
-            
-            for result in batch_results:
-                item_name = result.get("item_name", result.get("product_type", "Unknown"))
+            for item in items:
+                item_name = item.get("name") or item.get("product_name", "Unknown")
+                result = extract_user_specified_specs(
+                    user_input=user_input,
+                    product_type=item_name,
+                    sample_input=item.get("sample_input", "")
+                )
                 user_specs_results[item_name] = result.get("specifications", {})
-            
             logger.info(f"[THREAD-USER] Completed for {len(items)} items")
             return True
         except Exception as e:
@@ -231,17 +221,22 @@ def run_parallel_3_source_enrichment(
             return False
 
     def run_llm_specs_generation():
-        """Thread 2: Generate LLM specs (TRUE BATCH - single LLM call!)"""
-        logger.info("[THREAD-LLM] Starting TRUE BATCH LLM specs generation (single API call)...")
+        """Thread 2: Generate LLM specs"""
+        logger.info("[THREAD-LLM] Starting LLM specs generation...")
         try:
-            # Use TRUE batch generation (SINGLE LLM call for ALL items)
-            batch_results = generate_llm_specs_true_batch(items, use_cache=True)
-            
-            for result in batch_results:
-                item_name = result.get("item_name", result.get("product_type", "Unknown"))
+            for item in items:
+                item_name = item.get("name") or item.get("product_name", "Unknown")
+                category = item.get("category", "Industrial Instrument")
+                result = generate_llm_specs(
+                    product_type=item_name,
+                    category=category,
+                    context=item.get("sample_input", "")
+                )
                 raw_specs = result.get("specifications", {})
                 
                 # NORMALIZE: Flatten nested sections and extract clean values
+                # This converts {"Communication": {"protocol": {"value": "HART", "confidence": 0.6}}}
+                # Into: {"protocol": "HART"}
                 normalized_specs = normalize_specification_output(raw_specs, preserve_ghost_values=False)
                 
                 # Remove internal keys (like _ghost)
@@ -249,8 +244,7 @@ def run_parallel_3_source_enrichment(
                 
                 llm_specs_results[item_name] = clean_specs
                 logger.debug(f"[THREAD-LLM] Normalized {len(raw_specs)} -> {len(clean_specs)} specs for {item_name}")
-            
-            logger.info(f"[THREAD-LLM] TRUE BATCH completed for {len(items)} items")
+            logger.info(f"[THREAD-LLM] Completed for {len(items)} items")
             return True
         except Exception as e:
             logger.error(f"[THREAD-LLM] Failed: {e}")

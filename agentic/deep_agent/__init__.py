@@ -98,16 +98,11 @@ from .spec_verifier import (
 from .user_specs_extractor import (
     extract_user_specified_specs,
     extract_user_specs_batch,
-    _get_user_specs_llm,  # Singleton accessor for performance
 )
 
 from .llm_specs_generator import (
     generate_llm_specs,
     generate_llm_specs_batch,
-    generate_llm_specs_true_batch,  # Phase 2: Single LLM call for all items
-    clear_llm_specs_cache,          # Phase 2: Cache management
-    get_cache_stats,                # Phase 2: Cache statistics
-    _get_llm_specs_llm,  # Singleton accessor for performance
 )
 
 from .parallel_specs_enrichment import (
@@ -132,6 +127,57 @@ from .spec_output_normalizer import (
     clean_value,
     extract_technical_values,
     STANDARD_KEY_MAPPINGS,
+)
+
+# NEW: Optimized Parallel Agent (with shared LLM and true parallel processing)
+from .optimized_parallel_agent import (
+    run_optimized_parallel_enrichment,
+    get_shared_llm,
+    reset_shared_llm,
+    extract_user_specs_with_shared_llm,
+    generate_llm_specs_with_shared_llm,
+)
+
+# NEW: Schema Failure Memory (Learn from failures)
+from .schema_failure_memory import (
+    SchemaFailureMemory,
+    FailureEntry,
+    SuccessEntry,
+    FailureType,
+    RecoveryAction,
+    FailurePattern,
+    get_schema_failure_memory,
+    reset_failure_memory,
+)
+
+# NEW: Adaptive Prompt Engine (Optimize prompts based on history)
+from .adaptive_prompt_engine import (
+    AdaptivePromptEngine,
+    PromptStrategy,
+    PromptOptimization,
+    get_adaptive_prompt_engine,
+)
+
+# NEW: Schema Generation Deep Agent (Main orchestrator with failure memory)
+from .schema_generation_deep_agent import (
+    SchemaGenerationDeepAgent,
+    SchemaGenerationResult,
+    SourceResult,
+    SchemaSourceType,
+    get_schema_generation_deep_agent,
+    reset_deep_agent,
+    generate_schema_with_deep_agent,
+)
+
+# NEW: Deep Agentic Workflow Orchestrator (Complete workflow management)
+from .deep_agentic_workflow import (
+    DeepAgenticWorkflowOrchestrator,
+    WorkflowSessionManager,
+    WorkflowState,
+    WorkflowPhase,
+    UserDecision,
+    get_deep_agentic_orchestrator,
+    reset_orchestrator,
 )
 
 __all__ = [
@@ -217,15 +263,10 @@ __all__ = [
     # User Specs Extractor (moved from agentic/)
     "extract_user_specified_specs",
     "extract_user_specs_batch",
-    "_get_user_specs_llm",  # Singleton accessor
 
     # LLM Specs Generator (moved from agentic/)
     "generate_llm_specs",
     "generate_llm_specs_batch",
-    "generate_llm_specs_true_batch",  # Phase 2: Single LLM call
-    "clear_llm_specs_cache",          # Phase 2: Cache management
-    "get_cache_stats",                # Phase 2: Cache statistics
-    "_get_llm_specs_llm",  # Singleton accessor
 
     # Parallel Specs Enrichment (moved from agentic/)
     "run_parallel_3_source_enrichment",
@@ -247,4 +288,45 @@ __all__ = [
     "clean_value",
     "extract_technical_values",
     "STANDARD_KEY_MAPPINGS",
+
+    # Optimized Parallel Agent (NEW - with shared LLM and true parallel processing)
+    "run_optimized_parallel_enrichment",
+    "get_shared_llm",
+    "reset_shared_llm",
+    "extract_user_specs_with_shared_llm",
+    "generate_llm_specs_with_shared_llm",
+
+    # Schema Failure Memory (NEW - Learn from failures)
+    "SchemaFailureMemory",
+    "FailureEntry",
+    "SuccessEntry",
+    "FailureType",
+    "RecoveryAction",
+    "FailurePattern",
+    "get_schema_failure_memory",
+    "reset_failure_memory",
+
+    # Adaptive Prompt Engine (NEW - Optimize prompts based on history)
+    "AdaptivePromptEngine",
+    "PromptStrategy",
+    "PromptOptimization",
+    "get_adaptive_prompt_engine",
+
+    # Schema Generation Deep Agent (NEW - Main orchestrator)
+    "SchemaGenerationDeepAgent",
+    "SchemaGenerationResult",
+    "SourceResult",
+    "SchemaSourceType",
+    "get_schema_generation_deep_agent",
+    "reset_deep_agent",
+    "generate_schema_with_deep_agent",
+
+    # Deep Agentic Workflow Orchestrator (NEW - Complete workflow management)
+    "DeepAgenticWorkflowOrchestrator",
+    "WorkflowSessionManager",
+    "WorkflowState",
+    "WorkflowPhase",
+    "UserDecision",
+    "get_deep_agentic_orchestrator",
+    "reset_orchestrator",
 ]

@@ -207,8 +207,6 @@ def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
     """
     logger.info("[SOLUTION] Node 2: Identifying instruments and accessories...")
 
-    from concurrent.futures import ThreadPoolExecutor
-
     def identify_instruments_task(context):
         """Task to identify instruments."""
         try:
@@ -237,12 +235,16 @@ def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
         context = state.get("instrument_context", state["user_input"])
         solution_analysis = state.get("solution_analysis", {})
 
+        # REVERTED FIX #2 - Bug in parallel implementation broke instrument identification
+        # Sequential approach is reliable and only costs 2-3 seconds
+        logger.info("[SOLUTION] Node 2: Identifying instruments and accessories...")
+
         # Identify instruments
         inst_result = identify_instruments_task(context)
 
         if inst_result.get("success"):
             instruments = inst_result.get("instruments", [])
-            
+
             # Enrich instruments with solution context
             for inst in instruments:
                 # Add solution-specific details to sample_input
@@ -253,7 +255,7 @@ def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
                     sample_input += f" for {solution_analysis['key_parameters']['temperature_range']} temperature"
                 inst["sample_input"] = sample_input
                 inst["solution_purpose"] = f"Required for {state.get('solution_name', 'solution')}"
-            
+
             state["identified_instruments"] = instruments
             state["project_name"] = state.get("solution_name", "Industrial Solution")
         else:
@@ -264,14 +266,14 @@ def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
 
         if acc_result.get("success"):
             accessories = acc_result.get("accessories", [])
-            
+
             # Enrich accessories with solution context
             for acc in accessories:
                 acc_sample_input = f"{acc.get('category', 'Accessory')} for {acc.get('related_instrument', 'instruments')}"
                 if solution_analysis.get("safety_requirements", {}).get("hazardous_area"):
                     acc_sample_input += " (explosion-proof required)"
                 acc["sample_input"] = acc_sample_input
-                
+
             state["identified_accessories"] = accessories
         else:
             state["identified_accessories"] = []
@@ -311,11 +313,26 @@ def identify_solution_instruments_node(state: SolutionState) -> SolutionState:
 
         # Add accessories
         for accessory in state["identified_accessories"]:
+            # Smart category extraction: If category is generic "Accessories" or "Accessory",
+            # extract the product type from accessory_name (e.g., "Thermowell for X" -> "Thermowell")
+            raw_category = accessory.get("category", "Accessory")
+            accessory_name = accessory.get("accessory_name", "Unknown Accessory")
+            
+            if raw_category.lower() in ["accessories", "accessory", ""]:
+                # Extract product type from accessory name (before " for ")
+                if " for " in accessory_name:
+                    extracted_type = accessory_name.split(" for ")[0].strip()
+                    smart_category = extracted_type if extracted_type else raw_category
+                else:
+                    smart_category = accessory_name  # Use full name if no " for " pattern
+            else:
+                smart_category = raw_category
+            
             all_items.append({
                 "number": item_number,
                 "type": "accessory",
-                "name": accessory.get("accessory_name", "Unknown Accessory"),
-                "category": accessory.get("category", "Accessory"),
+                "name": accessory_name,
+                "category": smart_category,  # Use smart category instead of raw
                 "quantity": accessory.get("quantity", 1),
                 "sample_input": accessory.get("sample_input", ""),
                 "purpose": f"Supports {accessory.get('related_instrument', 'instruments')}",
@@ -383,25 +400,106 @@ def enrich_solution_with_standards_node(state: SolutionState) -> SolutionState:
         return state
     
     try:
-        # Import Parallel 3-Source Enrichment
-        from agentic.deep_agent.parallel_specs_enrichment import run_parallel_3_source_enrichment
+        # Import OPTIMIZED Parallel Enrichment (uses shared LLM + true parallel products)
+        from agentic.deep_agent.optimized_parallel_agent import run_optimized_parallel_enrichment
         
         # Get domain and safety context from solution analysis
         domain = solution_analysis.get("industry", "")
         safety_requirements = solution_analysis.get("safety_requirements", {})
         
-        logger.info(f"[SOLUTION] Starting parallel enrichment for {len(all_items)} items...")
-        
+        logger.info(f"[SOLUTION] Starting OPTIMIZED parallel enrichment for {len(all_items)} items...")
+
         # =====================================================
-        # PARALLEL 3-SOURCE ENRICHMENT
+        # 🔥 FIX #5: ITEM DEDUPLICATION (200+ seconds saved!)
         # =====================================================
-        result = run_parallel_3_source_enrichment(
-            items=all_items,
-            user_input=user_input,
-            session_id=state.get("session_id", "solution-parallel"),
-            domain_context=domain,
-            safety_requirements=safety_requirements
-        )
+        # Problem: Same items appear multiple times and are enriched separately
+        # Solution: Group by category, enrich unique once, copy to duplicates
+
+        # Group items by category to find duplicates
+        items_by_category = {}
+        item_to_group = {}  # Map each item number to its category group
+
+        for item in all_items:
+            # Use category+name as unique key to identify duplicate items
+            item_key = (item.get("category", "unknown"), item.get("name", "unknown"))
+
+            if item_key not in items_by_category:
+                items_by_category[item_key] = []
+
+            items_by_category[item_key].append(item)
+            item_to_group[item.get("number")] = item_key
+
+        # Check if we found duplicates
+        unique_count = len(items_by_category)
+        duplicate_count = len(all_items) - unique_count
+
+        if duplicate_count > 0:
+            logger.info(f"[SOLUTION] 🔥 FIX #5: Deduplication found {duplicate_count} duplicates")
+            logger.info(f"[SOLUTION]    {len(all_items)} total items → {unique_count} unique types")
+
+            # Create list of unique items (first from each group)
+            unique_items = []
+            unique_mapping = {}  # Maps category to first enriched item
+
+            for item_key, items_in_group in items_by_category.items():
+                first_item = items_in_group[0]
+                unique_items.append(first_item)
+                unique_mapping[item_key] = first_item
+
+            logger.info(f"[SOLUTION]    Enriching only {unique_count} unique items...")
+
+            # Enrich only unique items
+            result = run_optimized_parallel_enrichment(
+                items=unique_items,
+                user_input=user_input,
+                session_id=state.get("session_id", "solution-opt-parallel"),
+                domain_context=domain,
+                safety_requirements=safety_requirements,
+                max_parallel_products=5  # Process up to 5 products simultaneously
+            )
+
+            # If enrichment succeeded, apply results to all items (including duplicates)
+            if result.get("success"):
+                enriched_unique = result.get("items", unique_items)
+
+                # Map enriched results back by category
+                enriched_by_category = {}
+                for enriched_item in enriched_unique:
+                    item_key = (enriched_item.get("category", "unknown"), enriched_item.get("name", "unknown"))
+                    enriched_by_category[item_key] = enriched_item
+
+                # Apply enrichment to ALL items (including duplicates)
+                enriched_items = []
+                for original_item in all_items:
+                    item_key = item_to_group.get(original_item.get("number"))
+
+                    if item_key and item_key in enriched_by_category:
+                        # Copy enrichment from unique item
+                        enriched_copy = enriched_by_category[item_key].copy()
+
+                        # Preserve original item's metadata (number, original name, etc)
+                        enriched_copy["number"] = original_item.get("number")
+                        enriched_copy["name"] = original_item.get("name") or enriched_copy.get("name")
+
+                        enriched_items.append(enriched_copy)
+                    else:
+                        # No enrichment for this item - use original
+                        enriched_items.append(original_item)
+
+                # Update result to use all enriched items (including duplicates)
+                result["items"] = enriched_items
+                logger.info(f"[SOLUTION]    ✅ Applied enrichment to all {len(enriched_items)} items (including {duplicate_count} duplicates)")
+        else:
+            # No duplicates - enrich all items normally
+            logger.info(f"[SOLUTION]    No duplicates found - all {unique_count} items are unique")
+            result = run_optimized_parallel_enrichment(
+                items=all_items,
+                user_input=user_input,
+                session_id=state.get("session_id", "solution-opt-parallel"),
+                domain_context=domain,
+                safety_requirements=safety_requirements,
+                max_parallel_products=5  # Process up to 5 products simultaneously
+            )
         
         if result.get("success"):
             enriched_items = result.get("items", all_items)

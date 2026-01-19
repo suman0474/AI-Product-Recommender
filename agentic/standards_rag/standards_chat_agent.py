@@ -3,11 +3,14 @@
 
 import json
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.exceptions import OutputParserException
+from pydantic import BaseModel, field_validator
 
 import os
 from dotenv import load_dotenv
@@ -21,11 +24,245 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
+# RESPONSE VALIDATION MODELS (Pydantic)
+# ============================================================================
+
+class CitationModel(BaseModel):
+    """Citation from a standards document."""
+    source: str
+    content: str
+    relevance: float
+
+    @field_validator('relevance')
+    @classmethod
+    def validate_relevance(cls, v):
+        """Ensure relevance is between 0.0 and 1.0."""
+        if not isinstance(v, (int, float)):
+            raise ValueError('relevance must be numeric')
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(f'relevance must be between 0.0 and 1.0, got {v}')
+        return float(v)
+
+
+class StandardsRAGResponse(BaseModel):
+    """Standard format for Standards RAG responses."""
+    answer: str
+    citations: List[CitationModel] = []
+    confidence: float
+    sources_used: List[str] = []
+
+    @field_validator('confidence')
+    @classmethod
+    def validate_confidence(cls, v):
+        """Ensure confidence is between 0.0 and 1.0."""
+        if not isinstance(v, (int, float)):
+            raise ValueError('confidence must be numeric')
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(f'confidence must be between 0.0 and 1.0, got {v}')
+        return float(v)
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def extract_json_from_response(text: str) -> Optional[Dict[str, Any]]:
+    """
+    Extract JSON from LLM response, handling various formats.
+
+    Handles:
+    - Pure JSON responses
+    - JSON wrapped in markdown code blocks (```json ... ```)
+    - JSON with leading/trailing text
+    - Malformed JSON with unescaped newlines/quotes
+    - Invalid control characters
+
+    Args:
+        text: Raw LLM response text
+
+    Returns:
+        Parsed JSON dictionary or None if extraction fails
+    """
+    if not text:
+        return None
+
+    # Try direct JSON parsing first
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        pass
+
+    # Try extracting from markdown code blocks
+    patterns = [
+        r'```json\s*([\s\S]*?)\s*```',  # ```json ... ```
+        r'```\s*([\s\S]*?)\s*```',       # ``` ... ```
+        r'\{[\s\S]*\}',                   # Find any JSON object
+    ]
+
+    for pattern in patterns:
+        matches = re.findall(pattern, text, re.MULTILINE)
+        for match in matches:
+            try:
+                # Clean up the match
+                cleaned = match.strip() if isinstance(match, str) else match
+
+                # Try sanitizing before parsing
+                sanitized = _sanitize_json_string(cleaned)
+                parsed = json.loads(sanitized)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                continue
+
+    # Last resort: try to find JSON-like structure and parse it
+    try:
+        # Find the first { and last }
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            json_str = text[start:end + 1]
+
+            # Try sanitizing before parsing
+            sanitized = _sanitize_json_string(json_str)
+            return json.loads(sanitized)
+    except json.JSONDecodeError:
+        pass
+
+    logger.warning(f"Failed to extract JSON from response: {text[:200]}...")
+    return None
+
+
+def _sanitize_json_string(text: str) -> str:
+    """
+    Sanitize JSON string by fixing common formatting issues.
+
+    Fixes:
+    - Unescaped newlines in string values
+    - Unescaped carriage returns
+    - Invalid control characters
+    - Mismatched quotes
+
+    Args:
+        text: Raw JSON string
+
+    Returns:
+        Sanitized JSON string
+    """
+    # Remove invalid control characters (except whitespace)
+    text = ''.join(ch for ch in text if ord(ch) >= 32 or ch in '\n\r\t')
+
+    # Replace literal newlines/carriage returns with escaped versions
+    # But be careful not to replace them inside string values
+    # This is a heuristic approach: replace \n with \\n outside of quotes
+
+    result = []
+    in_string = False
+    escape_next = False
+
+    for i, char in enumerate(text):
+        if escape_next:
+            result.append(char)
+            escape_next = False
+            continue
+
+        if char == '\\':
+            result.append(char)
+            escape_next = True
+            continue
+
+        if char == '"' and (i == 0 or text[i-1] != '\\'):
+            in_string = not in_string
+            result.append(char)
+        elif char == '\n' and not in_string:
+            # Literal newline outside string - skip it
+            continue
+        elif char == '\r' and not in_string:
+            # Literal carriage return outside string - skip it
+            continue
+        else:
+            result.append(char)
+
+    return ''.join(result)
+
+
+def normalize_response_dict(response_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    FIX #2: Normalize LLM response dictionary to match StandardsRAGResponse schema.
+
+    Handles:
+    - answer field being a dict instead of string → converts to string
+    - Missing required fields → adds defaults
+    - Invalid data types → coerces to correct types
+    - Malformed citations → reconstructs valid list
+
+    Args:
+        response_dict: Raw parsed response from LLM
+
+    Returns:
+        Normalized dictionary matching StandardsRAGResponse schema
+    """
+    logger.info("[FIX2] Normalizing response dictionary for schema compliance")
+
+    # Ensure answer is a string
+    answer = response_dict.get('answer', '')
+    if isinstance(answer, dict):
+        logger.warning("[FIX2] answer field is dict, converting to string")
+        # Try to extract text from dict
+        answer = answer.get('text', str(answer))
+    answer = str(answer).strip() if answer else "Unable to generate answer."
+
+    # Ensure confidence is a float between 0-1
+    confidence = response_dict.get('confidence', 0.5)
+    try:
+        confidence = float(confidence)
+        confidence = max(0.0, min(1.0, confidence))  # Clamp to [0, 1]
+    except (ValueError, TypeError):
+        logger.warning("[FIX2] Invalid confidence value, using default")
+        confidence = 0.5
+
+    # Handle citations
+    citations = response_dict.get('citations', [])
+    if not isinstance(citations, list):
+        citations = []
+
+    # Validate and reconstruct citations
+    valid_citations = []
+    for cite in citations:
+        if not isinstance(cite, dict):
+            continue
+        try:
+            valid_cite = {
+                'source': str(cite.get('source', 'unknown')),
+                'content': str(cite.get('content', '')),
+                'relevance': float(cite.get('relevance', 0.5))
+            }
+            valid_cite['relevance'] = max(0.0, min(1.0, valid_cite['relevance']))
+            valid_citations.append(valid_cite)
+        except (ValueError, TypeError):
+            continue
+
+    # Handle sources_used
+    sources_used = response_dict.get('sources_used', [])
+    if not isinstance(sources_used, list):
+        sources_used = []
+    sources_used = [str(s) for s in sources_used if s]
+
+    normalized = {
+        'answer': answer,
+        'citations': valid_citations,
+        'confidence': confidence,
+        'sources_used': sources_used
+    }
+
+    logger.info("[FIX2] Response normalized successfully")
+    return normalized
+
+
+# ============================================================================
 # PROMPT TEMPLATE
 # ============================================================================
 
-STANDARDS_CHAT_PROMPT = """
-You are a Standards Documentation Expert for industrial instrumentation.
+STANDARDS_CHAT_PROMPT = """You are a Standards Documentation Expert for industrial instrumentation.
 
 Your role is to answer technical questions based ONLY on the provided standards documents.
 You have access to instrumentation standards covering:
@@ -48,31 +285,39 @@ USER QUESTION:
 RETRIEVED STANDARDS DOCUMENTS:
 {retrieved_context}
 
-INSTRUCTIONS:
+CRITICAL INSTRUCTIONS FOR JSON OUTPUT:
+1. You MUST respond with ONLY valid JSON - nothing else
+2. Do NOT include markdown formatting (no ```json ... ``` code blocks)
+3. Do NOT include any text before or after the JSON
+4. The JSON must be parseable by Python's json.loads() function
+5. All string values must use double quotes and proper escaping
+6. No trailing commas in arrays or objects
+7. All special characters in strings must be escaped
+
+CONTENT INSTRUCTIONS:
 1. Answer ONLY based on the provided standards documents above
-2. If the information is not in the documents, clearly state: "I don't have specific information about that in the available standards documents."
+2. If the information is not in the documents, state: "I don't have specific information about that in the available standards documents."
 3. Cite sources using [Source: filename] format inline in your answer
-4. Reference specific standard codes (IEC, ISO, API, ANSI, ISA, etc.) when they appear in the documents
+4. Reference specific standard codes (IEC, ISO, API, ANSI, ISA, etc.)
 5. Be precise and technical - this is for engineering professionals
 6. Include relevant details like specifications, ratings, requirements, or procedures
-7. NO HALLUCINATION - Do not invent or assume information not present in the documents
+7. NO HALLUCINATION - Do not invent information not present in the documents
 
-Return ONLY valid JSON in this exact format:
+JSON STRUCTURE (REQUIRED - must be valid JSON):
 {{
-    "answer": "<your detailed answer with inline [Source: filename] citations>",
+    "answer": "Your detailed answer with inline [Source: filename] citations",
     "citations": [
         {{
-            "source": "<document filename>",
-            "content": "<relevant quote from document>",
-            "relevance": <0.0-1.0 relevance score from retrieval>
+            "source": "document_filename.docx",
+            "content": "Relevant quote from document",
+            "relevance": 0.85
         }}
     ],
-    "confidence": <0.0-1.0 confidence score>,
-    "sources_used": ["<filename1.docx>", "<filename2.docx>"]
+    "confidence": 0.90,
+    "sources_used": ["filename1.docx", "filename2.docx"]
 }}
 
-IMPORTANT: Your response must be valid JSON only, no additional text.
-"""
+CRITICAL: Your entire response must be ONLY the JSON object above - no markdown, no code blocks, no explanatory text."""
 
 
 # ============================================================================
@@ -227,6 +472,9 @@ class StandardsChatAgent:
         Returns:
             Dictionary with answer, citations, confidence, and sources
         """
+        search_results = None
+        context = ""
+        
         try:
             logger.info(f"Processing question: {question[:100]}...")
 
@@ -245,13 +493,88 @@ class StandardsChatAgent:
             # Step 2: Build context
             context = self.build_context(search_results)
 
-            # Step 3: Generate answer
+            # Step 3: Generate answer with strict JSON parsing
             logger.info("Generating answer with LLM...")
 
-            response = self.chain.invoke({
-                'question': question,
-                'retrieved_context': context
-            })
+            response = None
+            raw_text = None
+
+            try:
+                # Invoke LLM directly (without the parser in the chain)
+                raw_chain = self.prompt | self.llm
+                raw_response = raw_chain.invoke({
+                    'question': question,
+                    'retrieved_context': context
+                })
+
+                # Extract text content from response
+                if hasattr(raw_response, 'content'):
+                    raw_text = raw_response.content
+                elif hasattr(raw_response, 'text'):
+                    raw_text = raw_response.text
+                else:
+                    raw_text = str(raw_response)
+
+                logger.debug(f"Raw LLM response: {raw_text[:200]}...")
+
+                # Parse JSON with strict validation
+                try:
+                    # First, try direct JSON parsing
+                    response_dict = json.loads(raw_text)
+                    logger.debug("JSON parsed successfully (direct)")
+                except json.JSONDecodeError as json_error:
+                    logger.warning(
+                        f"Direct JSON parse failed: {json_error}. "
+                        f"Attempting extraction from response: {raw_text[:100]}..."
+                    )
+                    # Try extracting JSON from markdown or other formats
+                    response_dict = extract_json_from_response(raw_text)
+
+                    if response_dict is None:
+                        logger.error(
+                            f"Failed to extract JSON from response. Raw: {raw_text[:300]}"
+                        )
+                        raise ValueError(
+                            "LLM returned invalid JSON format. "
+                            "Response must be valid JSON only."
+                        )
+                    logger.info("JSON extracted successfully (from response)")
+
+                # FIX #2: Normalize response dictionary for schema compliance
+                logger.debug("Normalizing response for schema compliance...")
+                response_dict = normalize_response_dict(response_dict)
+
+                # Validate against StandardsRAGResponse schema
+                try:
+                    response = StandardsRAGResponse(**response_dict)
+                    logger.debug(f"Response validated: confidence={response.confidence}")
+                except Exception as validation_error:
+                    logger.error(f"Response validation failed: {validation_error}")
+                    logger.error(f"Response dict: {response_dict}")
+                    raise ValueError(
+                        f"LLM response structure invalid: {validation_error}"
+                    )
+
+            except Exception as e:
+                logger.error(f"Error generating answer: {e}", exc_info=True)
+                # Create fallback response with retrieved sources
+                sources_used = list(set(
+                    r.get('metadata', {}).get('filename', 'unknown')
+                    for r in search_results.get('results', [])
+                ))
+                response = StandardsRAGResponse(
+                    answer=f"I found relevant standards documents but encountered a processing error. Sources: {', '.join(sources_used[:3])}",
+                    citations=self.extract_citations(search_results),
+                    confidence=0.3,
+                    sources_used=sources_used
+                )
+
+            # Convert Pydantic model to dict for consistency with rest of code
+            if isinstance(response, StandardsRAGResponse):
+                response = response.model_dump()
+            elif response is None:
+                logger.error("Response is None after all attempts")
+                response = {}
 
             # Step 4: Add metadata
             result = {
@@ -262,32 +585,39 @@ class StandardsChatAgent:
             }
 
             # Calculate average retrieval relevance as fallback confidence
-            if 'results' in search_results and search_results['results']:
+            if search_results and 'results' in search_results and search_results['results']:
                 avg_relevance = sum(r.get('relevance_score', 0) for r in search_results['results']) / len(search_results['results'])
                 # Use the higher of LLM confidence or retrieval relevance
                 result['confidence'] = max(result['confidence'], avg_relevance)
+                
+                # If sources_used is empty but we have results, populate from search results
+                if not result['sources_used']:
+                    result['sources_used'] = list(set(
+                        r.get('metadata', {}).get('filename', 'unknown')
+                        for r in search_results['results']
+                    ))
 
             logger.info(f"Answer generated with confidence: {result['confidence']:.2f}")
+            logger.info(f"Sources used: {result['sources_used']}")
 
             return result
 
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error: {e}")
-            return {
-                'answer': "Error: Invalid response format from LLM",
-                'citations': [],
-                'confidence': 0.0,
-                'sources_used': [],
-                'error': f'JSON parsing error: {str(e)}'
-            }
-
         except Exception as e:
             logger.error(f"Error in StandardsChatAgent.run: {e}", exc_info=True)
+            
+            # Even on error, try to return useful info if we have search results
+            sources_used = []
+            if search_results and 'results' in search_results:
+                sources_used = list(set(
+                    r.get('metadata', {}).get('filename', 'unknown')
+                    for r in search_results['results']
+                ))
+            
             return {
                 'answer': f"An error occurred while processing your question: {str(e)}",
                 'citations': [],
                 'confidence': 0.0,
-                'sources_used': [],
+                'sources_used': sources_used,
                 'error': str(e)
             }
 

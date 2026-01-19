@@ -39,6 +39,11 @@ class WebSearchInput(BaseModel):
     num_results: int = Field(default=5, description="Number of results to return")
 
 
+class GetGenericProductImageInput(BaseModel):
+    """Input for generic product type image generation"""
+    product_type: str = Field(description="Product type name (e.g., 'Pressure Transmitter', 'Temperature Sensor')")
+
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -533,5 +538,71 @@ def fuzzy_match_vendors_tool(
             "success": False,
             "matched_vendors": [],
             "unmatched_vendors": vendor_names,
+            "error": str(e)
+        }
+
+
+# ============================================================================
+# GENERIC PRODUCT IMAGE GENERATION TOOL
+# ============================================================================
+
+@tool("get_generic_product_image", args_schema=GetGenericProductImageInput)
+def get_generic_product_image_tool(product_type: str) -> Dict[str, Any]:
+    """
+    Get or generate a generic product type image using Gemini Imagen 4.0.
+
+    Architecture:
+    1. Check Azure Blob Storage cache first
+    2. If not cached, generate using Gemini Imagen 4.0 LLM
+    3. Store in Azure Blob Storage for future use
+    4. Return image URL and metadata
+
+    Args:
+        product_type: Product type name (e.g., "Pressure Transmitter", "Temperature Sensor")
+
+    Returns:
+        Dict containing:
+        - success: bool - Whether image was retrieved/generated
+        - image_url: str - URL to the image
+        - product_type: str - Product type
+        - cached: bool - Whether image was cached or newly generated
+        - source: str - Source of image ("gemini_imagen")
+        - generation_method: str - How image was created ("llm")
+        - error: str - Error message if failed
+    """
+    try:
+        from generic_image_utils import fetch_generic_product_image
+
+        logger.info(f"[TOOL] Fetching generic product image for: {product_type}")
+
+        # Fetch or generate the image
+        result = fetch_generic_product_image(product_type)
+
+        if result:
+            logger.info(f"[TOOL] ✓ Successfully retrieved image for {product_type}")
+            return {
+                "success": True,
+                "image_url": result.get("url"),
+                "product_type": product_type,
+                "cached": result.get("cached", False),
+                "source": result.get("source", "gemini_imagen"),
+                "generation_method": result.get("generation_method", "llm")
+            }
+        else:
+            logger.warning(f"[TOOL] Failed to retrieve/generate image for {product_type}")
+            return {
+                "success": False,
+                "image_url": None,
+                "product_type": product_type,
+                "error": "Failed to retrieve or generate image"
+            }
+
+    except Exception as e:
+        logger.error(f"[TOOL] Error in get_generic_product_image_tool: {e}")
+        logger.exception(e)
+        return {
+            "success": False,
+            "image_url": None,
+            "product_type": product_type,
             "error": str(e)
         }

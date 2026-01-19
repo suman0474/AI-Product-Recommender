@@ -1,0 +1,227 @@
+{
+  "failures": {
+    "Test Product": [
+      {
+        "failure_id": "fail_Test Product_20260118220038114768",
+        "product_type": "Test Product",
+        "failure_type": "json_parse_error",
+        "error_message": "Test JSON parse error",
+        "prompt_hash": "35926b18cd0ce7f9",
+        "prompt_preview": "Test prompt for JSON parsing",
+        "timestamp": "2026-01-18T22:00:38.114794",
+        "context": {
+          "test": true
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 0
+      },
+      {
+        "failure_id": "fail_Test Product_20260118220219943841",
+        "product_type": "Test Product",
+        "failure_type": "json_parse_error",
+        "error_message": "Test JSON parse error",
+        "prompt_hash": "35926b18cd0ce7f9",
+        "prompt_preview": "Test prompt for JSON parsing",
+        "timestamp": "2026-01-18T22:02:19.943856",
+        "context": {
+          "test": true
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 0
+      }
+    ]
+  },
+  "successes": {
+    "Test Product": [
+      {
+        "success_id": "succ_Test Product_20260118220038116625",
+        "product_type": "Test Product",
+        "prompt_hash": "5ad148278dcfbe5e",
+        "prompt_preview": "Test successful prompt",
+        "fields_populated": 30,
+        "total_fields": 35,
+        "confidence_score": 0.86,
+        "timestamp": "2026-01-18T22:00:38.116654",
+        "duration_ms": 0,
+        "sources_used": [
+          "llm",
+          "template"
+        ]
+      },
+      {
+        "success_id": "succ_Test Product_20260118220219944759",
+        "product_type": "Test Product",
+        "prompt_hash": "5ad148278dcfbe5e",
+        "prompt_preview": "Test successful prompt",
+        "fields_populated": 30,
+        "total_fields": 35,
+        "confidence_score": 0.86,
+        "timestamp": "2026-01-18T22:02:19.944771",
+        "duration_ms": 0,
+        "sources_used": [
+          "llm",
+          "template"
+        ]
+      }
+    ],
+    "Temperature Sensor": [
+      {
+        "success_id": "succ_Temperature Sensor_20260118220231653098",
+        "product_type": "Temperature Sensor",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-18T22:02:31.653120",
+        "duration_ms": 11703,
+        "sources_used": []
+      }
+    ],
+    "Flow Transmitter": [
+      {
+        "success_id": "succ_Flow Transmitter_20260118221126642006",
+        "product_type": "Flow Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-18T22:11:26.642052",
+        "duration_ms": 11184,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Flow Transmitter_20260118230837402037",
+        "product_type": "Flow Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-18T23:08:37.402073",
+        "duration_ms": 11926,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Pressure Transmitter": [
+      {
+        "success_id": "succ_Pressure Transmitter_20260118221156724940",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-18T22:11:56.724969",
+        "duration_ms": 12718,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Pulsation Dampener": [
+      {
+        "success_id": "succ_Pulsation Dampener_20260118221852055341",
+        "product_type": "Pulsation Dampener",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-18T22:18:52.055377",
+        "duration_ms": 15807,
+        "sources_used": []
+      }
+    ],
+    "Pressure Transmitter Accessory": [
+      {
+        "success_id": "succ_Pressure Transmitter Accessory_20260118222030256429",
+        "product_type": "Pressure Transmitter Accessory",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-18T22:20:30.256459",
+        "duration_ms": 21831,
+        "sources_used": []
+      }
+    ],
+    "Instrument Isolation Ball Valve": [
+      {
+        "success_id": "succ_Instrument Isolation Ball Valve_20260118222405395163",
+        "product_type": "Instrument Isolation Ball Valve",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-18T22:24:05.395195",
+        "duration_ms": 16710,
+        "sources_used": []
+      }
+    ],
+    "Cable Glands": [
+      {
+        "success_id": "succ_Cable Glands_20260118230648107729",
+        "product_type": "Cable Glands",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-18T23:06:48.107772",
+        "duration_ms": 14244,
+        "sources_used": []
+      }
+    ],
+    "Mounting Bracket": [
+      {
+        "success_id": "succ_Mounting Bracket_20260118231355908962",
+        "product_type": "Mounting Bracket",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-18T23:13:55.909006",
+        "duration_ms": 9849,
+        "sources_used": []
+      }
+    ],
+    "Gauge Pressure Transmitter": [
+      {
+        "success_id": "succ_Gauge Pressure Transmitter_20260119074257575504",
+        "product_type": "Gauge Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-19T07:42:57.575596",
+        "duration_ms": 10751,
+        "sources_used": []
+      }
+    ]
+  },
+  "optimized_prompts": {
+    "Test Product": "Test successful prompt",
+    "Flow Transmitter": "[parallel generation]",
+    "Pressure Transmitter": "[parallel generation]"
+  },
+  "stats": {
+    "total_failures": 2,
+    "total_successes": 12,
+    "patterns_detected": 0,
+    "recoveries_attempted": 0,
+    "recoveries_successful": 0
+  },
+  "saved_at": "2026-01-19T07:42:57.577067"
+}

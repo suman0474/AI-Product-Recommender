@@ -6,18 +6,10 @@
 # Extracts EXPLICIT specifications from user input.
 # These are MANDATORY - they will NEVER be overwritten by other sources.
 #
-# PERFORMANCE OPTIMIZATIONS:
-# - Singleton LLM instance (avoids re-initialization per call)
-# - Parallel batch processing (concurrent item extraction)
-# - Thread-safe initialization with locking
-#
 # =============================================================================
 
 import logging
 import os
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -32,35 +24,6 @@ logger = logging.getLogger(__name__)
 
 # Model for user spec extraction
 USER_SPECS_LLM_MODEL = "gemini-2.5-flash"
-
-# =============================================================================
-# SINGLETON LLM INSTANCE (Performance Optimization)
-# =============================================================================
-
-_user_specs_llm_instance = None
-_user_specs_llm_lock = threading.Lock()
-
-
-def _get_user_specs_llm():
-    """
-    Get or create singleton LLM instance for user specs extraction.
-    Thread-safe with double-checked locking pattern.
-    """
-    global _user_specs_llm_instance
-    
-    if _user_specs_llm_instance is None:
-        with _user_specs_llm_lock:
-            # Double-check after acquiring lock
-            if _user_specs_llm_instance is None:
-                logger.info("[USER_SPECS] Initializing singleton LLM instance...")
-                _user_specs_llm_instance = create_llm_with_fallback(
-                    model=USER_SPECS_LLM_MODEL,
-                    temperature=0.0,  # Zero temperature for deterministic extraction
-                    google_api_key=os.getenv("GOOGLE_API_KEY")
-                )
-                logger.info("[USER_SPECS] Singleton LLM instance ready")
-    
-    return _user_specs_llm_instance
 
 
 # =============================================================================
@@ -150,8 +113,11 @@ def extract_user_specified_specs(
         full_input = f"{user_input}\n\nAdditional context: {sample_input}"
 
     try:
-        # Use singleton LLM instance (PERFORMANCE: avoids re-initialization)
-        llm = _get_user_specs_llm()
+        llm = create_llm_with_fallback(
+            model=USER_SPECS_LLM_MODEL,
+            temperature=0.0,  # Zero temperature for deterministic extraction
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
 
         prompt = ChatPromptTemplate.from_template(USER_SPECS_EXTRACTION_PROMPT)
         parser = JsonOutputParser()
@@ -200,78 +166,36 @@ def extract_user_specified_specs(
 
 def extract_user_specs_batch(
     items: List[Dict[str, Any]],
-    user_input: str,
-    max_workers: int = 5
+    user_input: str
 ) -> List[Dict[str, Any]]:
     """
-    Extract user-specified specs for multiple items IN PARALLEL.
-    
-    PERFORMANCE: Uses ThreadPoolExecutor for concurrent extraction.
-    Reduces batch time from O(n * 2s) to O(n/workers * 2s).
+    Extract user-specified specs for multiple items.
 
     Args:
         items: List of identified items with 'name', 'sample_input', etc.
         user_input: Original user input
-        max_workers: Maximum parallel threads (default: 5)
 
     Returns:
         List of extraction results, one per item
     """
-    if not items:
-        return []
-    
-    logger.info(f"[USER_SPECS] Parallel batch extraction for {len(items)} items (max_workers={max_workers})")
-    
-    # Pre-initialize singleton LLM to avoid race condition
-    _get_user_specs_llm()
-    
-    def extract_single_item(item: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract specs for a single item (thread-safe)."""
+    logger.info(f"[USER_SPECS] Batch extraction for {len(items)} items")
+
+    results = []
+    for item in items:
         product_type = item.get("name") or item.get("product_name", "Unknown")
         sample_input = item.get("sample_input", "")
-        
+
         result = extract_user_specified_specs(
             user_input=user_input,
             product_type=product_type,
             sample_input=sample_input
         )
-        
+
         result["item_name"] = product_type
         result["item_type"] = item.get("type", "instrument")
-        return result
-    
-    results = []
-    
-    # Use ThreadPoolExecutor for parallel processing
-    with ThreadPoolExecutor(max_workers=min(max_workers, len(items))) as executor:
-        # Submit all items for parallel processing
-        future_to_item = {
-            executor.submit(extract_single_item, item): item
-            for item in items
-        }
-        
-        # Collect results as they complete
-        for future in as_completed(future_to_item):
-            try:
-                result = future.result()
-                results.append(result)
-            except Exception as e:
-                item = future_to_item[future]
-                item_name = item.get("name", "Unknown")
-                logger.error(f"[USER_SPECS] Parallel extraction failed for {item_name}: {e}")
-                results.append({
-                    "specifications": {},
-                    "source": "user_specified",
-                    "confidence": 0.0,
-                    "extraction_notes": f"Extraction failed: {str(e)}",
-                    "timestamp": datetime.now().isoformat(),
-                    "product_type": item_name,
-                    "item_name": item_name,
-                    "item_type": item.get("type", "instrument"),
-                    "error": str(e)
-                })
-    
-    logger.info(f"[USER_SPECS] Parallel batch complete: {len(results)} items processed")
+        results.append(result)
+
+    logger.info(f"[USER_SPECS] Batch complete: {len(results)} items processed")
     return results
 
 

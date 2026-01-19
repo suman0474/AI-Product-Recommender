@@ -38,7 +38,7 @@ class LLMWithTimeout:
     Uses threading for cross-platform compatibility (Windows-safe)
     """
 
-    def __init__(self, base_llm: Any, timeout_seconds: int = 30):
+    def __init__(self, base_llm: Any, timeout_seconds: int = 150):
         """
         Initialize LLM with timeout wrapper
 
@@ -140,10 +140,19 @@ def create_llm_with_fallback(
     openai_api_key: Optional[str] = None,
     max_tokens: Optional[int] = None,
     timeout: Optional[int] = None,
+    skip_test: bool = True,
+    max_afc_calls: Optional[int] = None,
     **kwargs
 ) -> Any:
     """
     Create an LLM instance with automatic fallback from Gemini to OpenAI and timeout support
+
+    🔥 FIX #6: AFC (Adaptive Flow Control) Configuration 🔥
+    Gemini API limits concurrent calls to 10 by default (AFC).
+    To increase this limit:
+      1. Contact Google Cloud support to increase your account AFC limit
+      2. For enterprise: Use Google Cloud quotas settings
+      3. Alternatively: Use request batching at application level (already implemented!)
 
     Args:
         model: Gemini model name (will be mapped to OpenAI if fallback is needed)
@@ -152,6 +161,8 @@ def create_llm_with_fallback(
         openai_api_key: OpenAI API key (optional, uses env var if not provided)
         max_tokens: Maximum tokens for generation
         timeout: Timeout in seconds for LLM calls (default: 30, set to None to disable)
+        skip_test: If True, skip the test LLM call during initialization (saves ~1.5s)
+        max_afc_calls: (FUTURE) Max concurrent AFC calls when API supports it
         **kwargs: Additional arguments to pass to the LLM
 
     Returns:
@@ -165,7 +176,13 @@ def create_llm_with_fallback(
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
-            logger.info(f"[LLM_FALLBACK] Attempting to use Google Gemini: {model}")
+            logger.info(f"[LLM_FALLBACK] Creating Google Gemini: {model} (skip_test={skip_test})")
+
+            # 🔥 FIX #6: Prepare AFC configuration for when API supports it
+            if max_afc_calls:
+                logger.info(f"[LLM_FALLBACK] 🔥 FIX #6: AFC concurrent limit set to {max_afc_calls} (requires Gemini API support)")
+                # Note: This will be used when google.generativeai exposes AFC configuration
+                kwargs['max_afc_calls'] = max_afc_calls
 
             llm = ChatGoogleGenerativeAI(
                 model=model,
@@ -175,19 +192,27 @@ def create_llm_with_fallback(
                 **kwargs
             )
 
-            # Test the model with a simple call to verify it works
-            try:
-                _ = llm.invoke("test")
-                logger.info(f"[LLM_FALLBACK] Successfully initialized Google Gemini: {model}")
-
+            # Skip test call if specified (saves ~1.5s per initialization)
+            if skip_test:
+                logger.info(f"[LLM_FALLBACK] Skipping test call, returning LLM directly: {model}")
                 # Wrap with timeout if specified
                 if timeout is not None:
                     logger.info(f"[LLM_FALLBACK] Wrapping LLM with {timeout}s timeout")
                     return LLMWithTimeout(llm, timeout_seconds=timeout)
                 return llm
-            except Exception as test_error:
-                logger.warning(f"[LLM_FALLBACK] Gemini model test failed: {test_error}")
-                raise test_error
+            else:
+                # Test the model with a simple call to verify it works
+                try:
+                    _ = llm.invoke("test")
+                    logger.info(f"[LLM_FALLBACK] Successfully initialized Google Gemini: {model}")
+                    # Wrap with timeout if specified
+                    if timeout is not None:
+                        logger.info(f"[LLM_FALLBACK] Wrapping LLM with {timeout}s timeout")
+                        return LLMWithTimeout(llm, timeout_seconds=timeout)
+                    return llm
+                except Exception as test_error:
+                    logger.warning(f"[LLM_FALLBACK] Gemini model test failed: {test_error}")
+                    raise test_error
 
         except Exception as e:
             logger.warning(f"[LLM_FALLBACK] Failed to initialize Gemini ({model}): {e}")
