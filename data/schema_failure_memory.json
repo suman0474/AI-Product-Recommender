@@ -124,6 +124,34 @@
         "sources_used": [
           "product_template"
         ]
+      },
+      {
+        "success_id": "succ_Pressure Transmitter_20260119123457194871",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-19T12:34:57.194933",
+        "duration_ms": 12267,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Pressure Transmitter_20260119123557874650",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-19T12:35:57.874666",
+        "duration_ms": 28317,
+        "sources_used": [
+          "product_template"
+        ]
       }
     ],
     "Pulsation Dampener": [
@@ -209,19 +237,112 @@
         "duration_ms": 10751,
         "sources_used": []
       }
+    ],
+    "Safety Valve": [
+      {
+        "success_id": "succ_Safety Valve_20260119123522375722",
+        "product_type": "Safety Valve",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-19T12:35:22.375749",
+        "duration_ms": 32083,
+        "sources_used": []
+      }
+    ],
+    "Flow Meter": [
+      {
+        "success_id": "succ_Flow Meter_20260119123811486863",
+        "product_type": "Flow Meter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-19T12:38:11.486886",
+        "duration_ms": 12229,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Isolation Valve": [
+      {
+        "success_id": "succ_Isolation Valve_20260119124831949948",
+        "product_type": "Isolation Valve",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 56,
+        "total_fields": 60,
+        "confidence_score": 0.9333333333333333,
+        "timestamp": "2026-01-19T12:48:31.949972",
+        "duration_ms": 15864,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Pressure Relief Valve": [
+      {
+        "success_id": "succ_Pressure Relief Valve_20260119134840954701",
+        "product_type": "Pressure Relief Valve",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 56,
+        "total_fields": 60,
+        "confidence_score": 0.9333333333333333,
+        "timestamp": "2026-01-19T13:48:40.954815",
+        "duration_ms": 12270,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Impulse lines and tubing": [
+      {
+        "success_id": "succ_Impulse lines and tubing_20260119134900549087",
+        "product_type": "Impulse lines and tubing",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-19T13:49:00.549117",
+        "duration_ms": 24549,
+        "sources_used": []
+      }
+    ],
+    "Process Connection": [
+      {
+        "success_id": "succ_Process Connection_20260119135721293232",
+        "product_type": "Process Connection",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-19T13:57:21.293253",
+        "duration_ms": 16244,
+        "sources_used": []
+      }
     ]
   },
   "optimized_prompts": {
     "Test Product": "Test successful prompt",
     "Flow Transmitter": "[parallel generation]",
-    "Pressure Transmitter": "[parallel generation]"
+    "Pressure Transmitter": "[parallel generation]",
+    "Flow Meter": "[parallel generation]",
+    "Isolation Valve": "[parallel generation]",
+    "Pressure Relief Valve": "[parallel generation]"
   },
   "stats": {
     "total_failures": 2,
-    "total_successes": 12,
+    "total_successes": 20,
     "patterns_detected": 0,
     "recoveries_attempted": 0,
     "recoveries_successful": 0
   },
-  "saved_at": "2026-01-19T07:42:57.577067"
+  "saved_at": "2026-01-19T13:57:21.293744"
 }

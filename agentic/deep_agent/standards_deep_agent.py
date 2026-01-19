@@ -6,11 +6,15 @@
 # the accuracy of specification extraction by allowing an LLM to "read" the relevant
 # standards in the context of the user's specific requirement.
 #
+# ITERATIVE GENERATION: If specs count < MIN_STANDARDS_SPECS_COUNT (30), the agent
+# will iterate through additional standard domains until the minimum is reached.
+#
 # Architecture: Map-Reduce Pattern using LangGraph
 # - Planner: Decides which standards are relevant
 # - Workers: Parallel LLM calls to analyze each standard document
 # - Synthesizer: Merges worker outputs, detects conflicts
 # - Merger: Combines with database-inferred specs
+# - Iterative Loop: Re-analyze additional domains if specs < minimum
 
 import json
 import logging
@@ -125,6 +129,27 @@ STANDARD_FILES = {
 
 # LLM Model to use for all Deep Agent nodes
 DEEP_AGENT_LLM_MODEL = "gemini-2.5-flash-lite"
+
+
+# ============================================================================
+# ITERATIVE GENERATION CONFIGURATION
+# ============================================================================
+
+# Minimum number of specifications that Deep Agent RAG must generate
+MIN_STANDARDS_SPECS_COUNT = 30
+
+# Maximum iterations to prevent infinite loops
+MAX_STANDARDS_ITERATIONS = 5
+
+# Additional domains to try if minimum not reached
+FALLBACK_DOMAINS_ORDER = [
+    "safety", "calibration", "communication", "accessories",
+    "pressure", "temperature", "flow", "level", "control",
+    "valves", "condition_monitoring", "analytical"
+]
+
+# Parallel processing configuration for Standards Deep Agent
+MAX_STANDARDS_PARALLEL_WORKERS = 3  # Number of domains to analyze in parallel
 
 
 # ============================================================================
@@ -444,6 +469,64 @@ Return ONLY valid JSON:
     "warnings": ["Any warnings for the user"],
     "confidence": 0.0-1.0
 }}
+"""
+
+
+# ============================================================================
+# ITERATIVE WORKER PROMPT - For extracting additional specs from more domains
+# ============================================================================
+
+ITERATIVE_WORKER_PROMPT = """
+You are a Standards Analysis Agent extracting ADDITIONAL specifications.
+
+Your task is to extract specifications from this standard document that are NOT already in the existing list.
+
+USER REQUIREMENT:
+{user_requirement}
+
+STANDARD DOCUMENT ({standard_name}):
+{document_content}
+
+=== EXISTING SPECIFICATIONS (DO NOT REPEAT THESE) ===
+{existing_specs}
+
+=== CRITICAL: VALUE FORMAT RULES ===
+
+Return ONLY clean technical values - NO descriptions, NO explanations.
+
+CORRECT VALUES: "±0.1%", "IP67", "4-20mA HART", "-40 to +85°C", "SIL 2"
+WRONG VALUES: "typically ±0.1%", "IP67 for outdoor use", "depends on application"
+
+=== EXTRACT {specs_needed} NEW SPECIFICATIONS ===
+
+Focus on specifications NOT already covered:
+- Physical characteristics: dimensions, weight, mounting options
+- Electrical parameters: isolation, surge protection, grounding
+- Environmental ratings: vibration, shock, altitude, humidity
+- Safety requirements: burst pressure, overpressure, failure modes
+- Maintenance: MTBF, service intervals, diagnostic coverage
+- Certifications: marine, food-grade, nuclear, railway
+- Communication: fieldbus options, wireless, redundancy
+
+Return ONLY valid JSON with NEW specifications:
+{{
+    "specifications": {{
+        "new_spec_key_1": "clean technical value",
+        "new_spec_key_2": "clean technical value"
+    }},
+    "constraints": [
+        {{
+            "constraint_type": "requirement|recommendation|specification",
+            "description": "Clear description",
+            "value": "CLEAN technical value",
+            "standard_reference": "Referenced standard code",
+            "confidence": 0.0-1.0
+        }}
+    ],
+    "summary": "Brief summary of additional findings"
+}}
+
+CRITICAL: Do NOT repeat any specifications from the existing list above!
 """
 
 
@@ -952,26 +1035,179 @@ def create_standards_deep_agent_state(
     )
 
 
+def _count_valid_specs(specs_dict: Dict[str, Any]) -> int:
+    """
+    Count valid (non-null, non-empty) specifications.
+
+    Args:
+        specs_dict: Dictionary of specifications
+
+    Returns:
+        Count of valid specifications
+    """
+    if not specs_dict:
+        return 0
+
+    count = 0
+    for key, value in specs_dict.items():
+        if value is not None:
+            str_value = str(value).lower().strip()
+            if str_value and str_value not in ["null", "none", "n/a", ""]:
+                count += 1
+
+    return count
+
+
+def _extract_additional_specs_from_domain(
+    user_requirement: str,
+    domain: str,
+    existing_specs: Dict[str, Any],
+    specs_needed: int
+) -> Dict[str, Any]:
+    """
+    Extract additional specifications from a single domain.
+
+    Args:
+        user_requirement: User's requirement string
+        domain: Domain to analyze
+        existing_specs: Already extracted specifications
+        specs_needed: Number of additional specs needed
+
+    Returns:
+        Dict with new specifications and constraints
+    """
+    logger.info(f"[ITERATIVE] Extracting additional specs from domain: {domain}")
+
+    try:
+        # Load document
+        document_content = load_standard_text(domain)
+        if not document_content:
+            logger.warning(f"[ITERATIVE] No document found for domain: {domain}")
+            return {"specifications": {}, "constraints": []}
+
+        # Format existing specs
+        existing_specs_list = "\n".join([
+            f"- {key}: {value}"
+            for key, value in existing_specs.items()
+            if value and str(value).lower() not in ["null", "none", "n/a"]
+        ])
+
+        # Create LLM and prompt
+        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        prompt = ChatPromptTemplate.from_template(ITERATIVE_WORKER_PROMPT)
+        parser = JsonOutputParser()
+        chain = prompt | llm | parser
+
+        result = chain.invoke({
+            "user_requirement": user_requirement,
+            "standard_name": STANDARD_DOMAINS.get(domain, {}).get("name", domain),
+            "document_content": document_content[:25000],
+            "existing_specs": existing_specs_list,
+            "specs_needed": specs_needed
+        })
+
+        new_specs = result.get("specifications", {})
+        new_constraints = result.get("constraints", [])
+
+        logger.info(f"[ITERATIVE] Domain {domain}: Found {len(new_specs)} new specs")
+
+        return {
+            "specifications": new_specs,
+            "constraints": new_constraints,
+            "domain": domain
+        }
+
+    except Exception as e:
+        logger.error(f"[ITERATIVE] Error extracting from domain {domain}: {e}")
+        return {"specifications": {}, "constraints": [], "error": str(e)}
+
+
+def _extract_specs_from_domains_parallel(
+    user_requirement: str,
+    domains: List[str],
+    existing_specs: Dict[str, Any],
+    specs_needed: int
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Extract specifications from multiple domains IN PARALLEL.
+
+    PARALLELIZATION STRATEGY:
+    - Instead of: 3 domains × 1 sequential call = 3 calls
+    - Now: 3 parallel workers = ~1.2 calls (estimated with overhead)
+    - SPEEDUP: ~2.5x faster
+
+    Args:
+        user_requirement: User requirement string
+        domains: List of domains to analyze in parallel
+        existing_specs: Already extracted specifications
+        specs_needed: Target specs per domain
+
+    Returns:
+        Dict mapping domain to extracted specs result
+    """
+    results = {}
+
+    if not domains:
+        return results
+
+    logger.info(f"[PARALLEL-DOMAINS] Extracting from {len(domains)} domains IN PARALLEL...")
+
+    # Execute domain extraction in parallel
+    with ThreadPoolExecutor(max_workers=min(MAX_STANDARDS_PARALLEL_WORKERS, len(domains))) as executor:
+        future_to_domain = {
+            executor.submit(
+                _extract_additional_specs_from_domain,
+                user_requirement, domain, existing_specs, specs_needed
+            ): domain for domain in domains
+        }
+
+        for future in as_completed(future_to_domain):
+            domain = future_to_domain[future]
+            try:
+                result = future.result()
+                results[domain] = result
+                logger.info(f"[PARALLEL-DOMAINS] Domain '{domain}' completed with {len(result.get('specifications', {}))} specs")
+            except Exception as exc:
+                logger.error(f"[PARALLEL-DOMAINS] Domain '{domain}' generated exception: {exc}")
+                results[domain] = {"specifications": {}, "constraints": [], "error": str(exc)}
+
+    logger.info(f"[PARALLEL-DOMAINS] Completed parallel extraction from {len(results)} domains")
+    return results
+
+
 def run_standards_deep_agent(
     user_requirement: str,
     session_id: Optional[str] = None,
-    inferred_specs: Optional[Dict[str, Any]] = None
+    inferred_specs: Optional[Dict[str, Any]] = None,
+    min_specs: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Run the Standards Deep Agent workflow.
+    Run the Standards Deep Agent workflow with ITERATIVE LOOP.
 
     This is the main entry point for the deep agent. It performs parallel
     analysis of relevant standard documents and merges with database-inferred specs.
+
+    ITERATIVE GENERATION: If the initial run produces fewer than MIN_STANDARDS_SPECS_COUNT (30)
+    specifications, it will iterate through additional domains until the minimum is reached.
 
     Args:
         user_requirement: The user's requirement string
         session_id: Optional session ID for checkpointing
         inferred_specs: Optional dict of specifications inferred from database
+        min_specs: Optional minimum specs count (defaults to MIN_STANDARDS_SPECS_COUNT)
 
     Returns:
         Final result dictionary with specifications and metadata
     """
-    logger.info(f"Running Standards Deep Agent for: {user_requirement[:100]}...")
+    min_required = min_specs if min_specs is not None else MIN_STANDARDS_SPECS_COUNT
+    logger.info(f"Running Standards Deep Agent for: {user_requirement[:100]}... (minimum: {min_required})")
+
+    start_time = time.time()
+    all_specifications: Dict[str, Any] = {}
+    all_constraints: List[Dict[str, Any]] = []
+    all_domains_analyzed: List[str] = []
+    iteration_notes: List[str] = []
+    iteration = 0
 
     # Create initial state
     initial_state = create_standards_deep_agent_state(
@@ -983,35 +1219,165 @@ def run_standards_deep_agent(
     # Get workflow
     app = get_standards_deep_agent_workflow()
 
-    # Execute workflow
+    # =================================================================
+    # ITERATION 1: Initial workflow execution
+    # =================================================================
     try:
+        iteration = 1
+        logger.info(f"[DEEP_AGENT] Iteration {iteration}: Initial workflow execution...")
+
         config = {"configurable": {"thread_id": session_id or "default"}}
         final_state = app.invoke(initial_state, config=config)
 
-        logger.info(f"Deep Agent completed with status: {final_state.get('status', 'unknown')}")
+        logger.info(f"Deep Agent iteration {iteration} completed with status: {final_state.get('status', 'unknown')}")
+
+        # Extract specifications from final state
+        final_specs = final_state.get("final_specifications", {})
+        if isinstance(final_specs, dict) and "specifications" in final_specs:
+            all_specifications.update(final_specs.get("specifications", {}))
+        elif isinstance(final_specs, dict):
+            all_specifications.update(final_specs)
+
+        # Also get specs from consolidated specs
+        consolidated = final_state.get("consolidated_specs", {})
+        if isinstance(consolidated, dict) and "merged_specifications" in consolidated:
+            merged_specs = consolidated.get("merged_specifications", {})
+            for key, value in merged_specs.items():
+                if key not in all_specifications and value and str(value).lower() not in ["null", "none"]:
+                    all_specifications[key] = value
+
+        # Track constraints
+        if consolidated and "merged_constraints" in consolidated:
+            all_constraints.extend(consolidated.get("merged_constraints", []))
+
+        # Track domains analyzed
+        all_domains_analyzed = final_state.get("relevant_standard_types", [])
+
+        initial_count = _count_valid_specs(all_specifications)
+        iteration_notes.append(f"Iteration 1: Generated {initial_count} specs from domains {all_domains_analyzed}")
+
+        logger.info(f"[DEEP_AGENT] Iteration {iteration}: Generated {initial_count} specs, domains: {all_domains_analyzed}")
+
+        # =================================================================
+        # ITERATIVE LOOP: Continue until minimum is reached
+        # =================================================================
+        while _count_valid_specs(all_specifications) < min_required and iteration < MAX_STANDARDS_ITERATIONS:
+            iteration += 1
+            current_count = _count_valid_specs(all_specifications)
+            specs_needed = min(15, min_required - current_count + 5)  # Request a few extra
+
+            logger.info(f"[DEEP_AGENT] Iteration {iteration}: Need {min_required - current_count} more specs...")
+
+            # Find domains not yet analyzed
+            remaining_domains = [
+                d for d in FALLBACK_DOMAINS_ORDER
+                if d not in all_domains_analyzed
+            ]
+
+            if not remaining_domains:
+                logger.warning(f"[DEEP_AGENT] Iteration {iteration}: No more domains to analyze")
+                iteration_notes.append(f"Iteration {iteration}: Stopped - all domains exhausted")
+                break
+
+            # Analyze next domain(s) IN PARALLEL
+            domains_to_try = remaining_domains[:MAX_STANDARDS_PARALLEL_WORKERS]  # Try up to 3 domains in parallel
+            logger.info(f"[DEEP_AGENT] Iteration {iteration}: Using PARALLEL extraction for domains: {domains_to_try}")
+
+            # Extract from multiple domains in parallel for speedup
+            parallel_results = _extract_specs_from_domains_parallel(
+                user_requirement=user_requirement,
+                domains=domains_to_try,
+                existing_specs=all_specifications,
+                specs_needed=specs_needed
+            )
+
+            added_count = 0
+            for domain, result in parallel_results.items():
+                try:
+                    new_specs = result.get("specifications", {})
+                    new_constraints = result.get("constraints", [])
+
+                    # Add new specs (avoid duplicates)
+                    for key, value in new_specs.items():
+                        normalized_key = key.lower().replace(" ", "_").replace("-", "_")
+                        existing_keys = {k.lower().replace(" ", "_").replace("-", "_") for k in all_specifications.keys()}
+
+                        if normalized_key not in existing_keys and value and str(value).lower() not in ["null", "none"]:
+                            all_specifications[key] = value
+                            added_count += 1
+
+                    # Add constraints
+                    all_constraints.extend(new_constraints)
+                    if domain not in all_domains_analyzed:
+                        all_domains_analyzed.append(domain)
+
+                except Exception as domain_error:
+                    logger.error(f"[DEEP_AGENT] Iteration {iteration}: Error with domain {domain}: {domain_error}")
+
+            iteration_notes.append(f"Iteration {iteration}: Added {added_count} new specs from domains {domains_to_try}")
+            logger.info(f"[DEEP_AGENT] Iteration {iteration}: Added {added_count} new specs, total: {_count_valid_specs(all_specifications)}")
+
+            # If no new specs were added, break to avoid infinite loop
+            if added_count == 0:
+                logger.warning(f"[DEEP_AGENT] Iteration {iteration}: No new specs added, stopping iterations")
+                iteration_notes.append(f"Iteration {iteration}: Stopped - no new specs could be extracted")
+                break
+
+        # =================================================================
+        # FINAL RESULT
+        # =================================================================
+        final_count = _count_valid_specs(all_specifications)
+        target_reached = final_count >= min_required
+        processing_time = int((time.time() - start_time) * 1000)
+
+        if target_reached:
+            logger.info(f"[DEEP_AGENT] ✓ Target reached: {final_count} specs (minimum: {min_required}) in {iteration} iterations")
+        else:
+            logger.warning(f"[DEEP_AGENT] ✗ Target NOT reached: {final_count} specs (minimum: {min_required}) after {iteration} iterations")
 
         return {
             "success": True,
-            "status": final_state.get("status", "completed"),
-            "final_specifications": final_state.get("final_specifications", {}),
+            "status": "completed" if target_reached else "partial",
+            "final_specifications": {
+                "specifications": all_specifications,
+                "constraints_applied": all_constraints,
+                "confidence": 0.85 if target_reached else 0.6
+            },
             "consolidated_specs": final_state.get("consolidated_specs", {}),
-            "standards_analyzed": final_state.get("relevant_standard_types", []),
+            "standards_analyzed": all_domains_analyzed,
             "planning_reasoning": final_state.get("planning_reasoning", ""),
             "worker_results": final_state.get("parallel_results", []),
-            "processing_time_ms": final_state.get("processing_time_ms", 0),
+            "processing_time_ms": processing_time,
+            "iterations": iteration,
+            "specs_count": final_count,
+            "min_required": min_required,
+            "target_reached": target_reached,
+            "iteration_notes": "; ".join(iteration_notes),
             "error": final_state.get("error")
         }
 
     except Exception as e:
         logger.error(f"Error executing Standards Deep Agent: {e}", exc_info=True)
+        processing_time = int((time.time() - start_time) * 1000)
+        final_count = _count_valid_specs(all_specifications)
+
         return {
             "success": False,
             "status": "error",
             "error": str(e),
-            "final_specifications": {},
+            "final_specifications": {
+                "specifications": all_specifications,
+                "constraints_applied": all_constraints,
+                "confidence": 0.3
+            },
             "consolidated_specs": {},
-            "standards_analyzed": [],
-            "processing_time_ms": int((time.time() - initial_state.get("start_time", time.time())) * 1000)
+            "standards_analyzed": all_domains_analyzed,
+            "processing_time_ms": processing_time,
+            "iterations": iteration,
+            "specs_count": final_count,
+            "min_required": min_required,
+            "target_reached": False,
+            "iteration_notes": "; ".join(iteration_notes)
         }
 
 
@@ -1160,6 +1526,79 @@ Return ONLY valid JSON:
 }}
 """
 
+
+def _batch_extract_specs_for_items_parallel(
+    items_info: List[Dict[str, Any]],
+    domain: str,
+    document_content: str,
+    max_workers: int = 8
+) -> Dict[int, Dict[str, Any]]:
+    """
+    Extract additional specs for multiple items FROM A SINGLE DOMAIN in parallel.
+    
+    PARALLELIZATION:
+    Instead of: 38 sequential LLM calls (one per item)
+    Now: 8 parallel workers processing items concurrently
+    
+    Args:
+        items_info: List of item dicts with 'index', 'name', 'existing_specs', 'needed'
+        domain: The standard domain to extract from
+        document_content: Pre-loaded document content (cached I/O)
+        max_workers: Number of parallel workers (default 8)
+    
+    Returns:
+        Dict mapping item index to extracted specs result
+    """
+    results = {}
+    
+    if not items_info:
+        return results
+    
+    logger.info(f"[PARALLEL-ITEMS] Processing {len(items_info)} items for domain '{domain}' with {max_workers} workers...")
+    
+    def extract_for_single_item(item_info: Dict[str, Any]) -> tuple:
+        """Worker function to extract specs for one item."""
+        item_idx = item_info.get("index", -1)
+        item_name = item_info.get("name", f"Item {item_idx}")
+        
+        try:
+            logger.info(f"[ITERATIVE] Extracting additional specs from domain: {domain}")
+            
+            result = _extract_additional_specs_from_domain(
+                user_requirement=item_name,
+                domain=domain,
+                existing_specs=item_info.get("existing_specs", {}),
+                specs_needed=item_info.get("needed", 30)
+            )
+            
+            new_specs = result.get("specifications", {})
+            logger.info(f"[ITERATIVE] Domain {domain}: Found {len(new_specs)} new specs")
+            
+            return (item_idx, result)
+            
+        except Exception as e:
+            logger.error(f"[PARALLEL-ITEMS] Error extracting specs for '{item_name}' from {domain}: {e}")
+            return (item_idx, {"specifications": {}, "constraints": [], "error": str(e)})
+    
+    # Execute parallel extraction using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(items_info))) as executor:
+        future_to_item = {
+            executor.submit(extract_for_single_item, item): item 
+            for item in items_info
+        }
+        
+        for future in as_completed(future_to_item):
+            item = future_to_item[future]
+            try:
+                idx, result = future.result()
+                results[idx] = result
+            except Exception as exc:
+                item_idx = item.get("index", -1)
+                logger.error(f"[PARALLEL-ITEMS] Exception for item index {item_idx}: {exc}")
+                results[item_idx] = {"specifications": {}, "constraints": [], "error": str(exc)}
+    
+    logger.info(f"[PARALLEL-ITEMS] Completed parallel extraction for {len(results)} items from domain '{domain}'")
+    return results
 
 def run_standards_deep_agent_batch(
     items: List[Dict[str, Any]],
@@ -1467,16 +1906,146 @@ def run_standards_deep_agent_batch(
                 }
             
             enriched_items.append(enriched_item)
-        
+
+        # ============================================
+        # STEP 5: ITERATIVE ENRICHMENT FOR ITEMS BELOW MINIMUM
+        # ============================================
+        logger.info(f"[BATCH] Step 5: Checking items for minimum spec count ({MIN_STANDARDS_SPECS_COUNT})...")
+
+        # Track which items need more specs
+        items_needing_more = []
+        for i, enriched_item in enumerate(enriched_items):
+            combined_specs = enriched_item.get("combined_specifications", {})
+            standards_specs = enriched_item.get("standards_specifications", {})
+            all_item_specs = {**combined_specs, **standards_specs}
+
+            spec_count = _count_valid_specs(all_item_specs)
+            if spec_count < MIN_STANDARDS_SPECS_COUNT:
+                items_needing_more.append({
+                    "index": i,
+                    "name": enriched_item.get("name", f"Item {i+1}"),
+                    "current_count": spec_count,
+                    "needed": MIN_STANDARDS_SPECS_COUNT - spec_count,
+                    "existing_specs": all_item_specs
+                })
+
+        if items_needing_more:
+            logger.info(f"[BATCH] {len(items_needing_more)} items need additional specifications")
+
+            # Find domains not yet analyzed
+            remaining_domains = [d for d in FALLBACK_DOMAINS_ORDER if d not in valid_domains]
+            iteration = 0
+
+            while items_needing_more and remaining_domains and iteration < MAX_STANDARDS_ITERATIONS:
+                iteration += 1
+                domains_to_try = remaining_domains[:2]  # Try 2 domains per iteration
+                remaining_domains = remaining_domains[2:]
+
+                logger.info(f"[BATCH] Iteration {iteration}: Trying additional domains {domains_to_try}")
+
+                for domain in domains_to_try:
+                    if domain not in document_cache:
+                        doc_content = load_standard_text(domain)
+                        if doc_content:
+                            document_cache[domain] = doc_content
+                        else:
+                            continue
+
+                    # ================================================================
+                    # PARALLEL PROCESSING: Process ALL items for this domain at once
+                    # ================================================================
+                    # Instead of sequential: for item_info in items_needing_more[:] (one LLM call per item)
+                    # Now parallel: 8 workers processing items concurrently
+                    
+                    parallel_results = _batch_extract_specs_for_items_parallel(
+                        items_info=items_needing_more,
+                        domain=domain,
+                        document_content=document_cache[domain],
+                        max_workers=8  # Process up to 8 items simultaneously
+                    )
+                    
+                    # Merge parallel results back into enriched_items
+                    for item_info in items_needing_more[:]:  # Copy list for safe removal
+                        item_result = parallel_results.get(item_info["index"], {})
+                        new_specs = item_result.get("specifications", {})
+                        added_count = 0
+
+                        # Add new specs to the enriched item
+                        enriched_item = enriched_items[item_info["index"]]
+                        combined_specs = enriched_item.get("combined_specifications", {})
+                        standards_specs = enriched_item.get("standards_specifications", {})
+
+                        for key, value in new_specs.items():
+                            normalized_key = key.lower().replace(" ", "_").replace("-", "_")
+                            existing_keys = {
+                                k.lower().replace(" ", "_").replace("-", "_")
+                                for k in {**combined_specs, **standards_specs, **item_info["existing_specs"]}.keys()
+                            }
+
+                            if normalized_key not in existing_keys and value and str(value).lower() not in ["null", "none"]:
+                                standards_specs[key] = value
+                                combined_specs[key] = {"value": value, "source": "standards_iterative", "confidence": 0.7}
+                                item_info["existing_specs"][key] = value
+                                added_count += 1
+
+                        enriched_item["standards_specifications"] = standards_specs
+                        enriched_item["combined_specifications"] = combined_specs
+                        item_info["current_count"] += added_count
+                        item_info["needed"] = MIN_STANDARDS_SPECS_COUNT - item_info["current_count"]
+
+                        # Update standards analyzed
+                        if "standards_info" in enriched_item:
+                            analyzed = enriched_item["standards_info"].get("standards_analyzed", [])
+                            if domain not in analyzed:
+                                analyzed.append(domain)
+                                enriched_item["standards_info"]["standards_analyzed"] = analyzed
+
+                        logger.info(f"[BATCH] Item '{item_info['name']}': Added {added_count} specs from {domain}, total: {item_info['current_count']}")
+
+                        # Check if item has reached minimum
+                        if item_info["current_count"] >= MIN_STANDARDS_SPECS_COUNT:
+                            items_needing_more.remove(item_info)
+                            logger.info(f"[BATCH] ✓ Item '{item_info['name']}' reached minimum ({item_info['current_count']} specs)")
+
+                # Update the valid_domains for metadata
+                valid_domains.extend(domains_to_try)
+
+        # Update spec counts in enriched items
+        for enriched_item in enriched_items:
+            combined_specs = enriched_item.get("combined_specifications", {})
+            standards_specs = enriched_item.get("standards_specifications", {})
+
+            standards_count = sum(1 for v in combined_specs.values() if isinstance(v, dict) and v.get("source", "").startswith("standards"))
+            db_count = sum(1 for v in combined_specs.values() if isinstance(v, dict) and v.get("source") == "database")
+            total_count = len(combined_specs)
+
+            standards_pct = round((standards_count / total_count) * 100) if total_count > 0 else 0
+            db_pct = round((db_count / total_count) * 100) if total_count > 0 else 0
+
+            enriched_item["specification_source"] = {
+                "standards_pct": standards_pct,
+                "database_pct": db_pct,
+                "standards_count": standards_count,
+                "database_count": db_count,
+                "total_count": total_count,
+                "min_required": MIN_STANDARDS_SPECS_COUNT,
+                "target_reached": total_count >= MIN_STANDARDS_SPECS_COUNT
+            }
+
         # Calculate totals
         processing_time = int((time.time() - start_time) * 1000)
         successful_count = sum(
             1 for item in enriched_items
             if item.get("standards_info", {}).get("enrichment_status") == "success"
         )
-        
+        items_at_minimum = sum(
+            1 for item in enriched_items
+            if item.get("specification_source", {}).get("target_reached", False)
+        )
+
         logger.info(f"[BATCH] Completed: {successful_count}/{len(items)} items enriched in {processing_time}ms")
-        logger.info(f"[BATCH] Efficiency: Only {len(valid_domains) + 2} LLM calls instead of {len(items) * 4}")
+        logger.info(f"[BATCH] {items_at_minimum}/{len(items)} items reached minimum spec count ({MIN_STANDARDS_SPECS_COUNT})")
+        logger.info(f"[BATCH] Efficiency: {len(valid_domains) + 2} LLM calls instead of {len(items) * 4}")
         
         return {
             "success": True,
@@ -1484,6 +2053,8 @@ def run_standards_deep_agent_batch(
             "batch_metadata": {
                 "total_items": len(items),
                 "successful_enrichments": successful_count,
+                "items_at_minimum": items_at_minimum,
+                "min_specs_required": MIN_STANDARDS_SPECS_COUNT,
                 "processing_time_ms": processing_time,
                 "standards_analyzed": valid_domains,
                 "llm_calls_made": len(valid_domains) + 2,  # 1 planner + N workers + 1 synthesizer

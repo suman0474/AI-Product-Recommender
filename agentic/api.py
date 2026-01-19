@@ -2267,6 +2267,66 @@ def agentic_validate():
         else:
             logger.info(f"[VALIDATION_TOOL] All mandatory fields provided")
 
+        # =====================================================================
+        # FIELD DESCRIPTIONS FOR ON-HOVER TOOLTIPS
+        # Extracts descriptions from template specifications for frontend display
+        # =====================================================================
+        field_descriptions = {}
+        try:
+            # Try to get template specifications (60+ specs per product type)
+            try:
+                from agentic.deep_agent.phase3_specification_templates import (
+                    get_all_specs_for_product_type
+                )
+                template_specs = get_all_specs_for_product_type(product_type)
+                if template_specs:
+                    for spec_key, spec_def in template_specs.items():
+                        field_descriptions[spec_key] = spec_def.description
+                    logger.info(f"[VALIDATION_TOOL] Loaded {len(field_descriptions)} field descriptions from templates")
+            except ImportError:
+                pass
+
+            # Generate descriptions for schema fields not in templates
+            # Extract all leaf field keys from schema
+            def extract_keys(obj, prefix=""):
+                keys = []
+                if isinstance(obj, dict):
+                    for key, value in obj.items():
+                        full_key = f"{prefix}.{key}" if prefix else key
+                        if isinstance(value, dict) and "value" not in value:
+                            keys.extend(extract_keys(value, full_key))
+                        else:
+                            keys.append(full_key)
+                return keys
+            
+            def prettify_field_name(field_name: str) -> str:
+                """Convert field_name or fieldName to human-readable description"""
+                import re
+                # Handle camelCase: split on capital letters
+                words = re.sub(r'([a-z])([A-Z])', r'\1 \2', field_name)
+                # Handle snake_case: replace underscores with spaces
+                words = words.replace('_', ' ').replace('-', ' ')
+                # Capitalize first letter of each word
+                words = ' '.join(word.capitalize() for word in words.split())
+                return f"Specification for {words}"
+            
+            all_keys = extract_keys(schema.get("mandatoryRequirements", {}))
+            all_keys.extend(extract_keys(schema.get("optionalRequirements", {})))
+            
+            # For fields not in templates, create a description from the field name
+            for field_key in all_keys:
+                field_name = field_key.split(".")[-1]
+                # Check if we already have a template description (match by field name)
+                if field_name not in field_descriptions and field_key not in field_descriptions:
+                    # Generate a readable description from the field name
+                    field_descriptions[field_key] = prettify_field_name(field_name)
+                elif field_name in field_descriptions:
+                    # Copy template description to full key path
+                    field_descriptions[field_key] = field_descriptions[field_name]
+                
+        except Exception as desc_err:
+            logger.warning(f"[VALIDATION_TOOL] Field description extraction failed: {desc_err}")
+
         result = {
             "product_type": product_type,
             "detected_schema": schema,
@@ -2274,10 +2334,13 @@ def agentic_validate():
             "ppi_workflow_used": ppi_used,
             "is_valid": is_valid,
             "missing_fields": missing_fields,
-            "session_id": session_id
+            "session_id": session_id,
+            # Field descriptions for on-hover tooltips
+            "field_descriptions": field_descriptions,
+            "field_descriptions_count": len(field_descriptions)
         }
 
-        logger.info(f"[VALIDATION_TOOL] Validation complete")
+        logger.info(f"[VALIDATION_TOOL] Validation complete with {len(field_descriptions)} field descriptions")
 
         return api_response(True, data=result)
 
@@ -2581,6 +2644,47 @@ def run_product_analysis():
         logger.info(f"[RUN_ANALYSIS] Products ranked: {analysis_result.get('totalRanked', 0)}")
         logger.info(f"[RUN_ANALYSIS] Exact matches: {analysis_result.get('exactMatchCount', 0)}")
         logger.info(f"[RUN_ANALYSIS] Approximate matches: {analysis_result.get('approximateMatchCount', 0)}")
+
+        # =====================================================================
+        # PRIMARY IMAGE FETCHING - Fetch generic images for ranked products
+        # This is the primary layer; frontend will handle fallback for missing
+        # =====================================================================
+        try:
+            from generic_image_utils import fetch_generic_product_image
+            
+            ranked_products = analysis_result.get('overallRanking', {}).get('rankedProducts', [])
+            images_fetched = 0
+            
+            # Fetch images for top 20 products to avoid rate limiting
+            for product in ranked_products[:20]:
+                # Skip if product already has an image
+                if product.get('top_image') or product.get('topImage'):
+                    continue
+                
+                # Use product_type for generic image lookup
+                pt = product.get('productType') or product.get('product_type') or product_type
+                if not pt:
+                    continue
+                
+                try:
+                    image_result = fetch_generic_product_image(pt)
+                    if image_result and image_result.get('url'):
+                        product['top_image'] = {
+                            'url': image_result['url'],
+                            'source': image_result.get('source', 'generic_cache'),
+                            'product_type': pt
+                        }
+                        images_fetched += 1
+                        logger.debug(f"[RUN_ANALYSIS] Image fetched for {product.get('productName', 'Unknown')}")
+                except Exception as img_err:
+                    logger.warning(f"[RUN_ANALYSIS] Image fetch failed for {pt}: {img_err}")
+            
+            logger.info(f"[RUN_ANALYSIS] Images fetched: {images_fetched}/{min(20, len(ranked_products))}")
+            
+        except ImportError as e:
+            logger.warning(f"[RUN_ANALYSIS] Could not import generic_image_utils: {e}")
+        except Exception as e:
+            logger.warning(f"[RUN_ANALYSIS] Image fetching failed: {e}")
 
         # Return analysis result
         return api_response(True, data=analysis_result)

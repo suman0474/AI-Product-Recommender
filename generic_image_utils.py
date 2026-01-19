@@ -198,6 +198,70 @@ def _generate_image_with_llm(product_type: str, retry_count: int = 0, max_retrie
         return None
 
 
+# =============================================================================
+# FAST-FAIL LLM GENERATION (For UI responsiveness)
+# =============================================================================
+def _generate_image_with_llm_fast(product_type: str) -> Optional[Dict[str, Any]]:
+    """
+    Attempt LLM image generation with FAST-FAIL on rate limit.
+    
+    Instead of waiting 60-240 seconds on 429 errors, returns None immediately.
+    This allows the UI to show a placeholder while background retries can happen later.
+    
+    Returns:
+        Image data dict if successful, None if rate-limited or failed
+    """
+    global _gemini_client
+    
+    if not _gemini_client:
+        logger.warning("[LLM_FAST] Gemini client not initialized")
+        return None
+    
+    try:
+        logger.info(f"[LLM_FAST] Attempting fast image generation for '{product_type}'...")
+        
+        # Apply minimal throttle
+        throttle_wait = _apply_request_throttle()
+        if throttle_wait > 0:
+            logger.info(f"[LLM_FAST] Throttle: {throttle_wait:.2f}s")
+        
+        prompt = f"A professional 3D render of a {product_type}, studio lighting, high resolution, isolated on a transparent background, no shadow, clean edges."
+        
+        response = _gemini_client.models.generate_images(
+            model='imagen-4.0-generate-001',
+            prompt=prompt,
+            config=types.GenerateImagesConfig(number_of_images=1)
+        )
+        
+        if not response.generated_images:
+            logger.warning(f"[LLM_FAST] No images generated for '{product_type}'")
+            return None
+        
+        generated_image = response.generated_images[0]
+        image_bytes = generated_image.image.image_bytes
+        
+        logger.info(f"[LLM_FAST] ✓ Generated image for '{product_type}' ({len(image_bytes)} bytes)")
+        
+        return {
+            'image_bytes': image_bytes,
+            'content_type': 'image/png',
+            'file_size': len(image_bytes),
+            'source': 'gemini_imagen',
+            'prompt': prompt
+        }
+        
+    except Exception as e:
+        error_str = str(e)
+        if '429' in error_str or 'RESOURCE_EXHAUSTED' in error_str:
+            logger.warning(f"[LLM_FAST] Rate limit hit for '{product_type}' - returning None immediately (no retry)")
+            return None
+        
+        logger.error(f"[LLM_FAST] Failed: {e}")
+        return None
+
+
+
+
 # --- Main Utilities ---
 
 def get_generic_image_from_azure(product_type: str) -> Optional[Dict[str, Any]]:
@@ -241,10 +305,10 @@ def get_generic_image_from_azure(product_type: str) -> Optional[Dict[str, Any]]:
         }
 
     except ResourceNotFoundError:
-        logger.debug(f"[AZURE_CHECK] No cached generic image in Azure Blob for: {product_type}")
+        logger.info(f"[AZURE_CHECK] No cached generic image in Azure Blob for: {product_type} (normalized: {normalized_type})")
         return None
     except Exception as e:
-        logger.debug(f"[AZURE_CHECK] Failed to retrieve generic image from Azure Blob: {e}")
+        logger.warning(f"[AZURE_CHECK] Failed to retrieve generic image from Azure Blob for '{product_type}': {e}")
         return None
 
 
@@ -334,6 +398,233 @@ def cache_generic_image_to_azure(product_type: str, image_data: Dict[str, Any]) 
         return False
 
 
+# =============================================================================
+# PARALLEL BATCH IMAGE FETCHING
+# =============================================================================
+# Optimizes multiple image requests by:
+# 1. Checking Azure cache for ALL product types IN PARALLEL
+# 2. For cache misses, queuing LLM generation (sequential to respect rate limits)
+# 3. Returning results as they become available
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def fetch_generic_images_batch(product_types: list, max_parallel_cache_checks: int = 5) -> Dict[str, Optional[Dict[str, Any]]]:
+    """
+    Fetch generic images for multiple product types IN PARALLEL.
+    
+    PARALLELIZATION STRATEGY:
+    - Phase 1: Check Azure cache for ALL product types simultaneously (fast, parallel)
+    - Phase 2: For cache misses, generate with LLM (slower, sequential to respect rate limits)
+    
+    Args:
+        product_types: List of product type strings to fetch images for
+        max_parallel_cache_checks: Number of parallel Azure cache checks (default 5)
+    
+    Returns:
+        Dict mapping product_type -> image result (or None if failed)
+    """
+    if not product_types:
+        return {}
+    
+    results = {}
+    cache_hits = []
+    cache_misses = []
+    
+    logger.info(f"[BATCH_IMAGE] Starting parallel image fetch for {len(product_types)} product types...")
+    start_time = time.time()
+    
+    # =========================================================================
+    # PHASE 1: PARALLEL AZURE CACHE CHECKS
+    # =========================================================================
+    def check_azure_cache(product_type: str) -> tuple:
+        """Check Azure cache for a single product type (designed for parallel execution)."""
+        try:
+            # Check exact match first
+            azure_image = get_generic_image_from_azure(product_type)
+            if azure_image:
+                backend_url = f"/api/images/{azure_image.get('azure_blob_path', '')}"
+                return (product_type, {
+                    'url': backend_url,
+                    'product_type': product_type,
+                    'source': azure_image.get('source', 'gemini_imagen'),
+                    'cached': True,
+                    'generation_method': azure_image.get('generation_method', 'llm')
+                })
+            
+            # Try fallback types (same logic as fetch_generic_product_image)
+            fallback_result = _try_fallback_cache_lookup(product_type)
+            if fallback_result:
+                return (product_type, fallback_result)
+            
+            return (product_type, None)  # Cache miss
+            
+        except Exception as e:
+            logger.error(f"[BATCH_IMAGE] Error checking cache for '{product_type}': {e}")
+            return (product_type, None)
+    
+    # Execute parallel cache checks
+    logger.info(f"[BATCH_IMAGE] Phase 1: Checking Azure cache for {len(product_types)} types in parallel...")
+    
+    with ThreadPoolExecutor(max_workers=max_parallel_cache_checks) as executor:
+        future_to_type = {executor.submit(check_azure_cache, pt): pt for pt in product_types}
+        
+        for future in as_completed(future_to_type):
+            product_type = future_to_type[future]
+            try:
+                pt, result = future.result()
+                if result:
+                    results[pt] = result
+                    cache_hits.append(pt)
+                    logger.info(f"[BATCH_IMAGE] ✓ Cache HIT for '{pt}'")
+                else:
+                    cache_misses.append(pt)
+                    logger.info(f"[BATCH_IMAGE] ✗ Cache MISS for '{pt}'")
+            except Exception as exc:
+                cache_misses.append(product_type)
+                logger.error(f"[BATCH_IMAGE] Exception for '{product_type}': {exc}")
+    
+    phase1_time = time.time() - start_time
+    logger.info(f"[BATCH_IMAGE] Phase 1 complete: {len(cache_hits)} hits, {len(cache_misses)} misses in {phase1_time:.2f}s")
+    
+    # =========================================================================
+    # PHASE 2: LLM GENERATION FOR CACHE MISSES (Sequential to respect rate limits)
+    # =========================================================================
+    if cache_misses:
+        logger.info(f"[BATCH_IMAGE] Phase 2: Generating {len(cache_misses)} images with LLM...")
+        
+        # Process LLM generation sequentially (rate limit aware)
+        for i, product_type in enumerate(cache_misses):
+            try:
+                logger.info(f"[BATCH_IMAGE] Generating image {i+1}/{len(cache_misses)}: '{product_type}'")
+                
+                # Use the existing fetch function which handles deduplication and rate limits
+                result = fetch_generic_product_image(product_type)
+                results[product_type] = result
+                
+                if result:
+                    logger.info(f"[BATCH_IMAGE] ✓ Generated image for '{product_type}'")
+                else:
+                    logger.warning(f"[BATCH_IMAGE] ✗ Failed to generate image for '{product_type}'")
+                    
+            except Exception as e:
+                logger.error(f"[BATCH_IMAGE] Error generating for '{product_type}': {e}")
+                results[product_type] = None
+    
+    total_time = time.time() - start_time
+    logger.info(f"[BATCH_IMAGE] Batch complete: {len(results)} images in {total_time:.2f}s")
+    
+    return results
+
+
+def _try_fallback_cache_lookup(product_type: str) -> Optional[Dict[str, Any]]:
+    """
+    Try fallback cache lookups for a product type (helper for parallel batch processing).
+    
+    This is a lightweight version that only checks cache, no LLM generation.
+    """
+    import re
+    
+    # Common prefixes to strip
+    COMMON_PREFIXES = [
+        # General modifiers
+        "Process ", "Industrial ", "Digital ", "Smart ", "Advanced ", 
+        "Precision ", "High Performance ", "Multi ", "Dual ", "Single ",
+        "Compact ", "Integrated ", "Electronic ", "Intelligent ", "Programmable ",
+        "Wireless ", "Remote ", "Field ", "Panel ", "Portable ", "Handheld ",
+        "Ex-rated ", "ATEX ", "Hazardous Area ", "Explosion Proof ",
+        # Sensor type prefixes
+        "RTD ", "PT100 ", "PT1000 ", "Thermocouple ", "TC ", "K-Type ", "J-Type ",
+        "HART ", "Foundation Fieldbus ", "Profibus ", "Modbus ", "4-20mA ",
+        # Measurement type prefixes
+        "Coriolis ", "Magnetic ", "Ultrasonic ", "Vortex ", "Differential ",
+        "Absolute ", "Gauge ", "Sealed ", "Diaphragm ", "Capacitive ",
+        # Material/application prefixes
+        "Stainless Steel ", "SS ", "316L ", "Hastelloy ", "Titanium ",
+        "Sanitary ", "Hygienic ", "Food Grade ", "Pharmaceutical ",
+        # Size/range prefixes
+        "High Pressure ", "Low Pressure ", "High Temperature ", "Low Temperature ",
+        "Wide Range ", "Narrow Range ", "High Accuracy ",
+    ]
+    
+    fallback_types = []
+    product_upper = product_type.strip()
+    
+    for prefix in COMMON_PREFIXES:
+        if product_upper.lower().startswith(prefix.lower()):
+            fallback_type = product_upper[len(prefix):].strip()
+            if fallback_type and fallback_type != product_type:
+                fallback_types.append(fallback_type)
+    
+    # Remove parenthetical content
+    base_type = re.sub(r'\s*\([^)]*\)\s*', '', product_type).strip()
+    if base_type and base_type != product_type and base_type not in fallback_types:
+        fallback_types.append(base_type)
+    
+    # Extract base instrument type
+    words = product_type.strip().split()
+    if len(words) >= 2:
+        last_word = words[-1]
+        if last_word not in fallback_types and last_word != product_type:
+            fallback_types.append(last_word)
+        last_two = " ".join(words[-2:])
+        if last_two not in fallback_types and last_two != product_type:
+            fallback_types.append(last_two)
+    
+    # Try each fallback
+    for fallback in fallback_types:
+        azure_image = get_generic_image_from_azure(fallback)
+        if azure_image:
+            logger.info(f"[BATCH_IMAGE] ✓ Fallback cache hit: '{fallback}' for '{product_type}'")
+            backend_url = f"/api/images/{azure_image.get('azure_blob_path', '')}"
+            return {
+                'url': backend_url,
+                'product_type': product_type,
+                'source': azure_image.get('source', 'gemini_imagen'),
+                'cached': True,
+                'generation_method': azure_image.get('generation_method', 'llm'),
+                'fallback_used': fallback
+            }
+    
+    # Category-based fallback (last resort)
+    CATEGORY_MAPPINGS = {
+        'transmitter': ['Transmitter', 'Pressure Transmitter', 'Temperature Transmitter'],
+        'sensor': ['Sensor', 'Temperature Sensor', 'Pressure Sensor'],
+        'valve': ['Valve', 'Control Valve'],
+        'actuator': ['Actuator', 'Pneumatic Actuator'],
+        'meter': ['Meter', 'Flow Meter'],
+        'gauge': ['Gauge', 'Pressure Gauge'],
+        'cable': ['Cable', 'Instrument Cable'],
+        'fitting': ['Fitting', 'Pipe Fitting'],
+        'bracket': ['Bracket', 'Mounting Bracket'],
+        'junction': ['Junction Box'],
+        'switch': ['Switch', 'Pressure Switch'],
+        'motor': ['Motor', 'Electric Motor'],
+        'drive': ['Drive', 'Variable Frequency Drive'],
+        'pump': ['Pump'],
+        'controller': ['Controller'],
+        'analyzer': ['Analyzer'],
+    }
+    
+    product_lower = product_type.lower()
+    for category, generic_types in CATEGORY_MAPPINGS.items():
+        if category in product_lower:
+            for generic_type in generic_types:
+                if generic_type.lower() != product_lower and generic_type not in fallback_types:
+                    azure_image = get_generic_image_from_azure(generic_type)
+                    if azure_image:
+                        logger.info(f"[BATCH_IMAGE] ✓ Category fallback: '{generic_type}' for '{product_type}'")
+                        backend_url = f"/api/images/{azure_image.get('azure_blob_path', '')}"
+                        return {
+                            'url': backend_url,
+                            'product_type': product_type,
+                            'source': azure_image.get('source', 'gemini_imagen'),
+                            'cached': True,
+                            'generation_method': azure_image.get('generation_method', 'llm'),
+                            'fallback_used': generic_type,
+                            'fallback_type': 'category'
+                        }
+    
+    return None
 
 
 def fetch_generic_product_image(product_type: str) -> Optional[Dict[str, Any]]:
@@ -341,10 +632,11 @@ def fetch_generic_product_image(product_type: str) -> Optional[Dict[str, Any]]:
     Fetch generic product type image with Azure Blob caching and LLM generation.
 
     FLOW (Azure-Only):
-    1. Check Azure Blob Storage cache first
-    2. Check if generation is already in-progress for this product type (deduplication)
-    3. If not, generate image using Gemini Imagen 4.0 LLM (NO rate limiting)
-    4. Cache the LLM-generated image to Azure Blob Storage ONLY
+    1. Check Azure Blob Storage cache first (exact match)
+    2. If not found, try fallback base product types (e.g., "Process Flow Transmitter" -> "Flow Transmitter")
+    3. Check if generation is already in-progress for this product type (deduplication)
+    4. If not, generate image using Gemini Imagen 4.0 LLM (NO rate limiting)
+    5. Cache the LLM-generated image to Azure Blob Storage ONLY
 
     Args:
         product_type: Product type name (e.g., "Pressure Transmitter")
@@ -357,7 +649,7 @@ def fetch_generic_product_image(product_type: str) -> Optional[Dict[str, Any]]:
     # Normalize product type for deduplication
     normalized_type = product_type.strip().lower().replace(" ", "").replace("_", "").replace("-", "")
 
-    # Step 1: Check Azure Blob Storage for cached image
+    # Step 1: Check Azure Blob Storage for cached image (exact match)
     azure_image = get_generic_image_from_azure(product_type)
     if azure_image:
         logger.info(f"[FETCH] ✓ Using cached generic image from Azure Blob for '{product_type}'")
@@ -370,6 +662,144 @@ def fetch_generic_product_image(product_type: str) -> Optional[Dict[str, Any]]:
             'cached': True,
             'generation_method': azure_image.get('generation_method', 'llm')
         }
+
+    # Step 1.5: Try fallback base product types
+    # Remove common prefixes to find a more generic cached image
+    COMMON_PREFIXES = [
+        # General modifiers
+        "Process ", "Industrial ", "Digital ", "Smart ", "Advanced ", 
+        "Precision ", "High Performance ", "Multi ", "Dual ", "Single ",
+        "Compact ", "Integrated ", "Electronic ", "Intelligent ", "Programmable ",
+        "Wireless ", "Remote ", "Field ", "Panel ", "Portable ", "Handheld ",
+        "Ex-rated ", "ATEX ", "Hazardous Area ", "Explosion Proof ",
+        # Sensor type prefixes (RTD, Thermocouple, etc.)
+        "RTD ", "PT100 ", "PT1000 ", "Thermocouple ", "TC ", "K-Type ", "J-Type ",
+        "HART ", "Foundation Fieldbus ", "Profibus ", "Modbus ", "4-20mA ",
+        # Measurement type prefixes
+        "Coriolis ", "Magnetic ", "Ultrasonic ", "Vortex ", "Differential ",
+        "Absolute ", "Gauge ", "Sealed ", "Diaphragm ", "Capacitive ",
+        # Material/application prefixes
+        "Stainless Steel ", "SS ", "316L ", "Hastelloy ", "Titanium ",
+        "Sanitary ", "Hygienic ", "Food Grade ", "Pharmaceutical ",
+        # Size/range prefixes
+        "High Pressure ", "Low Pressure ", "High Temperature ", "Low Temperature ",
+        "Wide Range ", "Narrow Range ", "High Accuracy ",
+    ]
+    
+    fallback_types = []
+    product_upper = product_type.strip()
+    
+    for prefix in COMMON_PREFIXES:
+        if product_upper.lower().startswith(prefix.lower()):
+            fallback_type = product_upper[len(prefix):].strip()
+            if fallback_type and fallback_type != product_type:
+                fallback_types.append(fallback_type)
+    
+    # Also try without parenthetical content: "Flow Transmitter (Redundant)" -> "Flow Transmitter"
+    import re
+    base_type = re.sub(r'\s*\([^)]*\)\s*', '', product_type).strip()
+    if base_type and base_type != product_type and base_type not in fallback_types:
+        fallback_types.append(base_type)
+    
+    # Try to extract the base instrument type (last 1-2 significant words)
+    # e.g., "RTD Temperature Transmitter" -> "Transmitter", "Temperature Transmitter"
+    words = product_type.strip().split()
+    if len(words) >= 2:
+        # Try last word (e.g., "Transmitter", "Valve", "Meter")
+        last_word = words[-1]
+        if last_word not in fallback_types and last_word != product_type:
+            fallback_types.append(last_word)
+        
+        # Try last two words (e.g., "Temperature Transmitter", "Flow Meter")
+        last_two = " ".join(words[-2:])
+        if last_two not in fallback_types and last_two != product_type:
+            fallback_types.append(last_two)
+    
+    # Log fallback attempts
+    if fallback_types:
+        logger.info(f"[FETCH] Trying {len(fallback_types)} fallback types for '{product_type}': {fallback_types}")
+    
+    # Try each fallback type
+    for fallback in fallback_types:
+        logger.info(f"[FETCH] Trying fallback: '{fallback}'")
+        azure_image = get_generic_image_from_azure(fallback)
+        if azure_image:
+            logger.info(f"[FETCH] ✓ Using cached generic image from Azure Blob for '{fallback}' (fallback from '{product_type}')")
+            backend_url = f"/api/images/{azure_image.get('azure_blob_path', '')}"
+
+            return {
+                'url': backend_url,
+                'product_type': product_type,  # Keep original product type in response
+                'source': azure_image.get('source', 'gemini_imagen'),
+                'cached': True,
+                'generation_method': azure_image.get('generation_method', 'llm'),
+                'fallback_used': fallback  # Indicate which fallback was used
+            }
+
+    # Step 1.6: Category-based fallback (last resort before LLM)
+    # Map product types to generic categories that are likely cached
+    CATEGORY_MAPPINGS = {
+        # Transmitters
+        'transmitter': ['Transmitter', 'Pressure Transmitter', 'Temperature Transmitter', 'Flow Transmitter'],
+        'sensor': ['Sensor', 'Temperature Sensor', 'Pressure Sensor'],
+        'transducer': ['Transducer', 'Pressure Transducer'],
+        # Valves
+        'valve': ['Valve', 'Control Valve', 'Ball Valve', 'Gate Valve'],
+        'actuator': ['Actuator', 'Pneumatic Actuator', 'Electric Actuator'],
+        # Meters
+        'meter': ['Meter', 'Flow Meter', 'Level Meter'],
+        'gauge': ['Gauge', 'Pressure Gauge', 'Temperature Gauge'],
+        # Accessories
+        'cable': ['Cable', 'Instrument Cable', 'Power Cable'],
+        'fitting': ['Fitting', 'Pipe Fitting', 'Compression Fitting'],
+        'bracket': ['Bracket', 'Mounting Bracket'],
+        'junction': ['Junction Box'],
+        'enclosure': ['Enclosure', 'Instrument Enclosure'],
+        # Electrical
+        'switch': ['Switch', 'Pressure Switch', 'Level Switch'],
+        'relay': ['Relay'],
+        'barrier': ['Barrier', 'Intrinsic Safety Barrier'],
+        # Motors & Drives
+        'motor': ['Motor', 'Electric Motor'],
+        'drive': ['Drive', 'Variable Frequency Drive'],
+        'pump': ['Pump'],
+        # General
+        'indicator': ['Indicator', 'Level Indicator'],
+        'controller': ['Controller', 'PID Controller'],
+        'recorder': ['Recorder', 'Chart Recorder'],
+        'analyzer': ['Analyzer', 'Gas Analyzer'],
+    }
+    
+    # Find category match
+    product_lower = product_type.lower()
+    category_fallbacks = []
+    
+    for category, generic_types in CATEGORY_MAPPINGS.items():
+        if category in product_lower:
+            category_fallbacks.extend(generic_types)
+    
+    # Remove duplicates and already-tried types
+    category_fallbacks = [c for c in category_fallbacks if c not in fallback_types and c.lower() != product_lower]
+    
+    if category_fallbacks:
+        logger.info(f"[FETCH] Trying {len(category_fallbacks)} category fallbacks for '{product_type}': {category_fallbacks}")
+        
+        for category_fallback in category_fallbacks:
+            azure_image = get_generic_image_from_azure(category_fallback)
+            if azure_image:
+                logger.info(f"[FETCH] ✓ Category fallback found: '{category_fallback}' for '{product_type}'")
+                backend_url = f"/api/images/{azure_image.get('azure_blob_path', '')}"
+
+                return {
+                    'url': backend_url,
+                    'product_type': product_type,
+                    'source': azure_image.get('source', 'gemini_imagen'),
+                    'cached': True,
+                    'generation_method': azure_image.get('generation_method', 'llm'),
+                    'fallback_used': category_fallback,
+                    'fallback_type': 'category'
+                }
+
 
     # Step 2: Check if generation is already in-progress for this product type
     with _pending_lock:
@@ -457,3 +887,81 @@ def fetch_generic_product_image(product_type: str) -> Optional[Dict[str, Any]]:
     logger.error(f"[FETCH] Failed to retrieve/generate image for '{product_type}'")
     return None
 
+
+def fetch_generic_product_image_fast(product_type: str) -> Dict[str, Any]:
+    """
+    Fetch generic product image with FAST-FAIL behavior.
+    
+    Same as fetch_generic_product_image, but returns immediately if:
+    - LLM generation is needed AND rate-limited
+    
+    Returns a special response indicating to use a placeholder.
+    
+    Returns:
+        {
+            'success': True/False,
+            'url': '/api/images/...' or None,
+            'use_placeholder': True if should use placeholder,
+            'reason': 'cached' | 'generated' | 'rate_limited' | 'failed'
+        }
+    """
+    logger.info(f"[FETCH_FAST] Fast-fetching image for: {product_type}")
+    
+    # First, try the normal cache-based lookup (all fallbacks)
+    # This part is fast - only checks Azure Cache
+    normalized_type = product_type.strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+    
+    # Step 1: Exact match
+    azure_image = get_generic_image_from_azure(product_type)
+    if azure_image:
+        logger.info(f"[FETCH_FAST] ✓ Cache hit for '{product_type}'")
+        return {
+            'success': True,
+            'url': f"/api/images/{azure_image.get('azure_blob_path', '')}",
+            'product_type': product_type,
+            'source': 'cache',
+            'use_placeholder': False,
+            'reason': 'cached'
+        }
+    
+    # Step 2: Try fallback cache lookup (fast - no LLM)
+    fallback_result = _try_fallback_cache_lookup(product_type)
+    if fallback_result:
+        logger.info(f"[FETCH_FAST] ✓ Fallback cache hit for '{product_type}'")
+        fallback_result['success'] = True
+        fallback_result['use_placeholder'] = False
+        fallback_result['reason'] = 'cached_fallback'
+        return fallback_result
+    
+    # Step 3: No cache hit - try fast LLM generation (no retry on 429)
+    logger.info(f"[FETCH_FAST] Cache miss for '{product_type}', trying fast LLM generation...")
+    
+    generated_image_data = _generate_image_with_llm_fast(product_type)
+    
+    if generated_image_data:
+        # Cache it
+        cache_success = cache_generic_image_to_azure(product_type, generated_image_data)
+        
+        if cache_success:
+            azure_image = get_generic_image_from_azure(product_type)
+            if azure_image:
+                logger.info(f"[FETCH_FAST] ✓ Generated and cached image for '{product_type}'")
+                return {
+                    'success': True,
+                    'url': f"/api/images/{azure_image.get('azure_blob_path', '')}",
+                    'product_type': product_type,
+                    'source': 'gemini_imagen',
+                    'use_placeholder': False,
+                    'reason': 'generated'
+                }
+    
+    # Step 4: LLM generation failed (likely rate-limited)
+    logger.warning(f"[FETCH_FAST] ✗ Cannot generate image for '{product_type}' - use placeholder")
+    return {
+        'success': False,
+        'url': None,
+        'product_type': product_type,
+        'source': None,
+        'use_placeholder': True,
+        'reason': 'rate_limited'
+    }

@@ -861,6 +861,153 @@ def get_generic_image(product_type):
         }), 500
 
 
+@app.route('/api/generic_image_fast/<product_type>', methods=['GET'])
+@login_required
+def get_generic_image_fast(product_type):
+    """
+    Fetch generic product type image with FAST-FAIL behavior.
+    
+    Unlike the regular endpoint, this returns IMMEDIATELY if:
+    - Cache is empty AND LLM is rate-limited
+    
+    Returns a 'use_placeholder' flag so the frontend can show a placeholder.
+    
+    Response:
+        {
+            "success": true/false,
+            "image": { "url": "...", ... } or null,
+            "use_placeholder": true/false,
+            "reason": "cached" | "generated" | "rate_limited"
+        }
+    """
+    try:
+        from generic_image_utils import fetch_generic_product_image_fast
+        import urllib.parse
+        
+        decoded_product_type = urllib.parse.unquote(product_type)
+        logging.info(f"[API_FAST] Fast image request: {decoded_product_type}")
+        
+        result = fetch_generic_product_image_fast(decoded_product_type)
+        
+        if result.get('success'):
+            logging.info(f"[API_FAST] ✓ Image found: {result.get('reason')}")
+            return jsonify({
+                "success": True,
+                "image": result,
+                "product_type": decoded_product_type,
+                "use_placeholder": False,
+                "reason": result.get('reason', 'cached')
+            }), 200
+        else:
+            logging.warning(f"[API_FAST] ✗ Using placeholder: {result.get('reason')}")
+            return jsonify({
+                "success": False,
+                "image": None,
+                "product_type": decoded_product_type,
+                "use_placeholder": True,
+                "reason": result.get('reason', 'rate_limited')
+            }), 200  # Return 200 with use_placeholder=True
+            
+    except Exception as e:
+        logging.exception(f"[API_FAST] Error: {e}")
+        return jsonify({
+            "success": False,
+            "image": None,
+            "product_type": product_type,
+            "use_placeholder": True,
+            "reason": "error",
+            "error": str(e)
+        }), 200  # Return 200 so frontend doesn't show error
+
+
+@app.route('/api/generic_images/batch', methods=['POST'])
+@login_required
+def get_generic_images_batch():
+    """
+    Fetch generic product type images for MULTIPLE product types IN PARALLEL.
+    
+    PARALLELIZATION STRATEGY:
+    - Phase 1: Check Azure cache for ALL product types simultaneously (fast)
+    - Phase 2: For cache misses, generate with LLM (sequential to respect rate limits)
+    
+    Request Body:
+        {
+            "product_types": ["Pressure Transmitter", "Flow Meter", ...]
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "images": {
+                "Pressure Transmitter": {...image_result...},
+                "Flow Meter": {...image_result...}
+            },
+            "cache_hits": 5,
+            "cache_misses": 2,
+            "processing_time_ms": 1234
+        }
+    """
+    try:
+        from generic_image_utils import fetch_generic_images_batch
+        import time
+        
+        start_time = time.time()
+        
+        data = request.get_json()
+        if not data or 'product_types' not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing 'product_types' in request body"
+            }), 400
+        
+        product_types = data.get('product_types', [])
+        if not isinstance(product_types, list):
+            return jsonify({
+                "success": False,
+                "error": "'product_types' must be a list"
+            }), 400
+        
+        # Deduplicate and clean
+        product_types = list(set([pt.strip() for pt in product_types if pt and isinstance(pt, str)]))
+        
+        if not product_types:
+            return jsonify({
+                "success": True,
+                "images": {},
+                "cache_hits": 0,
+                "cache_misses": 0,
+                "processing_time_ms": 0
+            }), 200
+        
+        logging.info(f"[API_BATCH] Starting batch fetch for {len(product_types)} product types...")
+        
+        # Fetch all images in parallel
+        results = fetch_generic_images_batch(product_types)
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        # Count hits/misses
+        cache_hits = sum(1 for r in results.values() if r and r.get('cached'))
+        cache_misses = len(product_types) - cache_hits
+        
+        logging.info(f"[API_BATCH] Completed: {cache_hits} hits, {cache_misses} misses in {processing_time}ms")
+        
+        return jsonify({
+            "success": True,
+            "images": results,
+            "cache_hits": cache_hits,
+            "cache_misses": cache_misses,
+            "total_requested": len(product_types),
+            "processing_time_ms": processing_time
+        }), 200
+        
+    except Exception as e:
+        logging.exception(f"[API_BATCH] Error in batch image fetch: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 # =========================================================================
 # === FILE UPLOAD AND TEXT EXTRACTION ENDPOINT ===
 # =========================================================================
@@ -4849,13 +4996,28 @@ def api_get_all_field_descriptions():
         
         logging.info(f"[BatchFieldDescription] Processing {len(fields)} fields for {product_type}")
         
-        # Import the default value lookup function
+        # Import template specifications for actual descriptions
+        template_descriptions = {}
         try:
-            from agentic.deep_agent.schema_field_extractor import get_default_value_for_field, extract_standards_from_value
+            from agentic.deep_agent.phase3_specification_templates import get_all_specs_for_product_type
+            template_specs = get_all_specs_for_product_type(product_type)
+            if template_specs:
+                for spec_key, spec_def in template_specs.items():
+                    template_descriptions[spec_key] = spec_def.description
+                logging.info(f"[BatchFieldDescription] Loaded {len(template_descriptions)} template descriptions")
         except ImportError as e:
-            logging.warning(f"[BatchFieldDescription] Could not import schema_field_extractor: {e}")
-            get_default_value_for_field = None
-            extract_standards_from_value = lambda x: []
+            logging.warning(f"[BatchFieldDescription] Could not import templates: {e}")
+        
+        def prettify_field_name(field_name: str) -> str:
+            """Convert field_name or fieldName to human-readable description"""
+            import re
+            # Handle camelCase: split on capital letters
+            words = re.sub(r'([a-z])([A-Z])', r'\1 \2', field_name)
+            # Handle snake_case: replace underscores with spaces
+            words = words.replace('_', ' ').replace('-', ' ')
+            # Capitalize first letter of each word
+            words = ' '.join(word.capitalize() for word in words.split())
+            return f"Specification for {words}"
         
         field_values = {}
         fields_populated = 0
@@ -4865,28 +5027,31 @@ def api_get_all_field_descriptions():
             field_parts = field_path.split(".")
             field_name = field_parts[-2] if len(field_parts) >= 2 and field_parts[-1] in ["value", "source", "confidence", "standards_referenced"] else field_parts[-1]
             
-            # Try to get default value
-            value = None
+            # Try to get description from templates first
+            description = None
             source = "not_found"
-            standards_refs = []
             
-            if get_default_value_for_field:
-                try:
-                    value = get_default_value_for_field(product_type, field_name)
-                    if value:
-                        source = "standards_specifications"
-                        fields_populated += 1
-                        # Extract standards references from the value
-                        standards_refs = extract_standards_from_value(value) if value else []
-                except Exception as e:
-                    logging.debug(f"[BatchFieldDescription] Lookup failed for {field_name}: {e}")
+            # Check template descriptions by field name
+            if field_name in template_descriptions:
+                description = template_descriptions[field_name]
+                source = "template_specifications"
+                fields_populated += 1
+            elif field_path in template_descriptions:
+                description = template_descriptions[field_path]
+                source = "template_specifications"
+                fields_populated += 1
+            else:
+                # Generate a human-readable description from the field name
+                description = prettify_field_name(field_name)
+                source = "generated"
+                fields_populated += 1
             
             field_values[field_path] = {
-                "value": value or "",
+                "value": description or "",
                 "source": source,
                 "field_name": field_name,
-                "confidence": 0.9 if value else 0.0,
-                "standards_referenced": standards_refs
+                "confidence": 0.9 if source == "template_specifications" else 0.5,
+                "standards_referenced": []
             }
         
         logging.info(f"[BatchFieldDescription] Completed: {fields_populated}/{len(fields)} fields populated")
