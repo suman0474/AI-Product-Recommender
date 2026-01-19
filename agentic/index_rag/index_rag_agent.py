@@ -301,9 +301,14 @@ class IndexRAGAgent:
             logger.info("[IndexRAGAgent] Stage 3: Parallel Indexing")
             from tools.parallel_indexer import run_parallel_indexing
             
+            # Extract product types and vendors from metadata filter result
+            detected_product_types = metadata_result.get("product_types", [])
+            filtered_vendors = metadata_result.get("vendors", [])
+            
             index_result = run_parallel_indexing(
                 query=query,
-                metadata_filter_result=metadata_result,
+                product_type=detected_product_types[0] if detected_product_types else product_type,
+                vendors=filtered_vendors if filtered_vendors else None,
                 top_k=top_k,
                 enable_web_search=enable_web_search
             )

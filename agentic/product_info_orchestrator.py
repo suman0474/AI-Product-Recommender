@@ -33,11 +33,18 @@ def query_index_rag(query: str, session_id: str) -> Dict[str, Any]:
             session_id=session_id
         )
         
+        # Extract answer from output.summary (the workflow returns final_response)
+        output = result.get("output", {})
+        answer = output.get("summary", "") or result.get("response", "")
+        
+        # Check if we found any products
+        found_in_database = result.get("success", False) and bool(output.get("recommended_products", []))
+        
         return {
             "success": True,
             "source": "index_rag",
-            "answer": result.get("response", ""),
-            "found_in_database": result.get("found_in_database", False),
+            "answer": answer,
+            "found_in_database": found_in_database,
             "data": result
         }
     except ImportError:
@@ -58,11 +65,15 @@ def query_standards_rag(query: str, session_id: str) -> Dict[str, Any]:
             session_id=session_id
         )
         
+        # Extract answer from final_response (the workflow returns full state)
+        final_response = result.get("final_response", {})
+        answer = final_response.get("answer", "") or result.get("answer", "")
+        
         return {
             "success": True,
             "source": "standards_rag",
-            "answer": result.get("response", ""),
-            "standards_cited": result.get("standards_cited", []),
+            "answer": answer,
+            "standards_cited": final_response.get("citations", []),
             "data": result
         }
     except ImportError:
@@ -188,7 +199,7 @@ def query_sources_parallel(
             future = _executor.submit(source_funcs[source], query, session_id)
             futures[future] = source
     
-    for future in as_completed(futures, timeout=30):
+    for future in as_completed(futures, timeout=120):  # Increased timeout for LLM retries
         source = futures[future]
         try:
             result = future.result()
@@ -229,36 +240,95 @@ def merge_results(
     
     answer_parts = []
     sources_used = []
+    primary_has_incomplete_answer = False
+    
+    logger.info(f"[ORCHESTRATOR] Merging results from {len(results)} sources")
+    
+    # Patterns indicating the source doesn't have the full answer
+    INCOMPLETE_PATTERNS = [
+        "i don't have",
+        "i do not have",
+        "not available in",
+        "no information about",
+        "cannot find",
+        "no specific information",
+        "unable to find"
+    ]
     
     # Process primary source first
     primary_key = primary_source.value
     if primary_key in results and results[primary_key].get("success"):
         primary_result = results[primary_key]
-        answer_parts.append(primary_result.get("answer", ""))
-        sources_used.append(primary_key)
-        merged["found_in_database"] = primary_result.get("found_in_database", False)
+        primary_answer = primary_result.get("answer", "").strip()
+        
+        logger.info(f"[ORCHESTRATOR] Primary source '{primary_key}' answer length: {len(primary_answer)}")
+        
+        # Check if primary answer indicates incomplete information
+        if primary_answer:
+            answer_lower = primary_answer.lower()
+            primary_has_incomplete_answer = any(pattern in answer_lower for pattern in INCOMPLETE_PATTERNS)
+            
+            if primary_has_incomplete_answer:
+                logger.info(f"[ORCHESTRATOR] Primary source '{primary_key}' has incomplete answer, will prefer LLM")
+            
+            answer_parts.append(primary_answer)
+            sources_used.append(primary_key)
+            merged["found_in_database"] = primary_result.get("found_in_database", False)
+        else:
+            logger.warning(f"[ORCHESTRATOR] Primary source '{primary_key}' returned empty answer")
+            primary_has_incomplete_answer = True
+            sources_used.append(primary_key)  # Still record as used
         merged["metadata"][primary_key] = primary_result.get("data", {})
+    else:
+        logger.warning(f"[ORCHESTRATOR] Primary source '{primary_key}' not found or failed")
+        primary_has_incomplete_answer = True
+        if primary_key in results:
+            logger.warning(f"[ORCHESTRATOR]   Error: {results[primary_key].get('error', 'Unknown')}")
     
     # Add supplementary information from other sources
+    llm_answer = None
     for source_key, result in results.items():
         if source_key == primary_key:
             continue
-        if result.get("success") and result.get("answer"):
-            # Add as supplementary info
-            sources_used.append(source_key)
+        if result.get("success"):
+            supp_answer = result.get("answer", "").strip()
+            if supp_answer:
+                if source_key == "llm":
+                    llm_answer = supp_answer
+                    logger.info(f"[ORCHESTRATOR] LLM answer available, length: {len(supp_answer)}")
+                else:
+                    answer_parts.append(supp_answer)
+                    sources_used.append(source_key)
+                    logger.info(f"[ORCHESTRATOR] Supplementary source '{source_key}' answer length: {len(supp_answer)}")
             merged["metadata"][source_key] = result.get("data", {})
+    
+    # If primary has incomplete answer and LLM has a full answer, prefer LLM
+    if primary_has_incomplete_answer and llm_answer:
+        # Replace the primary answer with LLM answer, but keep citations from primary
+        logger.info(f"[ORCHESTRATOR] Using LLM answer as primary due to incomplete RAG answer")
+        answer_parts = [llm_answer]  # Replace with LLM answer
+        sources_used.append("llm")
+    elif llm_answer and not primary_has_incomplete_answer:
+        # Add LLM as supplementary only if it provides additional value
+        # Check if LLM adds significantly different content
+        if len(llm_answer) > 100:  # Only add if substantial
+            answer_parts.append(f"\n\n**Additional Information:**\n{llm_answer}")
+            sources_used.append("llm")
+            logger.info(f"[ORCHESTRATOR] Added LLM as supplementary information")
     
     # Build final answer
     if answer_parts:
         merged["answer"] = "\n\n".join(answer_parts)
         merged["success"] = True
         merged["source"] = "database" if merged["found_in_database"] else "llm"
+        logger.info(f"[ORCHESTRATOR] Merged {len(answer_parts)} answer(s), total length: {len(merged['answer'])}")
     else:
         # No successful results - use first error or default message
         merged["answer"] = "I couldn't find specific information about your query."
-        for result in results.values():
+        logger.warning("[ORCHESTRATOR] No answers found from any source")
+        for source_key, result in results.items():
             if result.get("error"):
-                logger.warning(f"[ORCHESTRATOR] Source error: {result['error']}")
+                logger.warning(f"[ORCHESTRATOR]   {source_key} error: {result['error']}")
     
     merged["sources_used"] = sources_used
     
@@ -306,9 +376,18 @@ def run_product_info_query(
     else:
         sources = [primary_source]
     
-    # Add LLM fallback if confidence is low
+    # Always add LLM for Knowledge Questions (standards_rag)
+    # This ensures LLM provides complete information when RAG doesn't have it
+    if primary_source == DataSource.STANDARDS_RAG and DataSource.LLM not in sources:
+        sources.append(DataSource.LLM)
+        logger.info(f"[ORCHESTRATOR] Added LLM as parallel source for knowledge question")
+    
+    # Add LLM fallback if confidence is low (for other query types)
     if confidence < 0.5 and DataSource.LLM not in sources:
         sources.append(DataSource.LLM)
+        logger.info(f"[ORCHESTRATOR] Added LLM fallback due to low confidence")
+    
+    logger.info(f"[ORCHESTRATOR] Sources to query: {[s.value for s in sources]}")
     
     # Step 4: Query sources in parallel
     results = query_sources_parallel(resolved_query, sources, session_id)

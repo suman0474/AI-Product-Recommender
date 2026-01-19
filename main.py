@@ -467,6 +467,7 @@ def api_intent():
     # Get current workflow state from session (session-isolated)
     current_step_key = f'current_step_{search_session_id}'
     current_intent_key = f'current_intent_{search_session_id}'
+    
     current_step = session.get(current_step_key, None)
     current_intent = session.get(current_intent_key, None)
     
@@ -481,6 +482,59 @@ def api_intent():
             "message": "Skipping missing mandatory fields. Additional and latest specifications are available."
         }
         return jsonify(response), 200
+    
+    # =========================================================================
+    # USE WorkflowStateMemory FROM IntentClassificationRoutingAgent
+    # This is the SINGLE SOURCE OF TRUTH for workflow state (stored in backend)
+    # =========================================================================
+    from agentic.intent_classification_routing_agent import (
+        get_workflow_memory, 
+        should_exit_workflow,
+        EXIT_PHRASES,
+        GREETING_PHRASES
+    )
+    
+    workflow_memory = get_workflow_memory()
+    
+    # Check if user wants to exit workflow
+    wants_to_exit = should_exit_workflow(user_input)
+    
+    # If user wants to exit, clear workflow state
+    if wants_to_exit:
+        workflow_memory.clear_workflow(search_session_id)
+        logging.info(f"[INTENT_API] Clearing workflow state - user requested exit")
+    
+    # Check WORKFLOW LOCK from backend memory (single source of truth)
+    current_workflow = workflow_memory.get_workflow(search_session_id)
+    
+    if current_workflow and not wants_to_exit:
+        logging.info(f"[INTENT_API] WORKFLOW LOCK: User is in '{current_workflow}' workflow - staying in workflow")
+        
+        # Map workflow to intent
+        workflow_to_intent = {
+            "engenie_chat": "knowledgeQuestion",
+            "productInfo": "knowledgeQuestion", 
+            "index_rag": "knowledgeQuestion",
+            "instrument_identifier": "productRequirements",
+            "solution": "solution"
+        }
+        
+        locked_intent = workflow_to_intent.get(current_workflow, current_workflow)
+        
+        result_json = {
+            "intent": locked_intent,
+            "nextStep": None,
+            "resumeWorkflow": True,
+            "confidence": 1.0,
+            "isSolution": current_workflow == "solution",
+            "extractedInfo": {},
+            "solutionIndicators": [],
+            "workflowLocked": True,
+            "currentWorkflow": current_workflow
+        }
+        
+        logging.info(f"[INTENT_API] Workflow locked response: {result_json}")
+        return jsonify(result_json), 200
 
     try:
         # =====================================================================
@@ -490,7 +544,7 @@ def api_intent():
         logging.info(f"[INTENT_API] Calling classify_intent_tool for input: {user_input[:100]}...")
         
         # Build context from session state
-        context = f"Current step: {current_step or 'None'}, Current intent: {current_intent or 'None'}"
+        context = f"Current step: {current_step or 'None'}, Current intent: {current_intent or 'None'}, Current workflow: {current_workflow or 'None'}"
         
         # Invoke the classify_intent_tool
         tool_result = classify_intent_tool.invoke({
@@ -531,25 +585,47 @@ def api_intent():
         
         mapped_intent = intent_mapping.get(intent, intent)
         
-        # Determine next step based on intent
+        # Determine next step and workflow based on intent
+        suggest_workflow = None  # For suggesting workflows without auto-routing
+        
         if mapped_intent == "greeting":
             next_step = "greeting"
             resume_workflow = False
+            new_workflow = None  # Clear workflow on greeting
         elif mapped_intent == "solution" or is_solution:
             mapped_intent = "solution"
             next_step = "solutionWorkflow"
             resume_workflow = False
             is_solution = True
+            new_workflow = "solution"
         elif mapped_intent == "productRequirements":
             next_step = "initialInput"
             resume_workflow = False
+            new_workflow = "instrument_identifier"
         elif mapped_intent == "knowledgeQuestion":
-            next_step = next_step or None
-            resume_workflow = True
+            # DON'T auto-route to EnGenie Chat - suggest it instead
+            next_step = None
+            resume_workflow = False
+            new_workflow = None  # Don't set workflow yet
+            suggest_workflow = {
+                "name": "EnGenie Chat",
+                "workflow_id": "engenie_chat",
+                "description": "Get answers about products, standards, and industrial topics",
+                "action": "openEnGenieChat"
+            }
+            logging.info(f"[INTENT_API] Suggesting EnGenie Chat workflow instead of auto-routing")
         elif mapped_intent == "workflow":
             resume_workflow = True
+            new_workflow = current_workflow  # Keep current workflow
         else:
             resume_workflow = False
+            new_workflow = None  # Don't auto-set workflow
+            suggest_workflow = {
+                "name": "EnGenie Chat",
+                "workflow_id": "engenie_chat", 
+                "description": "Get answers about products, standards, and industrial topics",
+                "action": "openEnGenieChat"
+            }
         
         # Build response
         result_json = {
@@ -559,25 +635,35 @@ def api_intent():
             "confidence": confidence,
             "isSolution": is_solution,
             "extractedInfo": tool_result.get("extracted_info", {}),
-            "solutionIndicators": tool_result.get("solution_indicators", [])
+            "solutionIndicators": tool_result.get("solution_indicators", []),
+            "currentWorkflow": new_workflow,
+            "suggestWorkflow": suggest_workflow  # Suggestion for UI to display
         }
         
         # Update session based on classification
+        # Use WorkflowStateMemory for workflow state (single source of truth)
         if mapped_intent == "greeting":
             session[f'current_step_{search_session_id}'] = 'greeting'
             session[f'current_intent_{search_session_id}'] = 'greeting'
+            workflow_memory.clear_workflow(search_session_id)  # Clear workflow on greeting
         elif mapped_intent == "solution" or is_solution:
             session[f'current_step_{search_session_id}'] = 'solutionWorkflow'
             session[f'current_intent_{search_session_id}'] = 'solution'
+            workflow_memory.set_workflow(search_session_id, 'solution')
             logging.info("[SOLUTION_ROUTING] Detected solution/engineering challenge - routing to solution workflow")
         elif mapped_intent == "productRequirements":
             session[f'current_step_{search_session_id}'] = 'initialInput'
             session[f'current_intent_{search_session_id}'] = 'productRequirements'
+            workflow_memory.set_workflow(search_session_id, 'instrument_identifier')
+        elif mapped_intent == "knowledgeQuestion":
+            session[f'current_intent_{search_session_id}'] = 'knowledgeQuestion'
+            workflow_memory.set_workflow(search_session_id, 'engenie_chat')
         elif mapped_intent == "workflow" and next_step:
             session[f'current_step_{search_session_id}'] = next_step
             session[f'current_intent_{search_session_id}'] = 'workflow'
         
         logging.info(f"[INTENT_API] Final response: {result_json}")
+        logging.info(f"[INTENT_API] Workflow set to: {workflow_memory.get_workflow(search_session_id)}")
         return jsonify(result_json), 200
 
     except Exception as e:

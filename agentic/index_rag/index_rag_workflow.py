@@ -529,7 +529,8 @@ def get_index_rag_workflow():
 
 
 def run_index_rag_workflow(
-    query: str,
+    query: str = None,
+    question: str = None,  # Alias for 'query' for backward compatibility
     requirements: Dict[str, Any] = None,
     session_id: Optional[str] = None,
     top_k: int = 7,
@@ -542,6 +543,7 @@ def run_index_rag_workflow(
     
     Args:
         query: User's search query
+        question: Alias for query (backward compatibility)
         requirements: Optional structured requirements
         session_id: Optional session ID
         top_k: Max results per stage (default 7)
@@ -550,6 +552,12 @@ def run_index_rag_workflow(
     Returns:
         Final response with structured results
     """
+    # Support both 'query' and 'question' parameter names
+    query = query or question
+    
+    if not query:
+        return {"success": False, "error": "No query provided"}
+    
     logger.info(f"Running Index RAG workflow for: {query[:100]}...")
     
     # Create initial state
