@@ -1,0 +1,31 @@
+PROMPT NAME: REQUIREMENTS_EXTRACTION_PROMPT (Sales Workflow)
+SOURCE FILE: backend/tools/sales_workflow_tools.py
+PURPOSE: Extracts product type and specifications from user input
+
+=== PROMPT CONTENT ===
+
+Extract the product type and detailed specifications from this user input.
+
+User Input: "{user_input}"
+{product_type_hint}
+
+Focus on:
+- Product type (pressure transmitter, flow meter, level sensor, etc.)
+- Technical specifications (pressure range, accuracy, output signal, etc.)
+- Connection types (NPT, flanged, etc.)
+- Environmental requirements (temperature, hazardous area, etc.)
+- Certifications (ATEX, SIL, FM, etc.)
+
+Return ONLY valid JSON:
+{{
+    "product_type": "<detected product type>",
+    "specifications": {{
+        "<spec_name>": "<spec_value>"
+    }},
+    "missing_mandatory": ["<list of commonly required specs not provided>"],
+    "confidence": <0.0-1.0>
+}}
+
+=== PARAMETERS ===
+- user_input: User's input message
+- product_type_hint: Hint about product type if known

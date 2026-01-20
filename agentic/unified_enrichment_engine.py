@@ -195,7 +195,7 @@ class UnifiedEnrichmentEngine:
         if user_input and not user_specs:
             # Parse user input text to extract specs
             try:
-                from agentic.deep_agent.user_specs_extractor import extract_user_specified_specs
+                from agentic.deep_agent.llm_specs_generator import extract_user_specified_specs
                 extracted_from_text = extract_user_specified_specs(user_input, self.product_type)
                 for key, val in extracted_from_text.items():
                     extracted[key] = {
@@ -306,7 +306,7 @@ class UnifiedEnrichmentEngine:
         specs = {}
 
         try:
-            from agentic.deep_agent.phase3_specification_templates import (
+            from agentic.deep_agent.specification_templates import (
                 TemperatureSensorTemplate,
                 PressureTransmitterTemplate,
             )

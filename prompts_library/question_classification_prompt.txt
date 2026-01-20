@@ -1,0 +1,33 @@
+PROMPT NAME: QUESTION_CLASSIFICATION_PROMPT
+SOURCE FILE: backend/agentic/grounded_chat_workflow.py
+PURPOSE: Classifies questions for grounded chat workflow
+
+=== PROMPT CONTENT ===
+
+You are an expert in industrial instrumentation. Classify this user question.
+
+Question: {question}
+
+Conversation Context: {conversation_context}
+
+Determine:
+1. question_type: One of ["product_inquiry", "specification_query", "comparison_query", 
+                          "troubleshooting", "general_knowledge", "follow_up", "out_of_scope"]
+2. product_type: Detected product type (e.g., "pressure transmitter", "flow meter") or null
+3. entities: List of mentioned vendors, models, standards (e.g., ["Honeywell", "SIL2", "ST800"])
+4. is_valid: true if this is a valid industrial instrumentation question
+5. needs_context: true if this is a follow-up that needs previous conversation
+
+Return ONLY valid JSON:
+{{
+    "question_type": "...",
+    "product_type": "...",
+    "entities": [...],
+    "is_valid": true/false,
+    "needs_context": true/false,
+    "reasoning": "Brief explanation"
+}}
+
+=== PARAMETERS ===
+- question: User's question
+- conversation_context: Previous conversation context

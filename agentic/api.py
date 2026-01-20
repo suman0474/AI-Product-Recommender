@@ -1366,24 +1366,80 @@ def compare_from_spec():
 def instrument_identifier():
     """
     Instrument Identifier Endpoint (List Generator)
+
+    ✅ UPDATED: Expects UI-provided thread IDs
+
     Identifies instruments and accessories from requirements and returns a selection list.
+
+    Request:
+        {
+            "message": "I need instruments for crude oil refinery...",
+            "main_thread_id": "main_user123_US_WEST_...",      # ✅ From UI
+            "workflow_thread_id": "instrument_identifier_...",  # ✅ From UI
+            "session_id": "abc-123-def",
+            "zone": "US-WEST"
+        }
+
+    Response includes:
+        {
+            "success": true,
+            "data": {
+                "response": "...",
+                "response_data": {
+                    "items": [...],
+                    "thread_info": {
+                        "main_thread_id": "main_user123_US_WEST_...",
+                        "workflow_thread_id": "instrument_identifier_...",
+                        "zone": "US-WEST"
+                    }
+                }
+            }
+        }
     """
     data = request.get_json()
     if not data:
          return api_response(False, error="No data provided", status_code=400)
-    
+
+    # ✅ EXTRACT THREAD IDS FROM UI REQUEST
+    main_thread_id = data.get('main_thread_id')
+    workflow_thread_id = data.get('workflow_thread_id')
+    zone = data.get('zone', 'DEFAULT')
+    session_id = data.get('session_id') or get_session_id()
+
+    # ✅ VALIDATE THREAD IDS ARE PROVIDED
+    if not main_thread_id or not workflow_thread_id:
+        return api_response(
+            False,
+            error="main_thread_id and workflow_thread_id must be provided by UI",
+            status_code=400
+        )
+
     # Frontend sends 'message', check for it, fallback to 'requirements'
     message = data.get('message') or data.get('requirements')
     if not message:
         return api_response(False, error="Message or requirements is required", status_code=400)
 
-    session_id = data.get('session_id') or get_session_id()
-    
-    # Run the workflow from instrument_identifier_workflow.py
+    # ✅ CREATE INITIAL STATE WITH UI-PROVIDED THREAD IDS
+    initial_state = {
+        'user_input': message,
+        'session_id': session_id,
+        'main_thread_id': main_thread_id,        # ← From UI
+        'workflow_thread_id': workflow_thread_id, # ← From UI
+        'zone': zone,                             # ← From UI
+    }
+
+    # ✅ RUN WORKFLOW WITH UI-PROVIDED THREAD IDS
     result = run_instrument_identifier_workflow(
         user_input=message,
-        session_id=session_id
+        session_id=session_id,
+        main_thread_id=main_thread_id,        # ← Pass UI-provided ID
+        workflow_thread_id=workflow_thread_id, # ← Pass UI-provided ID
+        zone=zone                              # ← Pass zone
     )
+
+    # ✅ INCLUDE THREAD INFO IN RESPONSE
+    if result.get('response_data') and result.get('thread_info'):
+        result['response_data']['thread_info'] = result.get('thread_info')
 
     # Classify response and generate tags
     tags = classify_response(
@@ -1401,22 +1457,27 @@ def instrument_identifier():
 def solution_workflow_endpoint():
     """
     Solution Workflow Endpoint (Complex Engineering Challenges)
-    
+
+    ✅ UPDATED: Expects UI-provided thread IDs
+
     This endpoint handles complex engineering challenges that require multiple
     instruments/accessories as a complete solution (e.g., reactor instrumentation,
     distillation column setup, process unit measurement systems).
-    
+
     The solution workflow:
     1. Analyzes the solution context (industry, process type, parameters)
     2. Identifies ALL required instruments and accessories
     3. Generates sample_input for each item for subsequent product search
-    
+
     Request:
         {
             "message": "Design a temperature measurement system for a chemical reactor...",
-            "session_id": "optional_session_id"
+            "main_thread_id": "main_user123_US_WEST_...",      # ✅ From UI
+            "workflow_thread_id": "solution_...",              # ✅ From UI
+            "session_id": "abc-123-def",
+            "zone": "US-WEST"
         }
-    
+
     Response:
         {
             "success": true,
@@ -1427,7 +1488,12 @@ def solution_workflow_endpoint():
                     "solution_name": "Chemical Reactor Temperature System",
                     "items": [...],
                     "total_items": N,
-                    "awaiting_selection": true
+                    "awaiting_selection": true,
+                    "thread_info": {
+                        "main_thread_id": "main_user123_US_WEST_...",
+                        "workflow_thread_id": "solution_...",
+                        "zone": "US-WEST"
+                    }
                 }
             }
         }
@@ -1435,25 +1501,56 @@ def solution_workflow_endpoint():
     data = request.get_json()
     if not data:
         return api_response(False, error="No data provided", status_code=400)
-    
+
+    # ✅ EXTRACT THREAD IDS FROM UI REQUEST
+    main_thread_id = data.get('main_thread_id')
+    workflow_thread_id = data.get('workflow_thread_id')
+    zone = data.get('zone', 'DEFAULT')
+    session_id = data.get('session_id') or get_session_id()
+
+    # ✅ VALIDATE THREAD IDS ARE PROVIDED
+    if not main_thread_id or not workflow_thread_id:
+        return api_response(
+            False,
+            error="main_thread_id and workflow_thread_id must be provided by UI",
+            status_code=400
+        )
+
     # Get the message/requirements
     message = data.get('message') or data.get('requirements') or data.get('user_input')
     if not message:
         return api_response(False, error="Message or requirements is required", status_code=400)
 
-    session_id = data.get('session_id') or get_session_id()
-    
     # Log solution workflow invocation
     import logging
     logger = logging.getLogger(__name__)
     logger.info(f"[SOLUTION_API] Invoking solution workflow for session: {session_id}")
+    logger.info(f"[SOLUTION_API] Main Thread ID: {main_thread_id}")
+    logger.info(f"[SOLUTION_API] Workflow Thread ID: {workflow_thread_id}")
+    logger.info(f"[SOLUTION_API] Zone: {zone}")
     logger.info(f"[SOLUTION_API] Input preview: {message[:100]}...")
-    
-    # Run the solution workflow
+
+    # ✅ CREATE INITIAL STATE WITH UI-PROVIDED THREAD IDS
+    initial_state = {
+        'user_input': message,
+        'session_id': session_id,
+        'main_thread_id': main_thread_id,        # ← From UI
+        'workflow_thread_id': workflow_thread_id, # ← From UI
+        'zone': zone,                             # ← From UI
+    }
+
+    # ✅ RUN WORKFLOW WITH UI-PROVIDED THREAD IDS
     result = run_solution_workflow(
         user_input=message,
-        session_id=session_id
+        session_id=session_id,
+        main_thread_id=main_thread_id,        # ← Pass UI-provided ID
+        workflow_thread_id=workflow_thread_id, # ← Pass UI-provided ID
+        zone=zone                              # ← Pass zone
     )
+
+    # ✅ INCLUDE THREAD INFO IN RESPONSE
+    if result.get('response_data') and result.get('thread_info'):
+        result['response_data']['thread_info'] = result.get('thread_info')
 
     # Classify response and generate tags
     tags = classify_response(
@@ -1461,7 +1558,7 @@ def solution_workflow_endpoint():
         response_data=result,
         workflow_type='solution'
     )
-    
+
     logger.info(f"[SOLUTION_API] Solution workflow complete, items: {result.get('response_data', {}).get('total_items', 0)}")
 
     return api_response(True, data=result, tags=tags)
@@ -2275,7 +2372,7 @@ def agentic_validate():
         try:
             # Try to get template specifications (60+ specs per product type)
             try:
-                from agentic.deep_agent.phase3_specification_templates import (
+                from agentic.deep_agent.specification_templates import (
                     get_all_specs_for_product_type
                 )
                 template_specs = get_all_specs_for_product_type(product_type)
@@ -2437,6 +2534,8 @@ def product_search():
     """
     Product Search Deep Agentic Workflow
 
+    ✅ UPDATED: Expects UI-provided thread IDs
+
     This endpoint implements a STATEFUL workflow with Deep Agent capabilities:
 
     Flow (handled by DeepAgenticWorkflowOrchestrator):
@@ -2452,16 +2551,24 @@ def product_search():
     - Failure memory and learning from past errors
     - Adaptive prompt optimization
     - Automatic phase progression
+    - UI-managed thread ID system
 
     Request Body:
         {
             "user_input": str,          # Required on first call
             "message": str,             # Alternative to user_input
-            "thread_id": str,           # Required for resuming workflow
+            "main_thread_id": str,      # ✅ Required: Main thread ID from UI
+            "workflow_thread_id": str,  # ✅ Required: Product search sub-thread ID from UI
+            "zone": str,                # ✅ Optional: Geographic zone (US-WEST, etc.)
+            "thread_id": str,           # DEPRECATED: Use workflow_thread_id instead
             "user_decision": str,       # User's choice: "add_fields", "continue", "yes", "no"
             "user_provided_fields": {},  # Fields provided by user
             "product_type": str,        # Optional: Product type hint
-            "session_id": str           # Session tracking ID
+            "session_id": str,          # Session tracking ID
+            "item_number": int,         # Optional: Item number from parent workflow
+            "item_name": str,           # Optional: Item name
+            "item_thread_id": str,      # Optional: Item thread ID
+            "parent_workflow_thread_id": str  # Optional: Parent workflow thread ID
         }
 
     Returns:
@@ -2477,7 +2584,12 @@ def product_search():
                 "missing_fields": list,         # Missing mandatory fields
                 "validation_result": dict,
                 "available_advanced_params": list,
-                "completed": bool               # True if workflow is complete
+                "completed": bool,              # True if workflow is complete
+                "thread_info": {                # ✅ Thread context
+                    "main_thread_id": str,
+                    "workflow_thread_id": str,
+                    "zone": str
+                }
             }
         }
     """
@@ -2489,19 +2601,39 @@ def product_search():
         if not data:
             return api_response(False, error="Request body is required", status_code=400)
 
-        # Extract parameters from request
+        # ✅ EXTRACT THREAD IDS FROM UI REQUEST
+        main_thread_id = data.get('main_thread_id')
+        workflow_thread_id = data.get('workflow_thread_id') or data.get('thread_id')  # Backward compatibility
+        zone = data.get('zone', 'DEFAULT')
+        session_id = data.get('session_id') or data.get('search_session_id')
+
+        # ✅ VALIDATE THREAD IDS ARE PROVIDED
+        if not main_thread_id or not workflow_thread_id:
+            return api_response(
+                False,
+                error="main_thread_id and workflow_thread_id must be provided by UI",
+                status_code=400
+            )
+
+        # Extract other parameters
         user_input = data.get('user_input') or data.get('message', '')
-        thread_id = data.get('thread_id')
         user_decision = data.get('user_decision')
         user_provided_fields = data.get('user_provided_fields', {})
         product_type_hint = data.get('product_type')
-        session_id = data.get('session_id') or data.get('search_session_id')
+
+        # Extract optional product search context
+        item_number = data.get('item_number')
+        item_name = data.get('item_name')
+        item_thread_id = data.get('item_thread_id')
+        parent_workflow_thread_id = data.get('parent_workflow_thread_id')
 
         logger.info(
             f"\n{'='*60}\n"
             f"[PRODUCT_SEARCH] Deep Agentic Workflow Request\n"
+            f"   Main Thread ID: {main_thread_id}\n"  # ✅ LOG
+            f"   Workflow Thread ID: {workflow_thread_id}\n"  # ✅ LOG
+            f"   Zone: {zone}\n"  # ✅ LOG
             f"   Session: {session_id}\n"
-            f"   Thread: {thread_id}\n"
             f"   Decision: {user_decision}\n"
             f"   Input: {user_input[:50] if user_input else 'None'}...\n"
             f"{'='*60}"
@@ -2510,10 +2642,13 @@ def product_search():
         # Get the orchestrator and process the request
         orchestrator = get_deep_agentic_orchestrator()
 
+        # ✅ PASS THREAD IDS TO ORCHESTRATOR
         result = orchestrator.process_request(
             user_input=user_input,
             session_id=session_id,
-            thread_id=thread_id,
+            thread_id=workflow_thread_id,  # This is the product_search sub-thread ID
+            main_thread_id=main_thread_id,  # ✅ ADD
+            zone=zone,  # ✅ ADD
             user_decision=user_decision,
             user_provided_fields=user_provided_fields,
             product_type_hint=product_type_hint
@@ -2526,6 +2661,16 @@ def product_search():
                 error=result.get('error', 'Workflow failed'),
                 status_code=500
             )
+
+        # ✅ INCLUDE THREAD INFO IN RESPONSE
+        if not result.get('thread_info'):
+            result['thread_info'] = {
+                'main_thread_id': main_thread_id,
+                'workflow_thread_id': workflow_thread_id,
+                'zone': zone,
+                'item_thread_id': item_thread_id,
+                'parent_workflow_thread_id': parent_workflow_thread_id
+            }
 
         # Add available_advanced_params for backward compatibility
         if 'discovered_specs' in result:
@@ -3247,6 +3392,402 @@ def test_deep_agent_schema_population():
         import traceback
         traceback.print_exc()
         return api_response(False, error=str(e), status_code=500)
+
+
+# ============================================================================
+# THREAD MANAGEMENT ENDPOINTS (Hierarchical Thread System)
+# ============================================================================
+
+@agentic_bp.route('/threads/create-main', methods=['POST'])
+@login_required
+@handle_errors
+def create_main_thread():
+    """
+    Create Main Thread with Zone Detection
+    ---
+    tags:
+      - Thread Management
+    summary: Create a new main thread with auto-detected or specified zone
+    description: |
+      Creates a new main thread ID for a user session. The zone can be:
+      - Auto-detected from client IP (default)
+      - Explicitly specified in request body
+      - Specified via X-Thread-Zone header
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            user_id:
+              type: string
+              description: User identifier (optional, uses session user_id if not provided)
+            zone:
+              type: string
+              description: Explicit zone override (US-WEST, US-EAST, EU-CENTRAL, etc.)
+    responses:
+      200:
+        description: Main thread created successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                main_thread_id:
+                  type: string
+                zone:
+                  type: string
+                user_id:
+                  type: string
+                created_at:
+                  type: string
+    """
+    from .thread_manager import HierarchicalThreadManager, ThreadZone
+    from utils.zone_detector import resolve_zone, ThreadZone as ZoneEnum
+    from datetime import datetime
+
+    data = request.get_json() or {}
+
+    # Get user_id from request, session, or default
+    user_id = data.get('user_id') or session.get('user_id', 'anonymous')
+
+    # Resolve zone: explicit > header > IP-detected > default
+    explicit_zone = data.get('zone')
+    if explicit_zone:
+        zone = ThreadZone.from_string(explicit_zone)
+    else:
+        zone = resolve_zone(request)
+
+    # Generate main thread ID
+    main_thread_id = HierarchicalThreadManager.generate_main_thread_id(
+        user_id=user_id,
+        zone=zone
+    )
+
+    logger.info(f"[THREAD_API] Created main thread: {main_thread_id} for user {user_id} in zone {zone.value}")
+
+    return api_response(True, data={
+        "main_thread_id": main_thread_id,
+        "zone": zone.value,
+        "user_id": user_id,
+        "created_at": datetime.now().isoformat()
+    })
+
+
+@agentic_bp.route('/threads/<thread_id>/tree', methods=['GET'])
+@login_required
+@handle_errors
+def get_thread_tree(thread_id: str):
+    """
+    Get Thread Tree Structure
+    ---
+    tags:
+      - Thread Management
+    summary: Get the complete thread tree for a main thread
+    description: |
+      Returns the hierarchical tree structure starting from the specified thread ID.
+      Includes all workflow threads and item sub-threads.
+    parameters:
+      - in: path
+        name: thread_id
+        required: true
+        type: string
+        description: Main thread ID or any thread ID in the hierarchy
+    responses:
+      200:
+        description: Thread tree retrieved successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                main_thread_id:
+                  type: string
+                zone:
+                  type: string
+                workflow_threads:
+                  type: array
+                item_threads:
+                  type: array
+    """
+    from .thread_manager import HierarchicalThreadManager
+    from .checkpointing import get_checkpointer
+
+    # Parse thread ID to get hierarchy info
+    info = HierarchicalThreadManager.parse_thread_id(thread_id)
+
+    # Get main thread ID (either the thread itself or its parent)
+    main_thread_id = info.main_thread_id or thread_id
+
+    # Try to get tree from Azure Blob Storage if available
+    try:
+        from .azure_checkpointing import get_azure_blob_checkpointer
+        checkpointer = get_azure_blob_checkpointer()
+        tree = checkpointer.get_thread_tree(main_thread_id)
+
+        return api_response(True, data=tree)
+    except Exception as e:
+        logger.warning(f"[THREAD_API] Azure checkpointer not available: {e}")
+
+        # Return basic parsed info
+        return api_response(True, data={
+            "main_thread_id": main_thread_id,
+            "zone": info.zone,
+            "parsed_info": info.to_dict(),
+            "note": "Full tree not available (Azure Blob Storage not configured)"
+        })
+
+
+@agentic_bp.route('/threads/<item_thread_id>/state', methods=['GET'])
+@login_required
+@handle_errors
+def get_item_state(item_thread_id: str):
+    """
+    Get Item State
+    ---
+    tags:
+      - Thread Management
+    summary: Get full persistent state for an item sub-thread
+    description: |
+      Retrieves the complete state for an identified instrument or accessory item.
+      Includes specifications, search results, and status.
+    parameters:
+      - in: path
+        name: item_thread_id
+        required: true
+        type: string
+        description: Item thread ID
+      - in: query
+        name: zone
+        type: string
+        description: Zone for storage lookup (auto-detected if not provided)
+    responses:
+      200:
+        description: Item state retrieved successfully
+      404:
+        description: Item state not found
+    """
+    from .thread_manager import HierarchicalThreadManager
+    from utils.zone_detector import resolve_zone
+
+    # Get zone from query param or detect
+    zone = request.args.get('zone')
+    if not zone:
+        zone = resolve_zone(request).value
+
+    # Try to get state from Azure Blob Storage
+    try:
+        from .azure_checkpointing import get_azure_blob_checkpointer
+        checkpointer = get_azure_blob_checkpointer()
+        state = checkpointer.get_item_state(item_thread_id, zone)
+
+        if state:
+            return api_response(True, data=state)
+        else:
+            return api_response(False, error="Item state not found", status_code=404)
+    except Exception as e:
+        logger.error(f"[THREAD_API] Failed to get item state: {e}")
+        return api_response(False, error=f"Failed to retrieve item state: {str(e)}", status_code=500)
+
+
+@agentic_bp.route('/threads/<item_thread_id>/state', methods=['PUT'])
+@login_required
+@handle_errors
+def update_item_state(item_thread_id: str):
+    """
+    Update Item State
+    ---
+    tags:
+      - Thread Management
+    summary: Update specific fields in an item's state
+    description: |
+      Updates the persistent state for an item sub-thread.
+      Only provided fields are updated; others are preserved.
+    parameters:
+      - in: path
+        name: item_thread_id
+        required: true
+        type: string
+        description: Item thread ID
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            zone:
+              type: string
+              description: Zone for storage
+            status:
+              type: string
+              description: New status (identified, selected, searched, completed)
+            search_results:
+              type: array
+              description: Product search results
+            selected_product:
+              type: object
+              description: User-selected product
+    responses:
+      200:
+        description: Item state updated successfully
+      404:
+        description: Item state not found
+    """
+    from utils.zone_detector import resolve_zone
+
+    data = request.get_json() or {}
+
+    # Get zone from request or detect
+    zone = data.pop('zone', None)
+    if not zone:
+        zone = resolve_zone(request).value
+
+    # Try to update state in Azure Blob Storage
+    try:
+        from .azure_checkpointing import get_azure_blob_checkpointer
+        checkpointer = get_azure_blob_checkpointer()
+
+        success = checkpointer.update_item_state(item_thread_id, zone, data)
+
+        if success:
+            # Return updated state
+            updated_state = checkpointer.get_item_state(item_thread_id, zone)
+            return api_response(True, data=updated_state)
+        else:
+            return api_response(False, error="Item state not found", status_code=404)
+    except Exception as e:
+        logger.error(f"[THREAD_API] Failed to update item state: {e}")
+        return api_response(False, error=f"Failed to update item state: {str(e)}", status_code=500)
+
+
+@agentic_bp.route('/threads/user/<user_id>', methods=['GET'])
+@login_required
+@handle_errors
+def get_user_threads(user_id: str):
+    """
+    List User's Thread Trees
+    ---
+    tags:
+      - Thread Management
+    summary: Get all thread trees for a user
+    description: |
+      Returns all main thread trees associated with a user.
+      Can be filtered by zone.
+    parameters:
+      - in: path
+        name: user_id
+        required: true
+        type: string
+        description: User identifier
+      - in: query
+        name: zone
+        type: string
+        description: Optional zone filter
+    responses:
+      200:
+        description: User threads retrieved successfully
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                threads:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      thread_id:
+                        type: string
+                      zone:
+                        type: string
+                      workflow_type:
+                        type: string
+                      created_at:
+                        type: string
+    """
+    zone = request.args.get('zone')
+
+    try:
+        from .azure_checkpointing import get_azure_blob_checkpointer
+        checkpointer = get_azure_blob_checkpointer()
+        threads = checkpointer.get_user_threads(user_id, zone)
+
+        return api_response(True, data={
+            "user_id": user_id,
+            "zone_filter": zone,
+            "threads": threads,
+            "total_count": len(threads)
+        })
+    except Exception as e:
+        logger.warning(f"[THREAD_API] Azure checkpointer not available: {e}")
+        return api_response(True, data={
+            "user_id": user_id,
+            "threads": [],
+            "note": "Thread history not available (Azure Blob Storage not configured)"
+        })
+
+
+@agentic_bp.route('/threads/cleanup', methods=['POST'])
+@login_required
+@handle_errors
+def cleanup_expired_threads():
+    """
+    Cleanup Expired Threads
+    ---
+    tags:
+      - Thread Management
+    summary: Clean up expired checkpoints based on TTL
+    description: |
+      Removes thread checkpoints older than the configured TTL.
+      Can be run periodically or manually.
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            zone:
+              type: string
+              description: Optional zone to clean (cleans all if not provided)
+    responses:
+      200:
+        description: Cleanup completed
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            data:
+              type: object
+              properties:
+                removed_count:
+                  type: integer
+                cutoff_time:
+                  type: string
+    """
+    data = request.get_json() or {}
+    zone = data.get('zone')
+
+    try:
+        from .azure_checkpointing import get_azure_blob_checkpointer
+        checkpointer = get_azure_blob_checkpointer()
+        result = checkpointer.cleanup_expired_checkpoints(zone)
+
+        return api_response(result.get("success", True), data=result)
+    except Exception as e:
+        logger.error(f"[THREAD_API] Cleanup failed: {e}")
+        return api_response(False, error=f"Cleanup failed: {str(e)}", status_code=500)
 
 
 # ============================================================================

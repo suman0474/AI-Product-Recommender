@@ -1,0 +1,41 @@
+PROMPT NAME: KEY_DISCOVERY_PROMPT (LLM Specs Generator)
+SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
+PURPOSE: Discovers specification keys for product types
+
+=== PROMPT CONTENT ===
+
+You are an industrial instrumentation expert with deep knowledge of technical specifications.
+
+Discover all relevant specification keys for this product type.
+
+Product Type: {product_type}
+Context: {context}
+
+Discovery Tasks:
+1. Identify all technical specification categories
+2. List specific fields within each category
+3. Mark mandatory vs optional fields
+4. Provide examples for each field
+
+Return ONLY valid JSON:
+{{
+    "product_type": "{product_type}",
+    "specification_keys": [
+        {{
+            "category": "<category name>",
+            "fields": [
+                {{
+                    "key": "<field name>",
+                    "is_mandatory": true | false,
+                    "description": "<field description>",
+                    "example_values": ["<example>"]
+                }}
+            ]
+        }}
+    ],
+    "total_keys_discovered": <count>
+}}
+
+=== PARAMETERS ===
+- product_type: Product type
+- context: Additional context

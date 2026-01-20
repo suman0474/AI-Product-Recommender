@@ -1,18 +1,24 @@
 # agentic/deep_agent/llm_specs_generator.py
 # =============================================================================
-# LLM SPECIFICATION GENERATOR
+# LLM SPECIFICATION GENERATOR WITH DYNAMIC KEY DISCOVERY
 # =============================================================================
 #
 # Generates all possible specifications for a product type using LLM.
 # These specs fill in gaps not covered by user-specified or standards specs.
 #
-# ITERATIVE GENERATION: If specs count < MIN_LLM_SPECS_COUNT (30), the generator
-# will iterate and request additional specs until the minimum is reached.
+# FEATURES:
+# 1. DYNAMIC KEY DISCOVERY: Uses reasoning LLM to discover relevant spec keys
+#    for unknown/novel product types (replaces hardcoded schema fields)
+# 2. ITERATIVE GENERATION: If specs count < MIN_LLM_SPECS_COUNT (30), the generator
+#    will iterate and request additional specs until the minimum is reached.
+# 3. PARALLEL PROCESSING: Uses multiple workers for faster spec generation.
 #
 # =============================================================================
 
 import logging
 import os
+import time
+import threading
 from typing import Dict, Any, List, Optional, Set, Tuple
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,8 +32,51 @@ from llm_fallback import create_llm_with_fallback
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Model for LLM spec generation
+# =============================================================================
+# MODEL CONFIGURATION
+# =============================================================================
+
+# Model for standard LLM spec generation (fast)
 LLM_SPECS_MODEL = "gemini-2.5-flash"
+
+# Model for deep reasoning / key discovery (more capable)
+REASONING_MODEL = "gemini-2.5-pro"
+
+# Singleton instances for efficiency
+_specs_llm = None
+_reasoning_llm = None
+_llm_lock = threading.Lock()
+
+
+def _get_specs_llm():
+    """Get singleton specs generation LLM (Gemini Flash for speed)."""
+    global _specs_llm
+    if _specs_llm is None:
+        with _llm_lock:
+            if _specs_llm is None:
+                logger.info("[LLM_SPECS] Initializing specs LLM (Gemini Flash)...")
+                _specs_llm = create_llm_with_fallback(
+                    model=LLM_SPECS_MODEL,
+                    temperature=0.3,
+                    google_api_key=os.getenv("GOOGLE_API_KEY")
+                )
+    return _specs_llm
+
+
+def _get_reasoning_llm():
+    """Get singleton reasoning LLM (Gemini Pro for deep thinking)."""
+    global _reasoning_llm
+    if _reasoning_llm is None:
+        with _llm_lock:
+            if _reasoning_llm is None:
+                logger.info("[LLM_SPECS] Initializing reasoning LLM (Gemini Pro)...")
+                _reasoning_llm = create_llm_with_fallback(
+                    model=REASONING_MODEL,
+                    temperature=0.2,  # Low for precise reasoning
+                    google_api_key=os.getenv("GOOGLE_API_KEY")
+                )
+    return _reasoning_llm
+
 
 # =============================================================================
 # ITERATIVE GENERATION CONFIGURATION
@@ -51,6 +100,161 @@ MAX_PARALLEL_WORKERS = 4
 
 # Whether to use parallel processing for iterations
 ENABLE_PARALLEL_ITERATIONS = True
+
+# Whether to enable dynamic key discovery for unknown product types
+ENABLE_DYNAMIC_DISCOVERY = True
+
+
+# =============================================================================
+# DYNAMIC KEY DISCOVERY PROMPT (for unknown product types)
+# =============================================================================
+
+KEY_DISCOVERY_PROMPT = """You are an industrial instrumentation expert with deep knowledge of technical specifications.
+
+TASK: Generate a COMPREHENSIVE list of 60+ relevant technical specification keys for this product type.
+The goal is to have as many specification options as possible to create rich product databases.
+
+PRODUCT TYPE: {product_type}
+CATEGORY: {category}
+CONTEXT: {context}
+
+=== MANDATORY MINIMUM: 60+ SPECIFICATION KEYS ===
+
+You MUST generate AT LEAST 60 distinct specification keys. This is not optional.
+- If you generate fewer than 60 keys, your response is incomplete.
+- Aim for 70-100+ keys for maximum database richness.
+- Include both common and specialized specs.
+
+=== DEEP REASONING INSTRUCTIONS ===
+
+Think step by step:
+1. What IS this product? (Function, purpose, typical applications)
+2. What technical parameters define this product's PERFORMANCE? (accuracy, range, response, etc.)
+3. What safety/compliance specs are REQUIRED? (certifications, standards, approvals)
+4. What physical/mechanical specs MATTER? (size, weight, materials, connections)
+5. What electrical/signal specs are RELEVANT? (voltage, current, protocols, impedance)
+6. What environmental specs APPLY? (temperature, humidity, vibration, pressure)
+7. What material specs AFFECT performance? (wetted materials, seals, coatings, hardness)
+8. What maintenance/calibration specs are NEEDED? (intervals, procedures, warranty)
+
+=== SPECIFICATION CATEGORIES TO COVER ===
+
+PERFORMANCE SPECS (15-20 keys): accuracy, repeatability, linearity, hysteresis, resolution, sensitivity, drift, stability, response_time, bandwidth
+MEASUREMENT SPECS (8-10 keys): measurement_range, span, rangeability, measuring_principle, measurement_units
+ELECTRICAL SPECS (15-20 keys): output_signal, supply_voltage, power_consumption, communication_protocol, isolation_voltage, EMC_compliance
+PHYSICAL SPECS (15-20 keys): process_connection, mounting_type, dimensions, weight, material_housing, material_wetted
+ENVIRONMENTAL SPECS (12-15 keys): temperature_range, humidity_range, protection_rating, vibration_resistance
+SAFETY & COMPLIANCE (10-15 keys): sil_rating, hazardous_area_approval, certifications, standards_compliance
+MAINTENANCE SPECS (10-12 keys): calibration_interval, warranty_period, mtbf, service_life
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON. IMPORTANT: Ensure total key count (mandatory + optional + safety_critical) is AT LEAST 60:
+{{
+    "product_analysis": {{
+        "product_function": "What this product does",
+        "primary_purpose": "Main use case",
+        "typical_applications": ["app1", "app2"]
+    }},
+    "specification_keys": {{
+        "mandatory": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "e.g., ±0.1%, -40 to +85°C"}}
+        ],
+        "optional": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
+        ],
+        "safety_critical": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
+        ]
+    }},
+    "total_keys_generated": 60,
+    "discovery_confidence": 0.0-1.0,
+    "reasoning_notes": "Brief explanation of key selections"
+}}
+"""
+
+
+def discover_specification_keys(
+    product_type: str,
+    category: Optional[str] = None,
+    context: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Use deep reasoning to discover relevant specification keys for a product type.
+    
+    This function uses Gemini Pro for intelligent key discovery, replacing 
+    hardcoded PRODUCT_TYPE_SCHEMA_FIELDS with dynamic discovery that works
+    for ANY product type.
+    
+    Args:
+        product_type: The product type to discover specs for
+        category: Optional category for context
+        context: Optional additional context
+    
+    Returns:
+        Dict containing discovered keys organized by importance:
+            - mandatory_keys: Critical specs that must be specified
+            - optional_keys: Nice-to-have specs
+            - safety_keys: Safety-critical specs
+            - all_keys: Combined list of all keys
+            - product_analysis: Analysis of the product type
+    """
+    logger.info(f"[KEY_DISCOVERY] Discovering specs for: {product_type}")
+    start_time = time.time()
+    
+    try:
+        llm = _get_reasoning_llm()
+        prompt = ChatPromptTemplate.from_template(KEY_DISCOVERY_PROMPT)
+        parser = JsonOutputParser()
+        chain = prompt | llm | parser
+        
+        result = chain.invoke({
+            "product_type": product_type,
+            "category": category or "Industrial Instrumentation",
+            "context": context or "General industrial application"
+        })
+        
+        elapsed = time.time() - start_time
+        logger.info(f"[KEY_DISCOVERY] Completed in {elapsed:.2f}s")
+        
+        # Extract discovered keys
+        spec_keys = result.get("specification_keys", {})
+        mandatory = [item.get("key") for item in spec_keys.get("mandatory", []) if item.get("key")]
+        optional = [item.get("key") for item in spec_keys.get("optional", []) if item.get("key")]
+        safety = [item.get("key") for item in spec_keys.get("safety_critical", []) if item.get("key")]
+        
+        total_keys = len(mandatory) + len(optional) + len(safety)
+        logger.info(f"[KEY_DISCOVERY] Found {len(mandatory)} mandatory, {len(optional)} optional, {len(safety)} safety keys (total: {total_keys})")
+        
+        return {
+            "success": True,
+            "product_type": product_type,
+            "product_analysis": result.get("product_analysis", {}),
+            "mandatory_keys": mandatory,
+            "optional_keys": optional,
+            "safety_keys": safety,
+            "all_keys": mandatory + optional + safety,
+            "key_details": spec_keys,
+            "discovery_confidence": result.get("discovery_confidence", 0.8),
+            "reasoning_notes": result.get("reasoning_notes", ""),
+            "discovery_time_ms": int(elapsed * 1000)
+        }
+        
+    except Exception as e:
+        logger.error(f"[KEY_DISCOVERY] Failed: {e}")
+        # Fallback to minimal generic keys
+        return {
+            "success": False,
+            "product_type": product_type,
+            "mandatory_keys": ["temperature_range", "material_housing", "certifications", "accuracy", "output_signal"],
+            "optional_keys": ["weight", "protection_rating", "dimensions", "power_consumption"],
+            "safety_keys": ["hazardous_area_approval", "sil_rating"],
+            "all_keys": ["temperature_range", "material_housing", "certifications", "accuracy", 
+                        "output_signal", "weight", "protection_rating", "dimensions", 
+                        "power_consumption", "hazardous_area_approval", "sil_rating"],
+            "error": str(e),
+            "discovery_time_ms": int((time.time() - start_time) * 1000)
+        }
 
 
 # =============================================================================
@@ -722,15 +926,315 @@ def generate_llm_specs_batch(
 
 
 # =============================================================================
+# COMBINED: DYNAMIC DISCOVERY + ITERATIVE GENERATION
+# =============================================================================
+
+def generate_specs_with_discovery(
+    product_type: str,
+    category: Optional[str] = None,
+    context: Optional[str] = None,
+    min_specs: Optional[int] = None,
+    use_discovery: bool = True
+) -> Dict[str, Any]:
+    """
+    Generate specifications using optional dynamic key discovery.
+    
+    This function combines the best of both approaches:
+    1. Uses Gemini Pro to DISCOVER relevant specification keys (optional)
+    2. Uses Gemini Flash to GENERATE values with iterative loop
+    
+    For known product types, skip discovery and use standard generation.
+    For unknown/novel product types, enable discovery for best results.
+    
+    Args:
+        product_type: The product type to generate specs for
+        category: Optional category for context
+        context: Optional additional context
+        min_specs: Minimum specs to generate (defaults to MIN_LLM_SPECS_COUNT)
+        use_discovery: Whether to use dynamic key discovery (default True)
+    
+    Returns:
+        Dict containing:
+            - specifications: Dict of generated specs with values and confidence
+            - discovered_keys: Keys discovered (if discovery enabled)
+            - discovery_metadata: Discovery details (timing, confidence)
+            - generation_metadata: Generation details (iterations, timing)
+    """
+    logger.info(f"[SPECS_WITH_DISCOVERY] Generating specs for: {product_type} (discovery: {use_discovery})")
+    total_start = time.time()
+    
+    discovery_result = None
+    discovered_keys_list = []
+    
+    # Phase 1: Dynamic Key Discovery (optional)
+    if use_discovery and ENABLE_DYNAMIC_DISCOVERY:
+        logger.info(f"[SPECS_WITH_DISCOVERY] Phase 1: Discovering keys...")
+        discovery_result = discover_specification_keys(
+            product_type=product_type,
+            category=category,
+            context=context
+        )
+        discovered_keys_list = discovery_result.get("all_keys", [])
+        logger.info(f"[SPECS_WITH_DISCOVERY] Discovered {len(discovered_keys_list)} keys")
+    
+    # Phase 2: Generate specs using standard iterative approach
+    logger.info(f"[SPECS_WITH_DISCOVERY] Phase 2: Generating values...")
+    
+    # Add discovered keys to context for better generation
+    enhanced_context = context or ""
+    if discovered_keys_list:
+        key_hints = ", ".join(discovered_keys_list[:30])  # Top 30 keys
+        enhanced_context += f"\n\nRelevant specification keys to include: {key_hints}"
+    
+    generation_result = generate_llm_specs(
+        product_type=product_type,
+        category=category,
+        context=enhanced_context if enhanced_context else None,
+        min_specs=min_specs
+    )
+    
+    total_elapsed = time.time() - total_start
+    
+    # Combine results
+    final_result = {
+        "success": generation_result.get("target_reached", False),
+        "product_type": product_type,
+        "category": category,
+        
+        # Specifications
+        "specifications": generation_result.get("specifications", {}),
+        "specs_count": generation_result.get("specs_count", 0),
+        
+        # Discovery metadata
+        "discovery_used": use_discovery and ENABLE_DYNAMIC_DISCOVERY,
+        "discovered_keys": {
+            "mandatory": discovery_result.get("mandatory_keys", []) if discovery_result else [],
+            "optional": discovery_result.get("optional_keys", []) if discovery_result else [],
+            "safety_critical": discovery_result.get("safety_keys", []) if discovery_result else [],
+            "total": len(discovered_keys_list)
+        } if discovery_result else None,
+        "discovery_confidence": discovery_result.get("discovery_confidence", 0.0) if discovery_result else None,
+        "product_analysis": discovery_result.get("product_analysis", {}) if discovery_result else None,
+        
+        # Generation metadata
+        "iterations": generation_result.get("iterations", 1),
+        "target_reached": generation_result.get("target_reached", False),
+        "generation_notes": generation_result.get("generation_notes", ""),
+        
+        # Timing
+        "discovery_time_ms": discovery_result.get("discovery_time_ms", 0) if discovery_result else 0,
+        "generation_time_ms": int((time.time() - total_start) * 1000) - (discovery_result.get("discovery_time_ms", 0) if discovery_result else 0),
+        "total_time_ms": int(total_elapsed * 1000),
+        
+        # Source info
+        "source": "llm_with_discovery" if use_discovery else "llm_generated",
+        "reasoning_model": REASONING_MODEL if use_discovery else None,
+        "generation_model": LLM_SPECS_MODEL,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    logger.info(f"[SPECS_WITH_DISCOVERY] Complete: {final_result['specs_count']} specs in {total_elapsed:.2f}s")
+    return final_result
+
+
+# =============================================================================
+# USER-SPECIFIED SPECIFICATIONS EXTRACTION
+# =============================================================================
+# Merged from user_specs_extractor.py
+# Extracts EXPLICIT specifications from user input. These are MANDATORY.
+# =============================================================================
+
+USER_SPECS_EXTRACTION_PROMPT = """
+You are a specification extractor. Your task is to extract ONLY the specifications
+that are EXPLICITLY mentioned in the user's input.
+
+CRITICAL RULES:
+1. Extract ONLY what is explicitly stated - do NOT infer or assume anything
+2. If a value is not explicitly mentioned, do NOT include it
+3. Be precise with the values - use exact text from user input
+4. Convert user language to standardized specification keys
+
+USER INPUT:
+{user_input}
+
+PRODUCT TYPE: {product_type}
+
+STANDARD SPECIFICATION KEYS TO USE:
+- accuracy: Measurement accuracy (e.g., "±0.1%", "0.5% of span")
+- pressure_range: Pressure measurement range (e.g., "0-100 bar", "0-1000 psi")
+- temperature_range: Operating temperature range (e.g., "-40 to 85°C")
+- process_temperature: Process medium temperature (e.g., "0 to 350°C")
+- output_signal: Signal type (e.g., "4-20mA", "0-10V", "HART")
+- supply_voltage: Power supply (e.g., "24 VDC", "12-36 VDC")
+- protection_rating: IP rating (e.g., "IP66", "IP67", "NEMA 4X")
+- hazardous_area_approval: Zone certification (e.g., "ATEX Zone 1", "IECEx Zone 0")
+- sil_rating: Safety integrity level (e.g., "SIL 2", "SIL 3")
+- material_wetted: Wetted parts material (e.g., "SS316L", "Hastelloy C-276")
+- material_housing: Housing material (e.g., "Aluminum", "Stainless Steel 316")
+- process_connection: Connection type (e.g., "1/2 NPT", "DN50 Flange", "Tri-Clamp")
+- response_time: Response time (e.g., "< 250ms", "T90 < 5s")
+- communication_protocol: Protocol (e.g., "HART", "Modbus RTU", "Profibus PA")
+- flow_range: Flow measurement range (e.g., "0-1000 m³/h")
+- level_range: Level measurement range (e.g., "0-10m", "0-30ft")
+- display: Display type (e.g., "LCD", "LED", "No display")
+- mounting: Mounting type (e.g., "Panel mount", "Pipe mount", "Wall mount")
+
+Return ONLY valid JSON:
+{{
+    "extracted_specifications": {{
+        "specification_key": "exact value from user input"
+    }},
+    "extraction_notes": "Brief note on what was extracted",
+    "confidence": 0.0-1.0
+}}
+
+IMPORTANT: If no specifications are explicitly mentioned, return an empty specifications object.
+"""
+
+
+def extract_user_specified_specs(
+    user_input: str,
+    product_type: str,
+    sample_input: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Extract EXPLICIT specifications from user input.
+
+    These specifications are MANDATORY and will never be overwritten by
+    LLM-generated or standards-based specifications.
+
+    Args:
+        user_input: The original user input text
+        product_type: The identified product type
+        sample_input: Optional sample input that may contain additional specs
+
+    Returns:
+        Dict with:
+            - specifications: Dict of extracted key-value specs
+            - source: "user_specified"
+            - confidence: Extraction confidence score
+            - extraction_notes: Notes on what was extracted
+    """
+    logger.info(f"[USER_SPECS] Extracting specs for: {product_type}")
+
+    # Combine user input with sample_input if available
+    full_input = user_input
+    if sample_input:
+        full_input = f"{user_input}\n\nAdditional context: {sample_input}"
+
+    try:
+        llm = create_llm_with_fallback(
+            model=LLM_SPECS_MODEL,  # Use same model as spec generation
+            temperature=0.0,  # Zero temperature for deterministic extraction
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+
+        prompt = ChatPromptTemplate.from_template(USER_SPECS_EXTRACTION_PROMPT)
+        parser = JsonOutputParser()
+        chain = prompt | llm | parser
+
+        result = chain.invoke({
+            "user_input": full_input,
+            "product_type": product_type
+        })
+
+        extracted_specs = result.get("extracted_specifications", {})
+        confidence = result.get("confidence", 0.0)
+        notes = result.get("extraction_notes", "")
+
+        # Filter out null/empty values
+        clean_specs = {
+            k: v for k, v in extracted_specs.items()
+            if v and str(v).lower() not in ["null", "none", "n/a", "not specified"]
+        }
+
+        logger.info(f"[USER_SPECS] Extracted {len(clean_specs)} specs for {product_type}")
+        if clean_specs:
+            logger.info(f"[USER_SPECS] Specs: {list(clean_specs.keys())}")
+
+        return {
+            "specifications": clean_specs,
+            "source": "user_specified",
+            "confidence": confidence,
+            "extraction_notes": notes,
+            "timestamp": datetime.now().isoformat(),
+            "product_type": product_type
+        }
+
+    except Exception as e:
+        logger.error(f"[USER_SPECS] Extraction failed for {product_type}: {e}")
+        return {
+            "specifications": {},
+            "source": "user_specified",
+            "confidence": 0.0,
+            "extraction_notes": f"Extraction failed: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+            "product_type": product_type,
+            "error": str(e)
+        }
+
+
+def extract_user_specs_batch(
+    items: List[Dict[str, Any]],
+    user_input: str
+) -> List[Dict[str, Any]]:
+    """
+    Extract user-specified specs for multiple items.
+
+    Args:
+        items: List of identified items with 'name', 'sample_input', etc.
+        user_input: Original user input
+
+    Returns:
+        List of extraction results, one per item
+    """
+    logger.info(f"[USER_SPECS] Batch extraction for {len(items)} items")
+
+    results = []
+    for item in items:
+        product_type = item.get("name") or item.get("product_name", "Unknown")
+        sample_input = item.get("sample_input", "")
+
+        result = extract_user_specified_specs(
+            user_input=user_input,
+            product_type=product_type,
+            sample_input=sample_input
+        )
+
+        result["item_name"] = product_type
+        result["item_type"] = item.get("type", "instrument")
+        results.append(result)
+
+    logger.info(f"[USER_SPECS] Batch complete: {len(results)} items processed")
+    return results
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
 __all__ = [
+    # Main generation functions
     "generate_llm_specs",
     "generate_llm_specs_batch",
+    "generate_specs_with_discovery",
+    
+    # Dynamic key discovery
+    "discover_specification_keys",
+    
+    # User specification extraction
+    "extract_user_specified_specs",
+    "extract_user_specs_batch",
+    
+    # Configuration constants
     "MIN_LLM_SPECS_COUNT",
     "MAX_LLM_ITERATIONS",
     "SPECS_PER_ITERATION",
     "MAX_PARALLEL_WORKERS",
-    "ENABLE_PARALLEL_ITERATIONS"
+    "ENABLE_PARALLEL_ITERATIONS",
+    "ENABLE_DYNAMIC_DISCOVERY",
+    
+    # Model names
+    "LLM_SPECS_MODEL",
+    "REASONING_MODEL"
 ]

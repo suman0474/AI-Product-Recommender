@@ -234,6 +234,97 @@ class ComparisonInput(BaseModel):
 
 
 # ============================================================================
+# THREAD TREE TYPEDDICT MODELS
+# ============================================================================
+
+class ThreadNode(TypedDict, total=False):
+    """
+    Thread node in the hierarchical thread tree.
+
+    Represents a single node in the tree structure:
+    - Main threads (root)
+    - Workflow threads (children of main)
+    - Item threads (children of workflow)
+    """
+    thread_id: str
+    thread_type: str  # "main", "workflow", "item"
+    parent_thread_id: Optional[str]
+    children_thread_ids: List[str]
+    zone: str
+    user_id: str
+    workflow_type: Optional[str]
+    item_type: Optional[str]  # "instrument" or "accessory"
+    item_number: Optional[int]
+    created_at: str
+    updated_at: Optional[str]
+    metadata: Dict[str, Any]
+
+
+class ItemState(TypedDict, total=False):
+    """
+    Full persistent state for each item sub-thread.
+
+    This represents the complete state of an identified instrument or accessory
+    that is stored in Azure Blob Storage for persistence.
+    """
+    # Thread identification
+    thread_id: str
+    parent_workflow_thread_id: str
+    main_thread_id: Optional[str]
+    zone: str
+
+    # Item identification
+    item_number: int
+    item_type: str  # "instrument" or "accessory"
+    item_name: str
+    category: str
+    quantity: int
+
+    # Specifications
+    specifications: Dict[str, Any]
+    sample_input: str
+    user_specified_specs: Dict[str, Any]  # Specs explicitly from user (MANDATORY)
+    llm_generated_specs: Dict[str, Any]  # LLM-inferred specs
+    standards_specifications: Dict[str, Any]  # Specs from standards documents
+    combined_specifications: Dict[str, Any]  # Merged specs with source metadata
+
+    # Enrichment data
+    enrichment_data: Dict[str, Any]
+    standards_info: Dict[str, Any]
+    applicable_standards: List[str]
+    certifications: List[str]
+
+    # Status tracking
+    status: str  # "identified", "selected", "searched", "completed"
+    selection_timestamp: Optional[str]
+    search_timestamp: Optional[str]
+    completion_timestamp: Optional[str]
+
+    # Search results (populated when item is selected and searched)
+    search_results: Optional[List[Dict[str, Any]]]
+    selected_product: Optional[Dict[str, Any]]
+
+    # Timestamps
+    created_at: str
+    updated_at: str
+
+
+class ThreadTreeInfo(TypedDict, total=False):
+    """
+    Information about a complete thread tree.
+
+    Returned by API endpoints to provide full tree structure.
+    """
+    main_thread_id: str
+    zone: str
+    user_id: str
+    created_at: str
+    workflow_threads: List[ThreadNode]
+    item_count: int
+    total_threads: int
+
+
+# ============================================================================
 # TYPEDDICT STATES
 # ============================================================================
 
@@ -335,6 +426,12 @@ class SolutionState(TypedDict, total=False):
     session_id: str
     user_id: Optional[str]
 
+    # Thread Tree Fields (NEW - Hierarchical Thread System)
+    main_thread_id: Optional[str]
+    workflow_thread_id: Optional[str]
+    zone: Optional[str]
+    item_threads: Dict[int, str]  # Maps item number to item thread ID
+
     # Input
     user_input: str
     messages: List[Dict[str, Any]]  # Changed from BaseMessage to Dict for flexibility
@@ -386,6 +483,12 @@ class SolutionState(TypedDict, total=False):
     current_step: str
     error: Optional[str]
 
+    # Standards Validation (from enrichment)
+    standards_validation: Optional[Dict[str, Any]]
+
+    # Thread Tree Metadata (for API response)
+    thread_info: Optional[Dict[str, Any]]
+
 
 class ComparisonState(TypedDict, total=False):
     """Comparison Workflow State"""
@@ -425,12 +528,19 @@ class InstrumentIdentifierState(TypedDict, total=False):
     session_id: str
     user_id: Optional[str]
 
+    # Thread Tree Fields (NEW - Hierarchical Thread System)
+    main_thread_id: Optional[str]
+    workflow_thread_id: Optional[str]
+    zone: Optional[str]
+    item_threads: Dict[int, str]  # Maps item number to item thread ID
+
     # Input
     user_input: str
     messages: List[BaseMessage]
 
     # Classification
     input_type: str  # "requirements", "greeting", "question", "unrelated"
+    initial_intent: Optional[str]  # Added for classify_initial_intent_node
     classification_confidence: str
     classification_reasoning: str
 
@@ -447,6 +557,9 @@ class InstrumentIdentifierState(TypedDict, total=False):
     instrument_list: Optional[str]
     current_step: str
     error: Optional[str]
+
+    # Thread Tree Metadata (for API response)
+    thread_info: Optional[Dict[str, Any]]
 
 
 class PotentialProductIndexState(TypedDict, total=False):
@@ -1005,6 +1118,10 @@ __all__ = [
     "SpecObject",
     "ComparisonInput",
 
+    # Thread Tree TypedDict Models (NEW - Hierarchical Thread System)
+    "ThreadNode",
+    "ItemState",
+    "ThreadTreeInfo",
 
     # TypedDict States
     "WorkflowState",

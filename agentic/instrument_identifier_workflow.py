@@ -10,9 +10,17 @@ from langgraph.graph import StateGraph, END
 
 from .models import (
     InstrumentIdentifierState,
-    create_instrument_identifier_state
+    create_instrument_identifier_state,
+    ItemState,
 )
 from .checkpointing import compile_with_checkpointing
+from .thread_manager import (
+    HierarchicalThreadManager,
+    ThreadTreeBuilder,
+    WorkflowThreadType,
+    ThreadZone,
+    get_thread_tree_builder,
+)
 
 from tools.intent_tools import classify_intent_tool
 from tools.instrument_tools import identify_instruments_tool, identify_accessories_tool
@@ -74,6 +82,82 @@ Return ONLY valid JSON:
 # ============================================================================
 # WORKFLOW NODES
 # ============================================================================
+
+def initialize_thread_tree_node(state: InstrumentIdentifierState) -> InstrumentIdentifierState:
+    """
+    Node 0: Initialize Thread Tree.
+
+    ✅ UPDATED: USE UI-PROVIDED IDs (Don't Generate)
+
+    The UI creates and provides:
+    - main_thread_id: From user session
+    - workflow_thread_id: For this workflow execution
+    - zone: Geographic zone
+
+    Backend validates they're provided and stores them in state.
+    """
+    logger.info("[IDENTIFIER] Node 0: Initializing thread tree (using UI-provided IDs)...")
+
+    try:
+        # ✅ EXPECT THREAD IDS FROM UI REQUEST
+        main_thread_id = state.get("main_thread_id")
+        workflow_thread_id = state.get("workflow_thread_id")
+        zone_str = state.get("zone", "DEFAULT")
+
+        # ✅ VALIDATE THEY'RE PROVIDED BY UI
+        if not main_thread_id:
+            logger.error("[IDENTIFIER] main_thread_id not provided by UI")
+            raise ValueError(
+                "main_thread_id must be provided by UI (format: main_*). "
+                "Backend no longer generates thread IDs."
+            )
+
+        if not workflow_thread_id:
+            logger.error("[IDENTIFIER] workflow_thread_id not provided by UI")
+            raise ValueError(
+                "workflow_thread_id must be provided by UI. "
+                "Backend no longer generates thread IDs."
+            )
+
+        # ✅ CONVERT ZONE STRING TO ENUM
+        try:
+            zone = ThreadZone.from_string(zone_str)
+        except Exception as e:
+            logger.warning(f"[IDENTIFIER] Invalid zone '{zone_str}', using DEFAULT")
+            zone = ThreadZone.DEFAULT
+
+        # ✅ LOG FOR DEBUGGING - explicitly indicate origin
+        logger.info(f"[IDENTIFIER] Using UI-provided thread IDs:")
+        logger.info(f"[IDENTIFIER]   Main Thread ID: {main_thread_id}")
+        logger.info(f"[IDENTIFIER]   Workflow Thread ID: {workflow_thread_id}")
+        logger.info(f"[IDENTIFIER]   Zone: {zone.value}")
+
+        # ✅ STORE IN STATE (already there from request, but validate)
+        state["main_thread_id"] = main_thread_id
+        state["workflow_thread_id"] = workflow_thread_id
+        state["zone"] = zone.value
+
+        # ✅ INITIALIZE ITEM_THREADS (UI will create item threads on response)
+        state["item_threads"] = {}
+
+        state["messages"] = state.get("messages", []) + [{
+            "role": "system",
+            "content": f"Thread context initialized: main={main_thread_id[:30]}..., workflow={workflow_thread_id[:30]}..., zone={zone.value}"
+        }]
+
+    except ValueError as ve:
+        # Validation error - these are CRITICAL
+        logger.error(f"[IDENTIFIER] Thread ID validation failed: {ve}")
+        state["error"] = str(ve)
+        raise  # Re-raise to fail the workflow
+
+    except Exception as e:
+        logger.error(f"[IDENTIFIER] Thread tree initialization failed: {e}")
+        state["error"] = f"Thread init error: {str(e)}"
+        raise  # Fail the workflow if thread init fails
+
+    return state
+
 
 def classify_initial_intent_node(state: InstrumentIdentifierState) -> InstrumentIdentifierState:
     """
@@ -565,13 +649,13 @@ def format_selection_list_node(state: InstrumentIdentifierState) -> InstrumentId
         )
 
         state["response"] = "\n".join(response_lines)
-        
+
         # === MERGE DEEP AGENT SPECS FOR UI DISPLAY ===
         # This ensures Deep Agent specifications are shown in UI with [STANDARDS] labels
         _merge_deep_agent_specs_for_display(state["all_items"])
         logger.info(f"[IDENTIFIER] Merged Deep Agent specs for {len(state['all_items'])} items")
         # === END MERGE ===
-        
+
         state["response_data"] = {
             "workflow": "instrument_identifier",
             "project_name": state["project_name"],
@@ -582,6 +666,25 @@ def format_selection_list_node(state: InstrumentIdentifierState) -> InstrumentId
         }
 
         state["current_step"] = "complete"
+
+        # ✅ DO NOT GENERATE ITEM THREAD IDs HERE
+        # UI creates item thread IDs when it receives the item list
+        # Backend does NOT need to generate them anymore
+        # The UI will call: addItemThread(workflowThreadId, itemNumber, itemName, itemType)
+        logger.info(f"[IDENTIFIER] ✅ Item threads will be created by UI")
+
+        # === BUILD THREAD INFO FOR API RESPONSE ===
+        # Return the thread IDs that the UI provided (no item threads yet, UI creates those)
+        state["thread_info"] = {
+            "main_thread_id": state.get("main_thread_id"),
+            "workflow_thread_id": state.get("workflow_thread_id"),
+            "zone": state.get("zone"),
+            "item_threads": {},  # Empty - UI will create item threads
+            "thread_tree": {
+                "type": "instrument_identifier",
+                "items_count": state.get("total_items", 0),
+            }
+        }
 
         logger.info(f"[IDENTIFIER] Selection list formatted with {state['total_items']} items")
 
@@ -785,34 +888,45 @@ def create_instrument_identifier_workflow() -> StateGraph:
     """
     Create the Instrument Identifier Workflow.
 
-    This is a simplified 3-node workflow that ONLY identifies instruments/accessories
-    and presents them for user selection. It does NOT perform product search.
+    This workflow identifies instruments/accessories and presents them for user selection.
+    It does NOT perform product search.
 
     Flow:
+    0. Initialize Thread Tree (NEW - sets up hierarchical thread IDs)
     1. Initial Intent Classification
     2. Instrument/Accessory Identification (with sample_input generation)
-    3. Format Selection List
+    3. Standards RAG Enrichment
+    4. Format Selection List (generates item thread IDs)
 
     After this workflow completes, user selects an item, and the sample_input
     is routed to the SOLUTION workflow for product search.
+
+    Thread Hierarchy Created:
+        main_{user_id}_{zone}_{timestamp}
+        └── instrument_identifier_{main_ref}_{timestamp}
+            ├── item_{wf_ref}_inst_{hash}_{timestamp}
+            ├── item_{wf_ref}_inst_{hash}_{timestamp}
+            └── item_{wf_ref}_acc_{hash}_{timestamp}
     """
 
     workflow = StateGraph(InstrumentIdentifierState)
 
-    # Add 4 nodes (including Standards RAG enrichment)
+    # Add 5 nodes (including thread init and Standards RAG enrichment)
+    workflow.add_node("init_thread_tree", initialize_thread_tree_node)  # NEW: Thread tree init
     workflow.add_node("classify_intent", classify_initial_intent_node)
     workflow.add_node("identify_items", identify_instruments_and_accessories_node)
-    workflow.add_node("enrich_with_standards", enrich_with_standards_node)  # NEW: Standards RAG
+    workflow.add_node("enrich_with_standards", enrich_with_standards_node)
     workflow.add_node("format_list", format_selection_list_node)
 
-    # Set entry point
-    workflow.set_entry_point("classify_intent")
+    # Set entry point - start with thread tree initialization
+    workflow.set_entry_point("init_thread_tree")
 
-    # Add edges - linear flow with Standards RAG enrichment
+    # Add edges - linear flow with thread init first
+    workflow.add_edge("init_thread_tree", "classify_intent")  # NEW: Start with thread init
     workflow.add_edge("classify_intent", "identify_items")
-    workflow.add_edge("identify_items", "enrich_with_standards")  # NEW: Route to Standards RAG
-    workflow.add_edge("enrich_with_standards", "format_list")  # NEW: Then to formatting
-    workflow.add_edge("format_list", END)  # WORKFLOW ENDS HERE - waits for user selection
+    workflow.add_edge("identify_items", "enrich_with_standards")
+    workflow.add_edge("enrich_with_standards", "format_list")
+    workflow.add_edge("format_list", END)
 
     return workflow
 
@@ -824,7 +938,10 @@ def create_instrument_identifier_workflow() -> StateGraph:
 def run_instrument_identifier_workflow(
     user_input: str,
     session_id: str = "default",
-    checkpointing_backend: str = "memory"
+    checkpointing_backend: str = "memory",
+    main_thread_id: str = None,
+    workflow_thread_id: str = None,
+    zone: str = "DEFAULT"
 ) -> Dict[str, Any]:
     """
     Run the instrument identifier workflow.
@@ -836,6 +953,9 @@ def run_instrument_identifier_workflow(
         user_input: User's project requirements (e.g., "I need instruments for crude oil refinery")
         session_id: Session identifier
         checkpointing_backend: Backend for state persistence
+        main_thread_id: ✅ UI-provided main thread ID (format: main_*)
+        workflow_thread_id: ✅ UI-provided workflow thread ID
+        zone: Geographic zone (US-WEST, US-EAST, etc.)
 
     Returns:
         {
@@ -861,8 +981,21 @@ def run_instrument_identifier_workflow(
         logger.info(f"[IDENTIFIER] Starting workflow for session: {session_id}")
         logger.info(f"[IDENTIFIER] User input: {user_input[:100]}...")
 
-        # Create initial state
+        # ✅ CREATE INITIAL STATE WITH UI-PROVIDED THREAD IDS
         initial_state = create_instrument_identifier_state(user_input, session_id)
+
+        # ✅ ADD UI-PROVIDED THREAD IDS TO STATE (if provided)
+        if main_thread_id:
+            initial_state["main_thread_id"] = main_thread_id
+            logger.info(f"[IDENTIFIER] Using UI-provided main_thread_id: {main_thread_id}")
+
+        if workflow_thread_id:
+            initial_state["workflow_thread_id"] = workflow_thread_id
+            logger.info(f"[IDENTIFIER] Using UI-provided workflow_thread_id: {workflow_thread_id}")
+
+        if zone:
+            initial_state["zone"] = zone
+            logger.info(f"[IDENTIFIER] Using zone: {zone}")
 
         # Create and compile workflow
         workflow = create_instrument_identifier_workflow()
@@ -877,9 +1010,15 @@ def run_instrument_identifier_workflow(
         logger.info(f"[IDENTIFIER] Workflow completed successfully")
         logger.info(f"[IDENTIFIER] Generated {result.get('total_items', 0)} items for selection")
 
+        # Include thread_info in response
+        response_data = result.get("response_data", {})
+        if result.get("thread_info"):
+            response_data["thread_info"] = result.get("thread_info")
+
         return {
             "response": result.get("response", ""),
-            "response_data": result.get("response_data", {})
+            "response_data": response_data,
+            "thread_info": result.get("thread_info", {})
         }
 
     except Exception as e:

@@ -1,0 +1,42 @@
+PROMPT NAME: LLM_SPECS_ITERATIVE_PROMPT
+SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
+PURPOSE: Iterative specification generation
+
+=== PROMPT CONTENT ===
+
+You are an Iterative Specs Generation Agent.
+
+Improve specifications based on feedback.
+
+Product Type: {product_type}
+Current Specifications: {current_specs}
+Feedback: {feedback}
+Iteration: {iteration_number}
+
+Improvement Tasks:
+1. Address all feedback points
+2. Add missing specifications
+3. Correct inaccurate values
+4. Improve confidence scores
+
+Return ONLY valid JSON:
+{{
+    "product_type": "{product_type}",
+    "iteration": {iteration_number},
+    "updated_specifications": {{
+        "<field_name>": {{
+            "value": "<improved value>",
+            "source": "<source>",
+            "confidence": <0.0-1.0>,
+            "was_updated": true | false
+        }}
+    }},
+    "feedback_addressed": ["<addressed item>"],
+    "improvements_made": ["<improvement>"]
+}}
+
+=== PARAMETERS ===
+- product_type: Product type
+- current_specs: Current specifications
+- feedback: Feedback to address
+- iteration_number: Current iteration

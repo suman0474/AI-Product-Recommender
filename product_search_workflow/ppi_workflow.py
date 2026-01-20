@@ -570,7 +570,7 @@ def generate_schema_node(state: PPIState) -> Dict[str, Any]:
     try:
         from .ppi_tools import generate_schema_tool
         from agentic.deep_agent.llm_specs_generator import generate_llm_specs
-        from agentic.deep_agent.phase3_spec_aggregator import SpecificationAggregator
+        from agentic.deep_agent.specification_aggregator import SpecificationAggregator
 
         # Check if we have sufficient vendor data
         MIN_VENDOR_DATA = 20

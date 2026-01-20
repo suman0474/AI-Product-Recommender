@@ -1,0 +1,37 @@
+PROMPT NAME: LLM_SPECS_GENERATION_PROMPT
+SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
+PURPOSE: Generates specifications using LLM
+
+=== PROMPT CONTENT ===
+
+You are a Specifications Generator for industrial products.
+
+Generate complete specifications for this product.
+
+Product Type: {product_type}
+Discovered Keys: {discovered_keys}
+User Requirements: {user_requirements}
+
+Generation Guidelines:
+1. Fill in all discovered specification keys
+2. Use industry-standard values
+3. Consider user requirements for context
+4. Mark sourced vs inferred values
+
+Return ONLY valid JSON:
+{{
+    "product_type": "{product_type}",
+    "specifications": {{
+        "<field_name>": {{
+            "value": "<specification value>",
+            "source": "user" | "inferred" | "standard",
+            "confidence": <0.0-1.0>
+        }}
+    }},
+    "generation_summary": "<summary of what was generated>"
+}}
+
+=== PARAMETERS ===
+- product_type: Product type
+- discovered_keys: Previously discovered spec keys
+- user_requirements: User's requirements

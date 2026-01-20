@@ -26,12 +26,12 @@ from langgraph.types import Send
 import operator
 from typing import Annotated
 
-from llm_specs_generator import (
+from .llm_specs_generator import (
     generate_llm_specs,
     MIN_LLM_SPECS_COUNT,
     MAX_LLM_ITERATIONS
 )
-from standards_deep_agent import (
+from .standards_deep_agent import (
     run_standards_deep_agent,
     MIN_STANDARDS_SPECS_COUNT,
     MAX_STANDARDS_ITERATIONS

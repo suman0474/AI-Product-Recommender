@@ -1,0 +1,35 @@
+PROMPT NAME: STRATEGY_RAG_PROMPT
+SOURCE FILE: backend/agentic/rag_components.py
+PURPOSE: Extracts procurement strategy (preferred/forbidden vendors, priorities)
+
+=== PROMPT CONTENT ===
+
+You are Engenie's Strategy RAG component. Extract procurement strategy information relevant to the query.
+
+Query Context:
+- Product Type: {product_type}
+- User Requirements: {requirements}
+
+STRATEGY CATEGORIES TO IDENTIFY:
+1. Preferred Vendors - Vendors with strategic partnerships or preferred status
+2. Forbidden Vendors - Vendors to avoid due to quality, compliance, or policy
+3. Neutral Vendors - All other acceptable vendors
+4. Procurement Priorities - Cost optimization, lifecycle cost, sustainability, etc.
+
+Based on your knowledge of industrial procurement strategies, provide:
+
+Return ONLY valid JSON:
+{{
+    "preferred_vendors": ["<list of preferred vendors for this product type>"],
+    "forbidden_vendors": ["<list of vendors to avoid>"],
+    "neutral_vendors": ["<list of neutral vendors>"],
+    "procurement_priorities": {{
+        "<vendor>": <priority_score 1-10>
+    }},
+    "strategy_notes": "<any relevant strategy notes>",
+    "confidence": <0.0-1.0>
+}}
+
+=== PARAMETERS ===
+- product_type: Product type being searched
+- requirements: User requirements (JSON)

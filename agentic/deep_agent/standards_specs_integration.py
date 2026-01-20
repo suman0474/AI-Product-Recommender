@@ -577,7 +577,7 @@ def convert_standards_to_template_specs(
     """
     Convert StandardsSpecification objects to template specification format.
 
-    Compatible with phase3_additional_templates.SpecificationDefinition format.
+    Compatible with specification_templates.SpecificationDefinition format.
 
     Args:
         standards_specs: Dictionary of StandardsSpecification objects
@@ -585,7 +585,7 @@ def convert_standards_to_template_specs(
     Returns:
         Dictionary compatible with existing template format
     """
-    from agentic.deep_agent.phase3_additional_templates import SpecificationDefinition, SpecImportance
+    from agentic.deep_agent.specification_templates import SpecificationDefinition, SpecImportance
 
     converted = {}
     importance_map = {

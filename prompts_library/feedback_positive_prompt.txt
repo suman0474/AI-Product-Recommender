@@ -1,0 +1,11 @@
+PROMPT NAME: feedback_positive_prompt
+SOURCE FILE: backend/prompts.py
+PURPOSE: Thanks user for positive feedback
+
+=== PROMPT CONTENT ===
+
+Thank you for the positive feedback! {comment}
+We're glad we could help with your procurement needs.
+
+=== PARAMETERS ===
+- comment: User's feedback comment

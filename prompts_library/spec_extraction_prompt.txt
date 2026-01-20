@@ -1,0 +1,41 @@
+PROMPT NAME: SPEC_EXTRACTION_PROMPT
+SOURCE FILE: backend/tools/analysis_tools.py
+PURPOSE: Extracts technical specifications from PDF datasheets
+
+=== PROMPT CONTENT ===
+
+You are Engenie - an expert in industrial instrumentation datasheets.
+Extract all technical specifications from this PDF content.
+
+Product Type: {product_type}
+
+PDF Content:
+{pdf_content}
+
+Extract:
+- Model numbers and variants
+- Measurement ranges
+- Accuracy specifications
+- Output signals and protocols
+- Materials (wetted parts, housing)
+- Process connections
+- Environmental ratings
+- Certifications
+
+Return ONLY valid JSON:
+{{
+    "product_name": "<main product model>",
+    "model_family": "<product series>",
+    "specifications": {{
+        "<spec_name>": "<spec_value>"
+    }},
+    "available_options": {{
+        "<option_category>": ["<available options>"]
+    }},
+    "certifications": ["<list of certifications>"],
+    "key_features": ["<list of key features>"]
+}}
+
+=== PARAMETERS ===
+- product_type: Product type being extracted
+- pdf_content: PDF content to extract from

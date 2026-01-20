@@ -28,8 +28,7 @@ from .memory import (
     ParallelEnrichmentResult,
     SpecificationSource
 )
-from .user_specs_extractor import extract_user_specified_specs
-from .llm_specs_generator import generate_llm_specs
+from .llm_specs_generator import extract_user_specified_specs, generate_llm_specs
 from .standards_deep_agent import run_standards_deep_agent_batch
 from .spec_output_normalizer import normalize_specification_output, normalize_key
 

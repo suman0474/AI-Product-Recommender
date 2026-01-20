@@ -1,0 +1,37 @@
+PROMPT NAME: REQUIREMENTS_EXTRACTION_PROMPT (Intent Tools)
+SOURCE FILE: backend/tools/intent_tools.py
+PURPOSE: Extracts structured technical requirements
+
+=== PROMPT CONTENT ===
+
+Extract structured requirements from this user input for industrial products.
+
+User Input: "{user_input}"
+
+Extract:
+1. Product type/category
+2. Technical specifications (pressure, temperature, accuracy, etc.)
+3. Output/communication requirements
+4. Material requirements
+5. Environmental requirements
+6. Certifications/standards mentioned
+
+Return ONLY valid JSON:
+{{
+    "product_type": "<detected product type>",
+    "specifications": {{
+        "<spec_name>": "<spec_value>"
+    }},
+    "output_signal": "<detected output signal or null>",
+    "materials": {{
+        "<component>": "<material>"
+    }},
+    "environment": {{
+        "<parameter>": "<value>"
+    }},
+    "certifications": ["<list of certifications>"],
+    "raw_text_preserved": "<original text for reference>"
+}}
+
+=== PARAMETERS ===
+- user_input: User's input with requirements

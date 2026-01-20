@@ -1,0 +1,39 @@
+PROMPT NAME: USER_SPECS_EXTRACTION_PROMPT
+SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
+PURPOSE: Extracts user specifications for LLM generator
+
+=== PROMPT CONTENT ===
+
+You are a User Specification Extractor.
+
+Extract all specifications from the user's input.
+
+User Input: "{user_input}"
+Product Type: {product_type}
+
+Extraction Guidelines:
+1. Extract ONLY what the user explicitly stated
+2. Do not add inferred or assumed values
+3. Use standardized field names
+4. Preserve the user's exact values
+5. Note any ambiguous specifications
+
+Return ONLY valid JSON:
+{{
+    "product_type": "{product_type}",
+    "extracted_specs": {{
+        "<field_name>": "<exact user value>"
+    }},
+    "ambiguous_specs": [
+        {{
+            "raw_text": "<ambiguous text>",
+            "possible_field": "<guessed field>",
+            "possible_value": "<guessed value>"
+        }}
+    ],
+    "extraction_count": <number of specs extracted>
+}}
+
+=== PARAMETERS ===
+- user_input: User's raw input
+- product_type: Detected or specified product type

@@ -1,0 +1,33 @@
+PROMPT NAME: MODEL_FAMILY_DISCOVERY_PROMPT
+SOURCE FILE: backend/agentic/potential_product_index.py
+PURPOSE: Discovers model families for vendors
+
+=== PROMPT CONTENT ===
+
+You are Engenie - an expert in industrial automation products.
+
+Discover model families/product lines for this vendor and product type.
+
+Vendor: {vendor}
+Product Type: {product_type}
+
+Identify:
+1. Known model families/series
+2. Key features of each series
+3. Typical applications
+
+Return ONLY valid JSON:
+{{
+    "model_families": [
+        {{
+            "name": "<model family name>",
+            "description": "<brief description>",
+            "key_features": ["<feature 1>", "<feature 2>"],
+            "typical_applications": ["<application>"]
+        }}
+    ]
+}}
+
+=== PARAMETERS ===
+- vendor: Vendor name
+- product_type: Product type

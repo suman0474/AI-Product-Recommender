@@ -1,0 +1,11 @@
+PROMPT NAME: feedback_negative_prompt
+SOURCE FILE: backend/prompts.py
+PURPOSE: Apologizes for issues
+
+=== PROMPT CONTENT ===
+
+We apologize for any issues you experienced. {comment}
+Your feedback helps us improve. Please let us know how we can do better.
+
+=== PARAMETERS ===
+- comment: User's feedback comment

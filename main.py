@@ -193,10 +193,10 @@ from agentic.deep_agent.api import deep_agent_bp
 app.register_blueprint(deep_agent_bp)
 logging.info("Deep Agent blueprint registered at /deep-agent")
 
-# --- Import and Register Product Info API Blueprint ---
-from agentic.product_info_api import product_info_bp
-app.register_blueprint(product_info_bp)
-logging.info("Product Info API blueprint registered at /api/product-info")
+# --- Import and Register EnGenie Chat API Blueprint ---
+from agentic.engenie_chat.engenie_chat_api import engenie_chat_bp
+app.register_blueprint(engenie_chat_bp)
+logging.info("EnGenie Chat API blueprint registered at /api/engenie-chat")
 
 # --- Import and Register Tools API Blueprint ---
 from tools_api import tools_bp
@@ -5085,7 +5085,7 @@ def api_get_all_field_descriptions():
         # Import template specifications for actual descriptions
         template_descriptions = {}
         try:
-            from agentic.deep_agent.phase3_specification_templates import get_all_specs_for_product_type
+            from agentic.deep_agent.specification_templates import get_all_specs_for_product_type
             template_specs = get_all_specs_for_product_type(product_type)
             if template_specs:
                 for spec_key, spec_def in template_specs.items():

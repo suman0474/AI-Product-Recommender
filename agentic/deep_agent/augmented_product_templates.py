@@ -15,7 +15,7 @@
 
 import logging
 from typing import Dict, List, Any, Optional
-from agentic.deep_agent.phase3_additional_templates import (
+from agentic.deep_agent.specification_templates import (
     PRODUCT_TYPE_TEMPLATES,
     SpecificationDefinition,
 )

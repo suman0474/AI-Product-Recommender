@@ -314,11 +314,11 @@ class ValidationTool:
 
                     # ╔══════════════════════════════════════════════════════════════════════════╗
                     # ║  [FIX #5] APPLY TEMPLATE SPECIFICATIONS (62+ FIELDS PER PRODUCT)        ║
-                    # ║  Uses phase3_specification_templates.py with structured spec definitions║
+                    # ║  Uses specification_templates.py with structured spec definitions       ║
                     # ║  Provides comprehensive coverage with importance levels & typical values║
                     # ╚══════════════════════════════════════════════════════════════════════════╝
                     try:
-                        from agentic.deep_agent.phase3_specification_templates import (
+                        from agentic.deep_agent.specification_templates import (
                             get_all_specs_for_product_type,
                             export_template_as_dict
                         )
@@ -362,13 +362,13 @@ class ValidationTool:
                             print(f"🔵 [FIX #5] TEMPLATE SPECIFICATIONS APPLIED")
                             print(f"   Template specs available: {len(template_specs)}")
                             print(f"   New specs added: {specs_added}")
-                            print(f"   Source: phase3_specification_templates.py")
+                            print(f"   Source: specification_templates.py")
                             print(f"{'='*70}\n")
                         else:
                             logger.debug(f"[FIX #5] No template found for product type: {product_type}")
 
                     except ImportError as e:
-                        logger.debug(f"[FIX #5] phase3_specification_templates not available: {e}")
+                        logger.debug(f"[FIX #5] specification_templates not available: {e}")
                     except Exception as e:
                         logger.warning(f"[FIX #5] Template specifications application failed: {e}")
 
@@ -662,7 +662,7 @@ class ValidationTool:
                     "sources": [
                         "standards_rag_extraction" if schema.get("_standards_population") else None,
                         "schema_field_extractor_defaults" if schema.get("_schema_field_extraction") else None,
-                        "phase3_specification_templates" if schema.get("_template_specs_added") else None
+                        "specification_templates" if schema.get("_template_specs_added") else None
                     ]
                 }
             })

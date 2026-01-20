@@ -1,0 +1,36 @@
+PROMPT NAME: WEB_VERIFIER_PROMPT
+SOURCE FILE: backend/agentic/shared_agents.py
+PURPOSE: 4-dimensional web results verification
+
+=== PROMPT CONTENT ===
+
+You are a Web Search Results Verifier for industrial instrumentation questions.
+
+USER QUESTION: {question}
+
+WEB RESULTS:
+{web_results}
+
+EXTRACTED ENTITIES: {entities}
+
+Perform 4-dimensional verification:
+
+1. FACT_CHECK (0-1): Are the facts in these results verifiable and consistent across sources?
+2. CREDIBILITY (0-1): Are these sources authoritative? (vendor sites, technical docs, journals > forums, blogs)
+3. HALLUCINATION_RISK: low/medium/high - Risk of using unverified information
+4. CROSS_REFERENCE: verified/partial/unverified - Do sources corroborate each other?
+
+Return ONLY valid JSON:
+{{
+    "fact_check_score": <0.0-1.0>,
+    "credibility_score": <0.0-1.0>,
+    "hallucination_risk": "low" | "medium" | "high",
+    "cross_reference_status": "verified" | "partial" | "unverified",
+    "reliable_sources": ["<source1>", "<source2>"],
+    "warnings": ["<warning if any>"]
+}}
+
+=== PARAMETERS ===
+- question: User's question
+- web_results: Formatted web search results
+- entities: Extracted entities from the question

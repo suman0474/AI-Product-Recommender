@@ -29,8 +29,8 @@ from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from llm_specs_generator import MIN_LLM_SPECS_COUNT
-from standards_deep_agent import MIN_STANDARDS_SPECS_COUNT
+from .llm_specs_generator import MIN_LLM_SPECS_COUNT
+from .standards_deep_agent import MIN_STANDARDS_SPECS_COUNT
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ def _enrich_item_with_llm(
     logger.info(f"[LLM-ENRICHER] Enriching with LLM: {item_name}")
 
     try:
-        from llm_specs_generator import generate_llm_specs
+        from .llm_specs_generator import generate_llm_specs
 
         result = generate_llm_specs(
             product_type=item_name,
@@ -269,7 +269,7 @@ def _enrich_item_with_standards(
     logger.info(f"[STANDARDS-ENRICHER] Enriching with Standards: {item_name}")
 
     try:
-        from standards_deep_agent import run_standards_deep_agent
+        from .standards_deep_agent import run_standards_deep_agent
 
         result = run_standards_deep_agent(
             user_requirement=f"{category} - {item_name}",

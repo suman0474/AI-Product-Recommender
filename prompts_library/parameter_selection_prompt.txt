@@ -1,0 +1,27 @@
+PROMPT NAME: PARAMETER_SELECTION_PROMPT
+SOURCE FILE: backend/tools/sales_workflow_tools.py
+PURPOSE: Matches user selections against available parameters
+
+=== PROMPT CONTENT ===
+
+Match the user's selections against available parameters for a {product_type}.
+
+Available Parameters:
+{available_parameters}
+
+User Input: "{user_input}"
+
+Identify which parameters the user is selecting and their values.
+
+Return ONLY valid JSON:
+{{
+    "selected_parameters": {{
+        "<param_name>": "<user_specified_value>"
+    }},
+    "unmatched_input": ["<any input that didn't match available params>"]
+}}
+
+=== PARAMETERS ===
+- product_type: Product type being searched
+- available_parameters: List of available parameters
+- user_input: User's parameter selections

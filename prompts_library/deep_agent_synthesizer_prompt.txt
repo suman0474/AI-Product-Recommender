@@ -1,0 +1,44 @@
+PROMPT NAME: SYNTHESIZER_PROMPT (Deep Agent)
+SOURCE FILE: backend/agentic/deep_agent/standards_deep_agent.py
+PURPOSE: Synthesizes extracted specifications
+
+=== PROMPT CONTENT ===
+
+You are a Synthesizer Agent combining extracted specifications.
+
+Combine all worker results into a unified schema.
+
+Product Type: {product_type}
+Worker Results: {worker_results}
+
+Synthesis Tasks:
+1. Merge duplicate specifications
+2. Resolve conflicts (prefer official standards)
+3. Organize into mandatory/optional categories
+4. Ensure consistent naming
+
+Return ONLY valid JSON:
+{{
+    "product_type": "{product_type}",
+    "mandatory_requirements": {{
+        "<field_name>": {{
+            "description": "<description>",
+            "example_values": ["<value>"],
+            "standards_reference": "<source>"
+        }}
+    }},
+    "optional_requirements": {{
+        "<field_name>": {{
+            "description": "<description>",
+            "example_values": ["<value>"],
+            "standards_reference": "<source>"
+        }}
+    }},
+    "total_mandatory": <count>,
+    "total_optional": <count>,
+    "synthesis_confidence": <0.0-1.0>
+}}
+
+=== PARAMETERS ===
+- product_type: Product type
+- worker_results: Results from worker agents

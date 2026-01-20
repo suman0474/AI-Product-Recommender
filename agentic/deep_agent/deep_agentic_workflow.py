@@ -330,11 +330,15 @@ class DeepAgenticWorkflowOrchestrator:
                         user_input: Optional[str] = None,
                         session_id: Optional[str] = None,
                         thread_id: Optional[str] = None,
+                        main_thread_id: Optional[str] = None,  # ✅ ADD
+                        zone: Optional[str] = None,  # ✅ ADD
                         user_decision: Optional[str] = None,
                         user_provided_fields: Optional[Dict] = None,
                         product_type_hint: Optional[str] = None) -> Dict[str, Any]:
         """
         Process a workflow request.
+
+        ✅ UPDATED: Accepts UI-provided thread IDs
 
         This is the main entry point that handles both new requests and
         continuations of existing workflows.
@@ -342,7 +346,9 @@ class DeepAgenticWorkflowOrchestrator:
         Args:
             user_input: User's input text (required for new sessions)
             session_id: Session identifier
-            thread_id: Thread identifier (for resuming)
+            thread_id: Thread identifier (for resuming) - This is workflow_thread_id from UI
+            main_thread_id: ✅ Main thread ID from UI (format: main_*)
+            zone: ✅ Geographic zone (US-WEST, US-EAST, etc.)
             user_decision: User's decision (continue, add_fields, yes, no, etc.)
             user_provided_fields: Fields provided by user
             product_type_hint: Hint for expected product type
@@ -355,12 +361,18 @@ class DeepAgenticWorkflowOrchestrator:
         logger.info(
             f"\n{'='*70}\n"
             f"[DEEP_WORKFLOW] Processing request\n"
+            f"   Main Thread ID: {main_thread_id}\n"  # ✅ LOG
+            f"   Workflow Thread ID: {thread_id}\n"  # ✅ LOG
+            f"   Zone: {zone}\n"  # ✅ LOG
             f"   Session: {session_id}\n"
-            f"   Thread: {thread_id}\n"
             f"   Decision: {user_decision}\n"
             f"   Input: {user_input[:50] if user_input else 'None'}...\n"
             f"{'='*70}"
         )
+
+        # ✅ STORE THREAD CONTEXT
+        self.main_thread_id = main_thread_id
+        self.zone = zone or 'DEFAULT'
 
         try:
             # Get or create workflow state

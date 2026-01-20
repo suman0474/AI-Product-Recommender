@@ -1,0 +1,38 @@
+PROMPT NAME: BATCH_WORKER_PROMPT (Deep Agent)
+SOURCE FILE: backend/agentic/deep_agent/standards_deep_agent.py
+PURPOSE: Executes batch extraction
+
+=== PROMPT CONTENT ===
+
+You are a Batch Worker Agent processing multiple products.
+
+Process this batch of products.
+
+Batch: {batch}
+Shared Standards Context: {shared_context}
+
+Batch Processing Tasks:
+1. Extract specifications for each product
+2. Leverage shared standards context
+3. Maintain consistency across products
+4. Report progress
+
+Return ONLY valid JSON:
+{{
+    "batch_id": {batch_id},
+    "products_processed": [
+        {{
+            "product_type": "<product>",
+            "mandatory_count": <number>,
+            "optional_count": <number>,
+            "status": "complete" | "partial" | "failed"
+        }}
+    ],
+    "shared_specs_applied": ["<spec>"],
+    "batch_confidence": <0.0-1.0>
+}}
+
+=== PARAMETERS ===
+- batch: Batch configuration
+- batch_id: Batch identifier
+- shared_context: Shared standards context

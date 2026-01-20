@@ -88,26 +88,56 @@ from .standards_deep_agent import (
     STANDARD_FILES,
 )
 
-from .spec_verifier import (
+# NORMALIZERS (CONSOLIDATED from value_normalizer, spec_output_normalizer, spec_verifier)
+from .normalizers import (
+    # Value Normalizer
+    ValueNormalizer,
+    get_value_normalizer,
+    normalize_spec_value,
+    is_valid_spec_value,
+    extract_and_validate_spec,
+    # Output Normalizer
+    normalize_specification_output,
+    normalize_full_item_specs,
+    normalize_key,
+    deduplicate_specs,
+    clean_value,
+    extract_technical_values,
+    STANDARD_KEY_MAPPINGS,
+    # Spec Verifier
     SpecVerifierAgent,
     DescriptionExtractorAgent,
     verify_and_reextract_specs,
 )
 
-# NEW: Moved from agentic/ root
-from .user_specs_extractor import (
+# User Specs Extractor + LLM Specs Generator (CONSOLIDATED)
+from .llm_specs_generator import (
+    generate_llm_specs,
+    generate_llm_specs_batch,
+    generate_specs_with_discovery,
+    discover_specification_keys,
+    ENABLE_DYNAMIC_DISCOVERY,
     extract_user_specified_specs,
     extract_user_specs_batch,
 )
 
-from .llm_specs_generator import (
-    generate_llm_specs,
-    generate_llm_specs_batch,
-)
-
-from .parallel_specs_enrichment import (
+# PARALLEL PROCESSING (CONSOLIDATED)
+from .parallel_processing import (
+    # 3-Source Parallel Enrichment
     run_parallel_3_source_enrichment,
     deduplicate_and_merge_specifications,
+    # Optimized Parallel Agent
+    run_optimized_parallel_enrichment,
+    get_shared_llm,
+    reset_shared_llm,
+    extract_user_specs_with_shared_llm,
+    generate_llm_specs_with_shared_llm,
+    # Parallel Enrichment Engine
+    ParallelEnrichmentEngine,
+    # Parallel/Async Schema Generators
+    ParallelSchemaGenerator,
+    generate_schemas_parallel,
+    AsyncSchemaGenerator,
 )
 
 from .schema_field_extractor import (
@@ -119,44 +149,24 @@ from .schema_field_extractor import (
     PRODUCT_TYPE_DEFAULTS,
 )
 
-from .spec_output_normalizer import (
-    normalize_specification_output,
-    normalize_full_item_specs,
-    normalize_key,
-    deduplicate_specs,
-    clean_value,
-    extract_technical_values,
-    STANDARD_KEY_MAPPINGS,
-)
-
-# NEW: Optimized Parallel Agent (with shared LLM and true parallel processing)
-from .optimized_parallel_agent import (
-    run_optimized_parallel_enrichment,
-    get_shared_llm,
-    reset_shared_llm,
-    extract_user_specs_with_shared_llm,
-    generate_llm_specs_with_shared_llm,
-)
-
-# NEW: Schema Failure Memory (Learn from failures)
-from .schema_failure_memory import (
-    SchemaFailureMemory,
-    FailureEntry,
-    SuccessEntry,
-    FailureType,
-    RecoveryAction,
-    FailurePattern,
-    get_schema_failure_memory,
-    reset_failure_memory,
-)
-
-# NEW: Adaptive Prompt Engine (Optimize prompts based on history)
-from .adaptive_prompt_engine import (
-    AdaptivePromptEngine,
-    PromptStrategy,
-    PromptOptimization,
-    get_adaptive_prompt_engine,
-)
+# LEARNING ENGINE (CONSOLIDATED from schema_failure_memory + adaptive_prompt_engine)
+# NOTE: Commented out - not currently in use
+# from .learning_engine import (
+#     # Schema Failure Memory
+#     SchemaFailureMemory,
+#     FailureEntry,
+#     SuccessEntry,
+#     FailureType,
+#     RecoveryAction,
+#     FailurePattern,
+#     get_schema_failure_memory,
+#     reset_failure_memory,
+#     # Adaptive Prompt Engine
+#     AdaptivePromptEngine,
+#     PromptStrategy,
+#     PromptOptimization,
+#     get_adaptive_prompt_engine,
+# )
 
 # NEW: Schema Generation Deep Agent (Main orchestrator with failure memory)
 from .schema_generation_deep_agent import (
@@ -264,9 +274,12 @@ __all__ = [
     "extract_user_specified_specs",
     "extract_user_specs_batch",
 
-    # LLM Specs Generator (moved from agentic/)
+    # LLM Specs Generator (with Dynamic Key Discovery)
     "generate_llm_specs",
     "generate_llm_specs_batch",
+    "generate_specs_with_discovery",
+    "discover_specification_keys",
+    "ENABLE_DYNAMIC_DISCOVERY",
 
     # Parallel Specs Enrichment (moved from agentic/)
     "run_parallel_3_source_enrichment",

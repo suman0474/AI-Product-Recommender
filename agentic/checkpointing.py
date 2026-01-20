@@ -96,12 +96,12 @@ def get_mongodb_checkpointer(
         # pip install langgraph-checkpoint-mongodb
         from langgraph.checkpoint.mongodb import MongoDBSaver
         import os
-        
+
         conn_str = connection_string or os.getenv("MONGODB_URI")
         if not conn_str:
             logger.warning("MongoDB URI not found, falling back to memory")
             return get_memory_checkpointer()
-        
+
         logger.info(f"Using MongoDB checkpointer: {database}.{collection}")
         return MongoDBSaver.from_conn_string(
             conn_str,
@@ -116,26 +116,91 @@ def get_mongodb_checkpointer(
         return get_memory_checkpointer()
 
 
+def get_azure_blob_checkpointer(
+    connection_string: Optional[str] = None,
+    account_url: Optional[str] = None,
+    container_prefix: str = "workflow-checkpoints",
+    default_zone: str = "DEFAULT",
+    ttl_hours: int = 72,
+    use_managed_identity: bool = False,
+):
+    """
+    Get Azure Blob Storage-based checkpointer (for production with zone partitioning).
+
+    This checkpointer supports the hierarchical thread-ID system with:
+    - Zone-based container organization
+    - Thread tree state persistence
+    - TTL-based automatic cleanup
+    - Item-level state persistence
+
+    Args:
+        connection_string: Azure Storage connection string
+        account_url: Azure Storage account URL (for managed identity)
+        container_prefix: Prefix for checkpoint containers
+        default_zone: Default zone if not specified
+        ttl_hours: TTL for checkpoint cleanup
+        use_managed_identity: Use Azure managed identity authentication
+
+    Returns:
+        AzureBlobCheckpointer instance or fallback to memory
+    """
+    try:
+        from .azure_checkpointing import (
+            AzureBlobCheckpointer,
+            AzureBlobCheckpointerConfig,
+        )
+        import os
+
+        # Build config
+        config = AzureBlobCheckpointerConfig(
+            connection_string=connection_string or os.getenv("AZURE_STORAGE_CONNECTION_STRING"),
+            account_url=account_url or os.getenv("AZURE_STORAGE_ACCOUNT_URL"),
+            container_prefix=container_prefix,
+            default_zone=default_zone,
+            ttl_hours=ttl_hours,
+            use_managed_identity=use_managed_identity,
+        )
+
+        # Check if we have credentials
+        if not config.connection_string and not (config.account_url and config.use_managed_identity):
+            logger.warning("Azure Blob Storage credentials not found, falling back to memory")
+            return get_memory_checkpointer()
+
+        checkpointer = AzureBlobCheckpointer(config)
+        logger.info(f"Using Azure Blob Storage checkpointer: {container_prefix}-{default_zone.lower()}")
+        return checkpointer
+
+    except ImportError as e:
+        logger.warning(f"Azure Blob Storage checkpointer not available: {e}, falling back to memory")
+        return get_memory_checkpointer()
+    except Exception as e:
+        logger.error(f"Failed to create Azure Blob Storage checkpointer: {e}")
+        return get_memory_checkpointer()
+
+
 # ============================================================================
 # CHECKPOINTER FACTORY
 # ============================================================================
 
 def get_checkpointer(
-    backend: Literal["memory", "sqlite", "mongodb"] = "memory",
+    backend: Literal["memory", "sqlite", "mongodb", "azure_blob"] = "memory",
     **kwargs
 ):
     """
     Factory function to get the appropriate checkpointer.
-    
+
     Args:
         backend: The checkpointing backend to use
             - "memory": In-memory (development only, not persistent)
             - "sqlite": SQLite database (local persistence)
             - "mongodb": MongoDB (production, distributed)
+            - "azure_blob": Azure Blob Storage (production, zone-partitioned)
         **kwargs: Backend-specific arguments
             - sqlite: db_path
             - mongodb: connection_string, database, collection
-    
+            - azure_blob: connection_string, account_url, container_prefix,
+                          default_zone, ttl_hours, use_managed_identity
+
     Returns:
         A checkpointer instance
     """
@@ -151,6 +216,15 @@ def get_checkpointer(
             database=kwargs.get("database", "workflow_checkpoints"),
             collection=kwargs.get("collection", "checkpoints")
         )
+    elif backend == "azure_blob":
+        return get_azure_blob_checkpointer(
+            connection_string=kwargs.get("connection_string"),
+            account_url=kwargs.get("account_url"),
+            container_prefix=kwargs.get("container_prefix", "workflow-checkpoints"),
+            default_zone=kwargs.get("default_zone", "DEFAULT"),
+            ttl_hours=kwargs.get("ttl_hours", 72),
+            use_managed_identity=kwargs.get("use_managed_identity", False),
+        )
     else:
         logger.warning(f"Unknown backend '{backend}', falling back to memory")
         return get_memory_checkpointer()
@@ -162,7 +236,7 @@ def get_checkpointer(
 
 def compile_with_checkpointing(
     workflow: StateGraph,
-    backend: Literal["memory", "sqlite", "mongodb"] = "memory",
+    backend: Literal["memory", "sqlite", "mongodb", "azure_blob"] = "memory",
     **kwargs
 ):
     """
@@ -171,6 +245,10 @@ def compile_with_checkpointing(
     Args:
         workflow: The StateGraph workflow to compile
         backend: The checkpointing backend to use
+            - "memory": In-memory (development only)
+            - "sqlite": SQLite database (local persistence)
+            - "mongodb": MongoDB (production, distributed)
+            - "azure_blob": Azure Blob Storage (production, zone-partitioned)
         **kwargs: Backend-specific arguments
 
     Returns:

@@ -1,0 +1,11 @@
+PROMPT NAME: feedback_comment_prompt
+SOURCE FILE: backend/prompts.py
+PURPOSE: Acknowledges general feedback
+
+=== PROMPT CONTENT ===
+
+Thank you for your feedback. {comment}
+We appreciate you taking the time to share your thoughts.
+
+=== PARAMETERS ===
+- comment: User's feedback comment

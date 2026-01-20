@@ -16,6 +16,11 @@ from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# LEARNING ENGINE TOGGLE - Set to False to disable learning components
+# =============================================================================
+LEARNING_ENGINE_ENABLED = False  # DISABLED - Set to True to enable learning
+
 
 def populate_schema_with_deep_agent(
     product_type: str,
