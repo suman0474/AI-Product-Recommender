@@ -5,3 +5,4 @@ __pycache__/
 *.md
 *.bak
 nul
+flask_session/
