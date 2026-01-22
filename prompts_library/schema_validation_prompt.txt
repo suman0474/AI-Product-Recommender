@@ -1,6 +1,6 @@
-PROMPT NAME: VALIDATION_PROMPT (Schema Tools)
+PROMPT NAME: SCHEMA_VALIDATION_PROMPT
 SOURCE FILE: backend/tools/schema_tools.py
-PURPOSE: Validates user requirements with dynamic product type intelligence
+PURPOSE: Validates user requirements against product schema with dynamic product type intelligence
 
 === PROMPT CONTENT ===
 
@@ -55,6 +55,6 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- user_input: User's requirements input
+- user_input: User's requirements input text
 - product_type: Detected product type
-- schema: Product requirements schema
+- schema: Product schema with mandatory/optional fields

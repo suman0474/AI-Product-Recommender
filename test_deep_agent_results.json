@@ -1,0 +1,1990 @@
+{
+  "success": true,
+  "status": "completed",
+  "final_specifications": {
+    "specifications": {
+      "number_of_measuring_points": "multi-point",
+      "temperature_measurement_range": "-50 to +400\u00b0C",
+      "hazardous_area_certifications": "ATEX Zone 1",
+      "sil_rating": "SIL 2",
+      "output_signal": "4-20mA",
+      "communication_protocol": "HART",
+      "sensor_type": "Thermocouple",
+      "thermocouple_type": "K, J, T",
+      "sheath_material": "stainless steel",
+      "material_wetted": null,
+      "enclosure_housing_material": null,
+      "ingress_protection": "IP66/NEMA 4X",
+      "operating_ambient_temperature_range": "-40 to +60\u00b0C",
+      "process_connection_type": "\u00be- or 1-inch NPT",
+      "thermowell_material": "316 SS",
+      "accuracy": "\u00b10.25% of span",
+      "electrical_output_signal": "4\u201320 mA DC",
+      "advanced_communication_protocols": "HART",
+      "sensor_output_type": "Analogue, Digital",
+      "certifications": "ATEX",
+      "hazardous_area_rating": "Zone 1",
+      "product_type": "multi-point thermocouple assembly",
+      "calibration_interval": "12 months",
+      "material_housing": null,
+      "ambien_temperature_range": null,
+      "humidity_range": null,
+      "chemical_compatibility_contact_material": null,
+      "vibration_and_shock_resistance": null,
+      "vibration_resistance": null,
+      "ingress_protection_rating": null,
+      "contact_material": null,
+      "junction_configuration": null,
+      "lead_wire_length": null,
+      "lead_wire_type": null,
+      "mounting_method": null,
+      "mounting_type": null,
+      "physical_dimensions": null,
+      "connection_head_type": null,
+      "insertion_length": null,
+      "point_spacing_junction_locations": null,
+      "sheath_diameter": null,
+      "cable_entry_method": null,
+      "conduit_connection": null,
+      "lead_wire_armor_sheath": null,
+      "maximum_operating_pressure": null,
+      "mounting_hardware_accessories": null,
+      "weight_sensor_assembly": null,
+      "extension_lead_wire_length": null,
+      "extension_lead_wire_material": null,
+      "head_enclosure_material": null,
+      "internal_insulation_material": null,
+      "removable_insert_feature": null,
+      "special_sheath_treatments": null,
+      "spring_loaded_design": null,
+      "accuracy_tolerance_class": null,
+      "repeatability": null,
+      "response_time": null,
+      "response_time_t90": null,
+      "measuring_junction_type": null,
+      "stability": null,
+      "stability_drift": null,
+      "rangeability": null,
+      "calibration_certificates": null,
+      "calibration_options_certificates": null,
+      "other_regulatory_approvals": null,
+      "advanced_diagnostics": null,
+      "diagnostics_capabilities": null,
+      "configuration_software_tools": null,
+      "customization_availability": null,
+      "local_display_interface": null,
+      "product_warranty": null,
+      "weight": null,
+      "supply_voltage": null,
+      "power_consumption": null,
+      "power_supply": null,
+      "transmitter_integration": null,
+      "standard_reference_for_thermocouple_tables": "IEC 60584-1/IEC 60584-3",
+      "resists_silicone_and_sulfur_poisoning": true,
+      "minimum_service_life": "1 year",
+      "preferred_output_signal": "4-20mA HART",
+      "hazardous_area_classification_documentation": "required",
+      "data_sheet_documentation_sensor_type": "required",
+      "data_sheet_documentation_process_connection": "required",
+      "data_sheet_documentation_thermowell_material": "required",
+      "data_sheet_documentation_thermowell_insertion_length": "required",
+      "data_sheet_documentation_output": "required",
+      "data_sheet_documentation_accuracy": "required",
+      "intrinsically_safe_transmitters_or_explosion_proof_heads": "required for hazardous areas",
+      "sil_design_requirement": "Hardware and software fault tolerance",
+      "sil_design_proof_test_interval_documentation": "required",
+      "material_for_thermowells": "316 SS",
+      "thermowell_connection_size": "3/4- or 1-inch NPT",
+      "minimum_thermowell_wall_thickness": "3/16 in",
+      "recommendation_for_fast_response_applications": "thermocouples",
+      "preferred_transmitter_output_signal": "4-20mA",
+      "preferred_transmitter_communication_protocol": "HART",
+      "transmitters_or_heads_for_hazardous_areas": "intrinsically safe or explosion-proof",
+      "database_ip_rating": "IP65",
+      "database_material": "Stainless Steel 316",
+      "database_output": "4-20mA / HART",
+      "database_certification": "CE, ATEX (optional)",
+      "database_range": "Consult datasheet",
+      "database_accuracy": "Consult datasheet",
+      "ATEX_certification_option": "optional"
+    },
+    "constraints_applied": [
+      {
+        "constraint_type": "specification",
+        "description": "Operating temperature range for the multi-point thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "ATEX certification for hazardous locations",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "ANSI/ISA 60079 / IEC 60079",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "specification",
+        "description": "SIL capability for safety instrumented functions",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Enclosure environmental rating",
+        "value": "IP66/NEMA 4X",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Design environmental temperature range for equipment",
+        "value": "-40 to +60\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Sensors shall be housed in enclosures suitable for Class 1 Division 1, Groups C and D",
+        "value": "Class 1 Division 1, Groups C and D",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Sensors must resist silicone and sulfur poisoning",
+        "value": "Resist silicone and sulfur poisoning",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Service life of sensors",
+        "value": "\u2265 1 year",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "SIS design must determine Safety Integrity Level (SIL) per risk assessment",
+        "value": "SIL 2",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "SIS design must have hardware and software fault tolerance",
+        "value": "Hardware and software fault tolerance",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Document proof test intervals for SIFs",
+        "value": "Document proof test intervals",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Use intrinsically safe barriers or galvanic isolators for sensor loops",
+        "value": "Intrinsically safe barriers or galvanic isolators",
+        "condition": "Sensor loops",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Document detector type, range, response time, location, gas type, setpoint levels, SIL requirement, enclosure rating, output signal, power supply, approvals and calibration frequency",
+        "value": "Document specified parameters",
+        "condition": "Data Sheet",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the multi-point thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Preferred transmitter output signal",
+        "value": "4-20mA",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Preferred communication protocol for transmitters",
+        "value": "HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Applicable standard for thermocouple reference tables and tolerances",
+        "value": "IEC 60584-1/IEC 60584-3",
+        "condition": null,
+        "standard_reference": "IEC 60584-1/IEC 60584-3",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Available thermocouple types",
+        "value": "K, J, T",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Thermocouple construction",
+        "value": "mineral insulated with stainless steel sheaths",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Transmitter accuracy for thermocouples",
+        "value": "\u00b10.25% of span",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Material for thermowells",
+        "value": "316 SS",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Thermowell connections",
+        "value": "\u00be- or 1-inch NPT",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Minimum wall thickness for thermowells",
+        "value": "3/16 in",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Sensor type selection for fast response applications",
+        "value": "thermocouples",
+        "condition": "high temperature or fast response applications",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Temperature transmitter output signal",
+        "value": "4\u201320 mA DC",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Requirement for intrinsically safe transmitters or explosion-proof heads for hazardous areas",
+        "value": "intrinsically safe transmitters or explosion-proof heads",
+        "condition": "hazardous areas",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Hazardous area classification documentation requirement",
+        "value": "hazardous area classification",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for sensor type",
+        "value": "sensor type",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for process connection",
+        "value": "process connection",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for thermowell material",
+        "value": "thermowell material",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for thermowell insertion length",
+        "value": "insertion length",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for output signal",
+        "value": "output",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for accuracy",
+        "value": "accuracy",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "IEC 60079\u201111",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal protocol",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": "HART Protocol Specification",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the multi-point thermocouple assembly.",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas.",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability.",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal and protocol.",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Sensors must resist silicone and sulfur poisoning",
+        "value": "Resist silicone and sulfur poisoning",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Sensors must have a service life of \u2265 1 year",
+        "value": "\u2265 1 year",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Intrinsically safe loops must be designed as systems; ensure combined capacitance and inductance remain below safety curves.",
+        "value": "Intrinsically safe loop design",
+        "condition": "Intrinsically safe loops",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "For safety-critical instruments, calibrate at least annually.",
+        "value": "Annual calibration",
+        "condition": "Safety-critical instruments",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Follow lockout/tagout procedures before removing instruments.",
+        "value": "Lockout/tagout procedures",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Vent and depressurise impulse lines before disconnecting.",
+        "value": "Vent and depressurize impulse lines",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Use appropriate personal protective equipment (PPE) when working on process equipment.",
+        "value": "Appropriate PPE",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "For hazardous areas, ensure work permits and gas testing are completed.",
+        "value": "Work permits and gas testing",
+        "condition": "Hazardous areas",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Operating temperature range for the thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "IEC 60079",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal and communication protocol",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      }
+    ],
+    "confidence": 0.85
+  },
+  "consolidated_specs": {
+    "merged_constraints": [
+      {
+        "constraint_type": "specification",
+        "description": "Operating temperature range for the multi-point thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "ATEX certification for hazardous locations",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "ANSI/ISA 60079 / IEC 60079",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "specification",
+        "description": "SIL capability for safety instrumented functions",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Enclosure environmental rating",
+        "value": "IP66/NEMA 4X",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Design environmental temperature range for equipment",
+        "value": "-40 to +60\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Sensors shall be housed in enclosures suitable for Class 1 Division 1, Groups C and D",
+        "value": "Class 1 Division 1, Groups C and D",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Sensors must resist silicone and sulfur poisoning",
+        "value": "Resist silicone and sulfur poisoning",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Service life of sensors",
+        "value": "\u2265 1 year",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "SIS design must determine Safety Integrity Level (SIL) per risk assessment",
+        "value": "SIL 2",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "SIS design must have hardware and software fault tolerance",
+        "value": "Hardware and software fault tolerance",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Document proof test intervals for SIFs",
+        "value": "Document proof test intervals",
+        "condition": "SIF design",
+        "standard_reference": "IEC 61511 / ISA 84",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Use intrinsically safe barriers or galvanic isolators for sensor loops",
+        "value": "Intrinsically safe barriers or galvanic isolators",
+        "condition": "Sensor loops",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Document detector type, range, response time, location, gas type, setpoint levels, SIL requirement, enclosure rating, output signal, power supply, approvals and calibration frequency",
+        "value": "Document specified parameters",
+        "condition": "Data Sheet",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the multi-point thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Preferred transmitter output signal",
+        "value": "4-20mA",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Preferred communication protocol for transmitters",
+        "value": "HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Applicable standard for thermocouple reference tables and tolerances",
+        "value": "IEC 60584-1/IEC 60584-3",
+        "condition": null,
+        "standard_reference": "IEC 60584-1/IEC 60584-3",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Available thermocouple types",
+        "value": "K, J, T",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Thermocouple construction",
+        "value": "mineral insulated with stainless steel sheaths",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Transmitter accuracy for thermocouples",
+        "value": "\u00b10.25% of span",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Material for thermowells",
+        "value": "316 SS",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Thermowell connections",
+        "value": "\u00be- or 1-inch NPT",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Minimum wall thickness for thermowells",
+        "value": "3/16 in",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Sensor type selection for fast response applications",
+        "value": "thermocouples",
+        "condition": "high temperature or fast response applications",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Temperature transmitter output signal",
+        "value": "4\u201320 mA DC",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Requirement for intrinsically safe transmitters or explosion-proof heads for hazardous areas",
+        "value": "intrinsically safe transmitters or explosion-proof heads",
+        "condition": "hazardous areas",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Hazardous area classification documentation requirement",
+        "value": "hazardous area classification",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for sensor type",
+        "value": "sensor type",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for process connection",
+        "value": "process connection",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for thermowell material",
+        "value": "thermowell material",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for thermowell insertion length",
+        "value": "insertion length",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for output signal",
+        "value": "output",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Data sheet documentation for accuracy",
+        "value": "accuracy",
+        "condition": null,
+        "standard_reference": "ISA 20",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "IEC 60079\u201111",
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal protocol",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": "HART Protocol Specification",
+        "confidence": 0.9
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Operating temperature range for the multi-point thermocouple assembly.",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "ATEX certification for hazardous areas.",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "requirement",
+        "description": "Safety Integrity Level (SIL) capability.",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal and protocol.",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Sensors must resist silicone and sulfur poisoning",
+        "value": "Resist silicone and sulfur poisoning",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Sensors must have a service life of \u2265 1 year",
+        "value": "\u2265 1 year",
+        "condition": "Sensors",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Intrinsically safe loops must be designed as systems; ensure combined capacitance and inductance remain below safety curves.",
+        "value": "Intrinsically safe loop design",
+        "condition": "Intrinsically safe loops",
+        "standard_reference": null,
+        "confidence": 0.7
+      },
+      {
+        "constraint_type": "warning",
+        "description": "For safety-critical instruments, calibrate at least annually.",
+        "value": "Annual calibration",
+        "condition": "Safety-critical instruments",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Follow lockout/tagout procedures before removing instruments.",
+        "value": "Lockout/tagout procedures",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Vent and depressurise impulse lines before disconnecting.",
+        "value": "Vent and depressurize impulse lines",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "Use appropriate personal protective equipment (PPE) when working on process equipment.",
+        "value": "Appropriate PPE",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "warning",
+        "description": "For hazardous areas, ensure work permits and gas testing are completed.",
+        "value": "Work permits and gas testing",
+        "condition": "Hazardous areas",
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Operating temperature range for the thermocouple assembly",
+        "value": "-50 to +400\u00b0C",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "specification",
+        "description": "ATEX certification for hazardous areas",
+        "value": "ATEX Zone 1",
+        "condition": null,
+        "standard_reference": "IEC 60079",
+        "confidence": 0.8
+      },
+      {
+        "constraint_type": "specification",
+        "description": "Safety Integrity Level (SIL) capability",
+        "value": "SIL 2",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 1.0
+      },
+      {
+        "constraint_type": "recommendation",
+        "description": "Preferred output signal and communication protocol",
+        "value": "4-20mA HART",
+        "condition": null,
+        "standard_reference": null,
+        "confidence": 0.8
+      }
+    ],
+    "merged_specifications": {
+      "number_of_measuring_points": "multi-point",
+      "temperature_measurement_range": "-50 to +400\u00b0C",
+      "hazardous_area_certifications": "ATEX Zone 1",
+      "sil_rating": "SIL 2",
+      "output_signal": "4-20mA",
+      "communication_protocol": "HART",
+      "sensor_type": "Thermocouple",
+      "thermocouple_type": "K, J, T",
+      "sheath_material": "stainless steel",
+      "material_wetted": null,
+      "enclosure_housing_material": null,
+      "ingress_protection": "IP66/NEMA 4X",
+      "operating_ambient_temperature_range": "-40 to +60\u00b0C",
+      "process_connection_type": "\u00be- or 1-inch NPT",
+      "thermowell_material": "316 SS",
+      "accuracy": "\u00b10.25% of span",
+      "electrical_output_signal": "4-20mA",
+      "advanced_communication_protocols": "HART",
+      "sensor_output_type": "Analogue, Digital",
+      "certifications": "ATEX",
+      "hazardous_area_rating": "Zone 1",
+      "product_type": "multi-point thermocouple assembly",
+      "calibration_interval": "12 months",
+      "material_housing": null,
+      "ambien_temperature_range": null,
+      "humidity_range": null,
+      "chemical_compatibility_contact_material": null,
+      "vibration_and_shock_resistance": null,
+      "vibration_resistance": null,
+      "ingress_protection_rating": null,
+      "contact_material": null,
+      "junction_configuration": null,
+      "lead_wire_length": null,
+      "lead_wire_type": null,
+      "mounting_method": null,
+      "mounting_type": null,
+      "physical_dimensions": null,
+      "connection_head_type": null,
+      "insertion_length": null,
+      "point_spacing_junction_locations": null,
+      "sheath_diameter": null,
+      "cable_entry_method": null,
+      "conduit_connection": null,
+      "lead_wire_armor_sheath": null,
+      "maximum_operating_pressure": null,
+      "mounting_hardware_accessories": null,
+      "weight_sensor_assembly": null,
+      "extension_lead_wire_length": null,
+      "extension_lead_wire_material": null,
+      "head_enclosure_material": null,
+      "internal_insulation_material": null,
+      "removable_insert_feature": null,
+      "special_sheath_treatments": null,
+      "spring_loaded_design": null,
+      "accuracy_tolerance_class": null,
+      "repeatability": null,
+      "response_time": null,
+      "response_time_t90": null,
+      "measuring_junction_type": null,
+      "stability": null,
+      "stability_drift": null,
+      "rangeability": null,
+      "calibration_certificates": null,
+      "calibration_options_certificates": null,
+      "other_regulatory_approvals": null,
+      "advanced_diagnostics": null,
+      "diagnostics_capabilities": null,
+      "configuration_software_tools": null,
+      "customization_availability": null,
+      "local_display_interface": null,
+      "product_warranty": null,
+      "weight": null,
+      "supply_voltage": null,
+      "power_consumption": null,
+      "power_supply": null,
+      "transmitter_integration": null
+    },
+    "conflicts": [
+      {
+        "specification": "ingress_protection",
+        "values": [
+          "IP66/NEMA 4X",
+          null
+        ],
+        "sources": [
+          "safety",
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected 'IP66/NEMA 4X' as it is the most specific value."
+      },
+      {
+        "specification": "operating_ambient_temperature_range",
+        "values": [
+          "-40 to +60\u00b0C",
+          null
+        ],
+        "sources": [
+          "safety",
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected '-40 to +60\u00b0C' as it is the most specific value."
+      },
+      {
+        "specification": "process_connection_type",
+        "values": [
+          "\u00be- or 1-inch NPT",
+          null
+        ],
+        "sources": [
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected '\u00be- or 1-inch NPT' as it is the most specific value."
+      },
+      {
+        "specification": "thermowell_material",
+        "values": [
+          "316 SS",
+          null
+        ],
+        "sources": [
+          "temperature",
+          "accessories"
+        ],
+        "resolution": "Selected '316 SS' as it is the most specific value."
+      },
+      {
+        "specification": "accuracy",
+        "values": [
+          "\u00b10.25% of span",
+          null
+        ],
+        "sources": [
+          "temperature",
+          "calibration",
+          "accessories"
+        ],
+        "resolution": "Selected '\u00b10.25% of span' as it is the most specific value."
+      },
+      {
+        "specification": "calibration_interval",
+        "values": [
+          "12 months",
+          null
+        ],
+        "sources": [
+          "calibration",
+          "accessories"
+        ],
+        "resolution": "Selected '12 months' as it is the most specific value."
+      },
+      {
+        "specification": "sensor_output_type",
+        "values": [
+          "Digital signal transmission",
+          "4-20mA",
+          "Analogue, Digital"
+        ],
+        "sources": [
+          "safety",
+          "temperature",
+          "communication"
+        ],
+        "resolution": "Selected 'Analogue, Digital' as it is the most comprehensive value, encompassing both 'Digital signal transmission' and '4-20mA'."
+      },
+      {
+        "specification": "output_signal",
+        "values": [
+          "4-20mA",
+          "4\u201320 mA DC"
+        ],
+        "sources": [
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected '4-20mA' as the standard representation."
+      },
+      {
+        "specification": "advanced_communication_protocols",
+        "values": [
+          "HART",
+          null
+        ],
+        "sources": [
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected 'HART' as it is the most specific value."
+      },
+      {
+        "specification": "certifications",
+        "values": [
+          "ATEX",
+          null
+        ],
+        "sources": [
+          "safety",
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected 'ATEX' as it is the most specific value."
+      },
+      {
+        "specification": "hazardous_area_rating",
+        "values": [
+          "Zone 1",
+          null
+        ],
+        "sources": [
+          "safety",
+          "temperature",
+          "communication",
+          "accessories"
+        ],
+        "resolution": "Selected 'Zone 1' as it is the most specific value."
+      },
+      {
+        "specification": "product_type",
+        "values": [
+          "multi-point thermocouple assembly",
+          "Thermocouple assembly",
+          "Temperature sensor"
+        ],
+        "sources": [
+          "temperature",
+          "communication",
+          "calibration",
+          "accessories"
+        ],
+        "resolution": "Selected 'multi-point thermocouple assembly' as it is the most descriptive."
+      }
+    ],
+    "warnings": [
+      "The 'Class 1 Division 1, Groups C and D' hazardous area requirement from the 'safety' standard appears to be a US-based classification that may need to be reconciled with the 'ATEX Zone 1' certification.",
+      "The 'Design environmental temperature range for equipment' (-40 to +60\u00b0C) from the 'safety' standard is different from the 'Operating temperature range' (-50 to +400\u00b0C) of the thermocouple assembly itself. Ensure the equipment housing and related components can withstand the operating range.",
+      "The 'Enclosure environmental rating' (IP66/NEMA 4X) from the 'safety' standard has not been explicitly confirmed for other standards, but is a strong candidate for the final specification.",
+      "The 'Service life of sensors' is noted as '\u2265 1 year' in the 'safety' standard, but no specific value was provided by other standards. This should be confirmed for the application.",
+      "Information on specific thermocouple types (e.g., K, J, T) is available, but the actual type to be used for this application is not yet specified.",
+      "Details regarding specific materials for wetted parts and housing are generally missing across all standards, beyond the sheath material (stainless steel) and thermowell material (316 SS).",
+      "Information on dimensions, weight, and specific mounting methods is not detailed in any of the provided standards.",
+      "Response time and accuracy specifications, beyond transmitter accuracy, are not fully detailed.",
+      "While 'multi-point' is indicated, the exact number of measurement points is not specified."
+    ],
+    "sources": [
+      "safety",
+      "temperature",
+      "communication",
+      "calibration",
+      "accessories"
+    ]
+  },
+  "standards_analyzed": [
+    "safety",
+    "temperature",
+    "communication",
+    "calibration",
+    "accessories"
+  ],
+  "planning_reasoning": "The requirement for ATEX Zone 1 certification directly maps to the 'safety' domain. The need for temperature measurement, specifically a multi-point thermocouple, falls under the 'temperature' domain. The preference for 4-20mA output with HART protocol is covered by the 'communication' domain. SIL 2 capability also relates to 'safety'. Calibration of the temperature measurement device is essential and belongs to the 'calibration' domain. The need for a 'multi-point thermocouple assembly' implies considerations for installation and associated hardware, fitting the 'accessories' domain.",
+  "worker_results": [
+    {
+      "standard_type": "safety",
+      "standard_name": "Safety & Protection Standards",
+      "constraints": [
+        {
+          "constraint_type": "specification",
+          "description": "Operating temperature range for the multi-point thermocouple assembly",
+          "value": "-50 to +400\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "ATEX certification for hazardous locations",
+          "value": "ATEX Zone 1",
+          "condition": null,
+          "standard_reference": "ANSI/ISA 60079 / IEC 60079",
+          "confidence": 0.9
+        },
+        {
+          "constraint_type": "specification",
+          "description": "SIL capability for safety instrumented functions",
+          "value": "SIL 2",
+          "condition": null,
+          "standard_reference": "IEC 61511 / ISA 84",
+          "confidence": 0.9
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Enclosure environmental rating",
+          "value": "IP66/NEMA 4X",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Design environmental temperature range for equipment",
+          "value": "-40 to +60\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Sensors shall be housed in enclosures suitable for Class 1 Division 1, Groups C and D",
+          "value": "Class 1 Division 1, Groups C and D",
+          "condition": "Sensors",
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Sensors must resist silicone and sulfur poisoning",
+          "value": "Resist silicone and sulfur poisoning",
+          "condition": "Sensors",
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Service life of sensors",
+          "value": "\u2265 1 year",
+          "condition": "Sensors",
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "SIS design must determine Safety Integrity Level (SIL) per risk assessment",
+          "value": "SIL 2",
+          "condition": "SIF design",
+          "standard_reference": "IEC 61511 / ISA 84",
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "SIS design must have hardware and software fault tolerance",
+          "value": "Hardware and software fault tolerance",
+          "condition": "SIF design",
+          "standard_reference": "IEC 61511 / ISA 84",
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Document proof test intervals for SIFs",
+          "value": "Document proof test intervals",
+          "condition": "SIF design",
+          "standard_reference": "IEC 61511 / ISA 84",
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "recommendation",
+          "description": "Use intrinsically safe barriers or galvanic isolators for sensor loops",
+          "value": "Intrinsically safe barriers or galvanic isolators",
+          "condition": "Sensor loops",
+          "standard_reference": null,
+          "confidence": 0.7
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Document detector type, range, response time, location, gas type, setpoint levels, SIL requirement, enclosure rating, output signal, power supply, approvals and calibration frequency",
+          "value": "Document specified parameters",
+          "condition": "Data Sheet",
+          "standard_reference": null,
+          "confidence": 0.7
+        }
+      ],
+      "specifications": {
+        "electrical_output_signal": null,
+        "advanced_communication_protocols": null,
+        "supply_voltage": null,
+        "power_consumption": null,
+        "sensor_output_type": "Digital signal transmission",
+        "ingress_protection": "IP66/NEMA 4X",
+        "operating_ambient_temperature_range": "-40 to +60\u00b0C",
+        "hazardous_area_certifications": "ATEX Zone 1",
+        "sil_rating": "SIL 2",
+        "temperature_measurement_range": "-50 to +400\u00b0C",
+        "output_signal": null,
+        "process_connection_type": null,
+        "sheath_material": null,
+        "material_wetted": null,
+        "material_housing": null,
+        "enclosure_housing_material": null,
+        "thermocouple_type": null,
+        "number_of_measuring_points": "multi-point",
+        "communication_protocol": "HART",
+        "certifications": "ATEX",
+        "hazardous_area_rating": "Zone 1"
+      },
+      "warnings": [
+        "Sensors must resist silicone and sulfur poisoning.",
+        "Sensors must have a service life of \u2265 1 year."
+      ],
+      "processing_time_ms": 8713,
+      "success": true,
+      "error": null
+    },
+    {
+      "standard_type": "temperature",
+      "standard_name": "Temperature Measurement Standards",
+      "constraints": [
+        {
+          "constraint_type": "requirement",
+          "description": "Operating temperature range for the multi-point thermocouple assembly",
+          "value": "-50 to +400\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "ATEX certification for hazardous areas",
+          "value": "ATEX Zone 1",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Safety Integrity Level (SIL) capability",
+          "value": "SIL 2",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Preferred transmitter output signal",
+          "value": "4-20mA",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Preferred communication protocol for transmitters",
+          "value": "HART",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Applicable standard for thermocouple reference tables and tolerances",
+          "value": "IEC 60584-1/IEC 60584-3",
+          "condition": null,
+          "standard_reference": "IEC 60584-1/IEC 60584-3",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Available thermocouple types",
+          "value": "K, J, T",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Thermocouple construction",
+          "value": "mineral insulated with stainless steel sheaths",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Transmitter accuracy for thermocouples",
+          "value": "\u00b10.25% of span",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Material for thermowells",
+          "value": "316 SS",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Thermowell connections",
+          "value": "\u00be- or 1-inch NPT",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Minimum wall thickness for thermowells",
+          "value": "3/16 in",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "recommendation",
+          "description": "Sensor type selection for fast response applications",
+          "value": "thermocouples",
+          "condition": "high temperature or fast response applications",
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Temperature transmitter output signal",
+          "value": "4\u201320 mA DC",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Requirement for intrinsically safe transmitters or explosion-proof heads for hazardous areas",
+          "value": "intrinsically safe transmitters or explosion-proof heads",
+          "condition": "hazardous areas",
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Hazardous area classification documentation requirement",
+          "value": "hazardous area classification",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for sensor type",
+          "value": "sensor type",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for process connection",
+          "value": "process connection",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for thermowell material",
+          "value": "thermowell material",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for thermowell insertion length",
+          "value": "insertion length",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for output signal",
+          "value": "output",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Data sheet documentation for accuracy",
+          "value": "accuracy",
+          "condition": null,
+          "standard_reference": "ISA 20",
+          "confidence": 1.0
+        }
+      ],
+      "specifications": {
+        "electrical_connection_type": null,
+        "electrical_output_signal": "4-20mA",
+        "supply_voltage": null,
+        "power_consumption": null,
+        "sensor_output_type": "4-20mA",
+        "advanced_communication_protocols": "HART",
+        "cable_entry_type": null,
+        "power_supply": null,
+        "transmitter_integration": null,
+        "ingress_protection": null,
+        "operating_ambient_temperature_range": null,
+        "ambient_temperature_range": null,
+        "humidity_range": null,
+        "chemical_compatibility_contact_material": null,
+        "hazardous_area_certifications": "ATEX Zone 1",
+        "vibration_and_shock_resistance": null,
+        "vibration_resistance": null,
+        "ingress_protection_rating": null,
+        "contact_material": null,
+        "junction_configuration": null,
+        "lead_wire_length": null,
+        "lead_wire_type": null,
+        "mounting_method": null,
+        "mounting_type": null,
+        "physical_dimensions": null,
+        "connection_head_type": null,
+        "insertion_length": null,
+        "point_spacing_junction_locations": null,
+        "process_connection_type": "\u00be- or 1-inch NPT",
+        "sheath_diameter": null,
+        "sheath_material": "stainless steel",
+        "material_wetted": null,
+        "material_housing": null,
+        "enclosure_housing_material": null,
+        "cable_entry_method": null,
+        "conduit_connection": null,
+        "lead_wire_armor_sheath": null,
+        "maximum_operating_pressure": null,
+        "mounting_hardware_accessories": null,
+        "weight_sensor_assembly": null,
+        "extension_lead_wire_length": null,
+        "extension_lead_wire_material": null,
+        "head_enclosure_material": null,
+        "internal_insulation_material": null,
+        "removable_insert_feature": null,
+        "special_sheath_treatments": null,
+        "spring_loaded_design": null,
+        "thermowell_material": "316 SS",
+        "accuracy": "\u00b10.25% of span",
+        "accuracy_tolerance_class": null,
+        "repeatability": null,
+        "measurement_temperature_range": "-50 to +400\u00b0C",
+        "temperature_measurement_range": "-50 to +400\u00b0C",
+        "response_time": null,
+        "response_time_t90": null,
+        "sensor_type": "Thermocouple",
+        "thermocouple_type": "K, J, T",
+        "measuring_junction_type": null,
+        "number_of_measuring_points": "multi-point",
+        "stability": null,
+        "stability_drift": null,
+        "rangeability": null,
+        "calibration_interval": null,
+        "calibration_certificates": null,
+        "calibration_options_certificates": null,
+        "other_regulatory_approvals": null,
+        "hazardous_area_rating": "Zone 1",
+        "sil_rating": "SIL 2",
+        "certifications": "ATEX",
+        "advanced_diagnostics": null,
+        "diagnostics_capabilities": null,
+        "configuration_software_tools": null,
+        "customization_availability": null,
+        "local_display_interface": null,
+        "communication_protocol": "HART",
+        "product_warranty": null,
+        "weight": null,
+        "product_type": "multi-point thermocouple assembly"
+      },
+      "warnings": [
+        "For high temperature (>400 \u00b0C) service, consider thermocouple types and materials rated for temperature."
+      ],
+      "processing_time_ms": 11731,
+      "success": true,
+      "error": null
+    },
+    {
+      "standard_type": "communication",
+      "standard_name": "Communication & Signals Standards",
+      "constraints": [
+        {
+          "constraint_type": "requirement",
+          "description": "Operating temperature range for the thermocouple assembly",
+          "value": "-50 to +400\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.9
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "ATEX certification required for hazardous areas",
+          "value": "ATEX Zone 1",
+          "condition": null,
+          "standard_reference": "IEC 60079\u201111",
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Safety Integrity Level (SIL) capability",
+          "value": "SIL 2",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "recommendation",
+          "description": "Preferred output signal protocol",
+          "value": "4-20mA HART",
+          "condition": null,
+          "standard_reference": "HART Protocol Specification",
+          "confidence": 0.9
+        }
+      ],
+      "specifications": {
+        "electrical_connection_type": null,
+        "electrical_output_signal": "4-20mA",
+        "supply_voltage": null,
+        "power_consumption": null,
+        "sensor_output_type": "Analogue, Digital",
+        "advanced_communication_protocols": "HART",
+        "cable_entry_type": null,
+        "power_supply": null,
+        "transmitter_integration": null,
+        "ingress_protection": null,
+        "operating_ambient_temperature_range": null,
+        "ambient_temperature_range": null,
+        "humidity_range": null,
+        "chemical_compatibility_contact_material": null,
+        "hazardous_area_certifications": "ATEX Zone 1",
+        "vibration_and_shock_resistance": null,
+        "vibration_resistance": null,
+        "ingress_protection_rating": null,
+        "contact_material": null,
+        "junction_configuration": null,
+        "lead_wire_length": null,
+        "lead_wire_type": null,
+        "mounting_method": null,
+        "mounting_type": null,
+        "physical_dimensions": null,
+        "connection_head_type": null,
+        "insertion_length": null,
+        "point_spacing_junction_locations": null,
+        "process_connection_type": null,
+        "sheath_diameter": null,
+        "sheath_material": null,
+        "material_wetted": null,
+        "material_housing": null,
+        "enclosure_housing_material": null,
+        "cable_entry_method": null,
+        "conduit_connection": null,
+        "lead_wire_armor_sheath": null,
+        "maximum_operating_pressure": null,
+        "mounting_hardware_accessories": null,
+        "weight_sensor_assembly": null,
+        "extension_lead_wire_length": null,
+        "extension_lead_wire_material": null,
+        "head_enclosure_material": null,
+        "internal_insulation_material": null,
+        "removable_insert_feature": null,
+        "special_sheath_treatments": null,
+        "spring_loaded_design": null,
+        "thermowell_material": null,
+        "accuracy": null,
+        "accuracy_tolerance_class": null,
+        "repeatability": null,
+        "measurement_temperature_range": null,
+        "temperature_measurement_range": "-50 to +400\u00b0C",
+        "response_time": null,
+        "response_time_t90": null,
+        "sensor_type": "Thermocouple",
+        "thermocouple_type": null,
+        "measuring_junction_type": null,
+        "number_of_measuring_points": "multi-point",
+        "stability": null,
+        "stability_drift": null,
+        "rangeability": null,
+        "calibration_interval": null,
+        "calibration_certificates": null,
+        "calibration_options_certificates": null,
+        "other_regulatory_approvals": null,
+        "hazardous_area_rating": "Zone 1",
+        "sil_rating": "SIL 2",
+        "certifications": "ATEX",
+        "advanced_diagnostics": null,
+        "diagnostics_capabilities": null,
+        "configuration_software_tools": null,
+        "customization_availability": null,
+        "local_display_interface": null,
+        "communication_protocol": "HART",
+        "product_warranty": null,
+        "weight": null,
+        "product_type": "Thermocouple assembly"
+      },
+      "warnings": [
+        "Intrinsically safe loops must be designed as systems; ensure combined capacitance and inductance remain below safety curves."
+      ],
+      "processing_time_ms": 7119,
+      "success": true,
+      "error": null
+    },
+    {
+      "standard_type": "calibration",
+      "standard_name": "Calibration & Maintenance Standards",
+      "constraints": [
+        {
+          "constraint_type": "requirement",
+          "description": "Operating temperature range for the multi-point thermocouple assembly.",
+          "value": "-50 to +400\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "ATEX certification for hazardous areas.",
+          "value": "ATEX Zone 1",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "requirement",
+          "description": "Safety Integrity Level (SIL) capability.",
+          "value": "SIL 2",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "recommendation",
+          "description": "Preferred output signal and protocol.",
+          "value": "4-20mA HART",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        }
+      ],
+      "specifications": {
+        "electrical_connection_type": null,
+        "electrical_output_signal": null,
+        "supply_voltage": null,
+        "power_consumption": null,
+        "sensor_output_type": null,
+        "advanced_communication_protocols": null,
+        "cable_entry_type": null,
+        "power_supply": null,
+        "transmitter_integration": null,
+        "ingress_protection": null,
+        "operating_ambient_temperature_range": null,
+        "ambient_temperature_range": null,
+        "humidity_range": null,
+        "chemical_compatibility_contact_material": null,
+        "hazardous_area_certifications": null,
+        "vibration_and_shock_resistance": null,
+        "vibration_resistance": null,
+        "ingress_protection_rating": null,
+        "contact_material": null,
+        "junction_configuration": null,
+        "lead_wire_length": null,
+        "lead_wire_type": null,
+        "mounting_method": null,
+        "mounting_type": null,
+        "physical_dimensions": null,
+        "connection_head_type": null,
+        "insertion_length": null,
+        "point_spacing_junction_locations": null,
+        "process_connection_type": null,
+        "sheath_diameter": null,
+        "sheath_material": null,
+        "material_wetted": null,
+        "material_housing": null,
+        "enclosure_housing_material": null,
+        "cable_entry_method": null,
+        "conduit_connection": null,
+        "lead_wire_armor_sheath": null,
+        "maximum_operating_pressure": null,
+        "mounting_hardware_accessories": null,
+        "weight_sensor_assembly": null,
+        "extension_lead_wire_length": null,
+        "extension_lead_wire_material": null,
+        "head_enclosure_material": null,
+        "internal_insulation_material": null,
+        "removable_insert_feature": null,
+        "special_sheath_treatments": null,
+        "spring_loaded_design": null,
+        "thermowell_material": null,
+        "accuracy": null,
+        "accuracy_tolerance_class": null,
+        "repeatability": null,
+        "measurement_temperature_range": null,
+        "temperature_measurement_range": null,
+        "response_time": null,
+        "response_time_t90": null,
+        "sensor_type": null,
+        "thermocouple_type": null,
+        "measuring_junction_type": null,
+        "number_of_measuring_points": "multipoint",
+        "stability": null,
+        "stability_drift": null,
+        "rangeability": null,
+        "calibration_interval": "12 months",
+        "calibration_certificates": null,
+        "calibration_options_certificates": null,
+        "other_regulatory_approvals": null,
+        "hazardous_area_rating": null,
+        "sil_rating": null,
+        "certifications": null,
+        "advanced_diagnostics": null,
+        "diagnostics_capabilities": null,
+        "configuration_software_tools": null,
+        "customization_availability": null,
+        "local_display_interface": null,
+        "communication_protocol": null,
+        "product_warranty": null,
+        "weight": null,
+        "product_type": "Temperature sensor"
+      },
+      "warnings": [
+        "For safety-critical instruments, calibrate at least annually.",
+        "Follow lockout/tagout procedures before removing instruments.",
+        "Vent and depressurise impulse lines before disconnecting.",
+        "Use appropriate personal protective equipment (PPE) when working on process equipment.",
+        "For hazardous areas, ensure work permits and gas testing are completed."
+      ],
+      "processing_time_ms": 7857,
+      "success": true,
+      "error": null
+    },
+    {
+      "standard_type": "accessories",
+      "standard_name": "Accessories & Installation Standards",
+      "constraints": [
+        {
+          "constraint_type": "specification",
+          "description": "Operating temperature range for the thermocouple assembly",
+          "value": "-50 to +400\u00b0C",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "specification",
+          "description": "ATEX certification for hazardous areas",
+          "value": "Zone 1",
+          "condition": null,
+          "standard_reference": "IEC 60079",
+          "confidence": 0.8
+        },
+        {
+          "constraint_type": "specification",
+          "description": "Safety Integrity Level (SIL) capability",
+          "value": "SIL 2",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 1.0
+        },
+        {
+          "constraint_type": "recommendation",
+          "description": "Preferred output signal and communication protocol",
+          "value": "4-20mA HART",
+          "condition": null,
+          "standard_reference": null,
+          "confidence": 0.8
+        }
+      ],
+      "specifications": {
+        "electrical_output_signal": null,
+        "advanced_communication_protocols": null,
+        "ingress_protection": null,
+        "operating_ambient_temperature_range": null,
+        "hazardous_area_certifications": "ATEX Zone 1",
+        "temperature_measurement_range": "-50 to +400\u00b0C",
+        "sil_rating": "SIL 2",
+        "certifications": "ATEX",
+        "communication_protocol": "HART",
+        "sensor_type": "Thermocouple",
+        "number_of_measuring_points": "multipoint"
+      },
+      "warnings": [],
+      "processing_time_ms": 5139,
+      "success": true,
+      "error": null
+    }
+  ],
+  "processing_time_ms": 58781,
+  "iterations": 1,
+  "specs_count": 49,
+  "min_required": 30,
+  "target_reached": true,
+  "iteration_notes": "Iteration 1: Generated 49 specs from domains ['safety', 'temperature', 'communication', 'calibration', 'accessories']",
+  "error": null
+}

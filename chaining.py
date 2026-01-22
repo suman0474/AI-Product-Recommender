@@ -21,6 +21,8 @@ from azure_blob_utils import get_available_vendors_from_mongodb, get_vendors_for
 from dotenv import load_dotenv
 # TODO: Migrate from google.generativeai to google.genai
 # See: https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+import warnings
+warnings.filterwarnings("ignore", message=".*google.generativeai.*", category=FutureWarning)
 import google.generativeai as genai
 
 # Import standardization utilities
@@ -265,7 +267,26 @@ def invoke_vendor_chain(components, structured_requirements, products_json, pdf_
     llm = components['llm_pro']
     response = llm.invoke(prompt)
 
-    return parse_json_response(response, VendorAnalysis)
+    parsed_json = parse_json_response(response, pydantic_model=None)
+    
+    # Robustly handle malformed structure (e.g. missing 'vendor_matches' wrapper)
+    # Extract potential vendor name for logging
+    vendor_name = "unknown_vendor"
+    if isinstance(parsed_json, dict):
+        if 'vendor' in parsed_json:
+            vendor_name = parsed_json['vendor']
+        elif 'vendor_matches' in parsed_json and parsed_json['vendor_matches']:
+            vendor_name = parsed_json['vendor_matches'][0].get('vendor', "unknown_vendor")
+            
+    normalized_json = parse_vendor_analysis_response(parsed_json, vendor=vendor_name)
+    
+    # Try to validate with Pydantic, but fallback to normalized dict if it fails
+    try:
+        validated = VendorAnalysis(**normalized_json)
+        return validated.dict() if hasattr(validated, 'dict') else validated
+    except Exception as e:
+        logging.warning(f"[VendorChain] Pydantic validation failed after normalization: {e}")
+        return normalized_json
 
 
 def invoke_ranking_chain(components, vendor_analysis, format_instructions):
@@ -280,7 +301,23 @@ def invoke_ranking_chain(components, vendor_analysis, format_instructions):
     logging.info(f"[RANKING_DEBUG] Raw response type: {type(response)}, length: {len(str(response))}")
     logging.info(f"[RANKING_DEBUG] Raw response (first 300 chars): {str(response)[:300]}")
 
-    return parse_json_response(response, OverallRanking)
+    # Robust parsing sequence
+    # 1. Parse JSON without strict model
+    parsed_json = parse_json_response(response, pydantic_model=None)
+    
+    # 2. Fix structure (wrap list if needed) - using helper defined below
+    normalized_json = parse_ranking_response(parsed_json)
+    
+    # 3. Normalize field names
+    normalized_json = _normalize_ranking_fields(normalized_json)
+
+    # 4. Pydantic validation
+    try:
+        validated = OverallRanking(**normalized_json)
+        return validated.dict() if hasattr(validated, 'dict') else validated
+    except Exception as e:
+         logging.warning(f"[RankingChain] Pydantic validation failed: {e}")
+         return normalized_json
 
 
 def invoke_additional_requirements_chain(components, user_input, product_type, schema, format_instructions):
@@ -368,6 +405,65 @@ def to_dict_if_pydantic(obj):
     if hasattr(obj, 'dict'):
         return obj.dict()
     return obj
+
+
+def parse_vendor_analysis_response(raw_response, vendor: str = "Unknown"):
+    """
+    Parse vendor analysis response with robust fallback for malformed responses.
+    
+    This handles cases where the LLM returns:
+    - A single vendor match (not wrapped in vendor_matches)
+    - A list of matches (not wrapped in vendor_matches)
+    - Prose/text instead of JSON (returns empty with error)
+    - Properly formatted response (returned as-is)
+    """
+    result = to_dict_if_pydantic(raw_response)
+    
+    # If response already has vendor_matches, return as-is
+    if isinstance(result, dict) and 'vendor_matches' in result:
+        return result
+    
+    # If response is a single vendor match dict, wrap it
+    if isinstance(result, dict) and any(k in result for k in ['vendor', 'product_name', 'match_score']):
+        logging.info(f"[VendorAnalysisParse] Wrapping single match response for {vendor}")
+        return {'vendor_matches': [result]}
+    
+    # If response is a list, assume it's a list of matches
+    if isinstance(result, list):
+        logging.info(f"[VendorAnalysisParse] Converting list response to vendor_matches for {vendor}")
+        return {'vendor_matches': result}
+    
+    # Fallback: return empty result with error
+    logging.warning(f"[VendorAnalysisParse] Could not parse response for {vendor}: {type(result)}")
+    return {'vendor_matches': [], 'error': f'Response parsing failed for {vendor}'}
+
+
+def parse_ranking_response(raw_response):
+    """
+    Parse ranking response with robust fallback.
+    Handles cases where LLM returns a list of products directly instead of wrapped object.
+    """
+    result = to_dict_if_pydantic(raw_response)
+    
+    # If response has ranked_products key, return as-is
+    if isinstance(result, dict) and ('ranked_products' in result or 'rankedProducts' in result):
+        return result
+        
+    # If response is a list, wrap it
+    if isinstance(result, list):
+        logging.info("[RankingParse] Wrapping list response into ranked_products")
+        return {'ranked_products': result}
+        
+    # If response is a dict but has obscure keys, try to find a list value
+    if isinstance(result, dict):
+        for key, value in result.items():
+            if isinstance(value, list) and len(value) > 0 and isinstance(value[0], dict):
+                 logging.info(f"[RankingParse] Found candidate list in key '{key}'")
+                 return {'ranked_products': value}
+                 
+    # Fallback
+    logging.warning(f"[RankingParse] Could not parse ranking response: {type(result)}")
+    return {'ranked_products': [], 'error': 'Ranking parsing failed'}
 
 
 def _prepare_vendor_payloads(products_json_str, pdf_content_json_str):
@@ -501,7 +597,9 @@ def _run_parallel_vendor_analysis(
         logging.info("[VENDOR_ANALYSIS] END   vendor=%s error=%s", vendor, error)
         return vendor, result_dict, error
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    from agentic.context_managers import managed_thread_pool
+    with managed_thread_pool("chaining_ops", max_workers=max_workers) as pool:
+        executor = pool._executor
         future_map = {}
         for i, (vendor, data) in enumerate(payloads.items()):
             if i > 0:

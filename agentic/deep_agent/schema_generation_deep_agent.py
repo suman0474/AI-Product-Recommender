@@ -362,8 +362,7 @@ class SchemaGenerationDeepAgent:
 
             result = run_standards_rag_workflow(
                 question=prompt,
-                session_id=f"deepagent_{product_type}_{int(time.time())}",
-                memory=None
+                session_id=f"deepagent_{product_type}_{int(time.time())}"
             )
 
             duration_ms = int((time.time() - start_time) * 1000)

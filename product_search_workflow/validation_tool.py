@@ -194,16 +194,11 @@ class ValidationTool:
                 import datetime
                 standards_rag_invocation_time = datetime.datetime.now().isoformat()
                 logger.info("="*70)
-                logger.info("🔵 STANDARDS RAG INVOKED 🔵")
+                logger.info("STANDARDS RAG INVOKED")
                 logger.info(f"   Timestamp: {standards_rag_invocation_time}")
                 logger.info(f"   Product Type: {product_type}")
                 logger.info(f"   Session: {session_id}")
                 logger.info("="*70)
-                print("\n" + "="*70)
-                print("🔵 [STANDARDS RAG] INVOCATION STARTED")
-                print(f"   Time: {standards_rag_invocation_time}")
-                print(f"   Product: {product_type}")
-                print("="*70 + "\n")
                 
                 standards_rag_invoked = True
                 logger.info("[ValidationTool] Step 1.2.1: Enriching schema with Standards RAG")
@@ -300,12 +295,12 @@ class ValidationTool:
                         logger.info(f"[FIX #4] ✓ Standards defaults applied: {fields_before} → {fields_before + fields_after} fields")
                         logger.info(f"[FIX #4] ✓ Total schema fields: {total_fields}, Populated: {fields_before + fields_after}")
 
-                        print(f"\n{'='*70}")
-                        print(f"🔵 [FIX #4] COMPREHENSIVE STANDARDS DEFAULTS APPLIED")
-                        print(f"   Before: {fields_before} fields")
-                        print(f"   After: {fields_before + fields_after} fields (target: 60+)")
-                        print(f"   Source: schema_field_extractor.py (IEC, ISO, ASME, NAMUR standards)")
-                        print(f"{'='*70}\n")
+                        logger.info("="*70)
+                        logger.info("[FIX #4] COMPREHENSIVE STANDARDS DEFAULTS APPLIED")
+                        logger.info(f"   Before: {fields_before} fields")
+                        logger.info(f"   After: {fields_before + fields_after} fields (target: 60+)")
+                        logger.info(f"   Source: schema_field_extractor.py (IEC, ISO, ASME, NAMUR standards)")
+                        logger.info("="*70)
 
                     except ImportError as e:
                         logger.warning(f"[FIX #4] schema_field_extractor not available: {e}")
@@ -358,12 +353,12 @@ class ValidationTool:
                             logger.info(f"[FIX #5] ✓ Added {specs_added} template specifications")
                             schema["_template_specs_added"] = specs_added
 
-                            print(f"\n{'='*70}")
-                            print(f"🔵 [FIX #5] TEMPLATE SPECIFICATIONS APPLIED")
-                            print(f"   Template specs available: {len(template_specs)}")
-                            print(f"   New specs added: {specs_added}")
-                            print(f"   Source: specification_templates.py")
-                            print(f"{'='*70}\n")
+                            logger.info("="*70)
+                            logger.info("[FIX #5] TEMPLATE SPECIFICATIONS APPLIED")
+                            logger.info(f"   Template specs available: {len(template_specs)}")
+                            logger.info(f"   New specs added: {specs_added}")
+                            logger.info(f"   Source: specification_templates.py")
+                            logger.info("="*70)
                         else:
                             logger.debug(f"[FIX #5] No template found for product type: {product_type}")
 
@@ -399,19 +394,12 @@ class ValidationTool:
 
                         # Log success indicator
                         logger.info("="*70)
-                        logger.info("🔵 STANDARDS RAG COMPLETED SUCCESSFULLY 🔵")
+                        logger.info("STANDARDS RAG COMPLETED SUCCESSFULLY")
                         logger.info(f"   Standards Found: {num_standards}")
                         logger.info(f"   Certifications Found: {num_certs}")
                         logger.info("="*70)
-                        print("\n" + "="*70)
-                        print("🔵 [STANDARDS RAG] COMPLETED SUCCESSFULLY")
-                        print(f"   Standards: {num_standards}, Certs: {num_certs}")
-                        print("="*70 + "\n")
                     else:
-                        logger.warning(f"[ValidationTool] ⚠ Standards RAG returned no results: {standards_info.get('error', 'Unknown')}")
-                        print("\n" + "="*70)
-                        print("🔵 [STANDARDS RAG] NO RESULTS RETURNED")
-                        print("="*70 + "\n")
+                        logger.warning(f"[ValidationTool] Standards RAG returned no results: {standards_info.get('error', 'Unknown')}")
 
                     # Step 1.2.1c: ENRICH with normalized category using agentic module
                     # This provides structured standards_info with normalized_category for the product type
@@ -477,10 +465,10 @@ class ValidationTool:
                 # ║  - Recovery from failures using learned patterns                          ║
                 # ╚══════════════════════════════════════════════════════════════════════════╝
                 logger.info("[ValidationTool] Step 1.2.1d: Deep Agent schema population starting")
-                print("\n" + "="*70)
-                print("🔷 [DEEP AGENT] SCHEMA POPULATION STARTING")
-                print(f"   Product: {product_type}")
-                print("="*70 + "\n")
+                logger.info("="*70)
+                logger.info("[DEEP AGENT] SCHEMA POPULATION STARTING")
+                logger.info(f"   Product: {product_type}")
+                logger.info("="*70)
 
                 try:
                     from agentic.deep_agent_schema_populator import (
@@ -528,10 +516,7 @@ class ValidationTool:
                     print("="*70 + "\n")
 
             except Exception as standards_error:
-                logger.warning(f"[ValidationTool] ⚠ Standards enrichment failed (non-critical): {standards_error}")
-                print("\n" + "="*70)
-                print(f"🔵 [STANDARDS RAG] ERROR: {standards_error}")
-                print("="*70 + "\n")
+                logger.error(f"[ValidationTool] Standards enrichment failed (non-critical): {standards_error}", exc_info=True)
                 # Continue without standards - this is non-critical
 
             # NOTE: Strategy RAG is NOT applied during initial validation.

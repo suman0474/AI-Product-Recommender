@@ -16,75 +16,17 @@ from dotenv import load_dotenv
 # Import existing infrastructure
 from agentic.vector_store import get_vector_store
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# PROMPT TEMPLATE
+# PROMPT TEMPLATE - Loaded from prompts_library
 # ============================================================================
 
-STRATEGY_CHAT_PROMPT = """
-You are a Procurement Strategy Expert for industrial instrumentation.
-
-Your role is to answer questions about procurement strategy based ONLY on the provided strategy documents.
-You have access to strategy documents covering:
-- Preferred vendors and strategic partnerships
-- Forbidden vendors and reasons for exclusion
-- Procurement policies and guidelines
-- Vendor evaluation criteria
-- Cost optimization strategies
-- Lifecycle cost considerations
-- Sustainability requirements
-- Single-source vs multi-source policies
-- Regional vendor preferences
-- Contract terms and conditions
-- Lead time requirements
-- Quality certification requirements
-
-USER QUESTION:
-{question}
-
-PRODUCT CONTEXT:
-- Product Type: {product_type}
-- Requirements: {requirements}
-
-RETRIEVED STRATEGY DOCUMENTS:
-{retrieved_context}
-
-INSTRUCTIONS:
-1. Answer ONLY based on the provided strategy documents above
-2. If the information is not in the documents, clearly state: "I don't have specific strategy information for that in the available documents."
-3. Cite sources using [Source: filename] format inline in your answer
-4. Identify specific vendor names, policies, or guidelines mentioned in the documents
-5. Be precise and actionable - this is for procurement professionals
-6. Include relevant details like vendor ratings, contract terms, or policy requirements
-7. NO HALLUCINATION - Do not invent or assume information not present in the documents
-
-Return ONLY valid JSON in this exact format:
-{{
-    "answer": "<your detailed answer with inline [Source: filename] citations>",
-    "preferred_vendors": ["<list of preferred vendors mentioned>"],
-    "forbidden_vendors": ["<list of forbidden/excluded vendors mentioned>"],
-    "neutral_vendors": ["<list of neutral/acceptable vendors mentioned>"],
-    "procurement_priorities": {{
-        "<vendor_name>": <priority_score 1-10 based on document content>
-    }},
-    "strategy_notes": "<key strategy insights from the documents>",
-    "citations": [
-        {{
-            "source": "<document filename>",
-            "content": "<relevant quote from document>",
-            "relevance": <0.0-1.0 relevance score from retrieval>
-        }}
-    ],
-    "confidence": <0.0-1.0 confidence score>,
-    "sources_used": ["<filename1>", "<filename2>"]
-}}
-
-IMPORTANT: Your response must be valid JSON only, no additional text.
-"""
+STRATEGY_CHAT_PROMPT = load_prompt("strategy_chat_prompt")
 
 
 # ============================================================================

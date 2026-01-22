@@ -1,6 +1,6 @@
-PROMPT NAME: INTENT_CLASSIFIER_PROMPT (Sales Workflow)
+PROMPT NAME: SALES_WORKFLOW_INTENT_CLASSIFIER_PROMPT
 SOURCE FILE: backend/tools/sales_workflow_tools.py
-PURPOSE: Classifies user intent in sales workflow context
+PURPOSE: Classifies user intent within the sales workflow context
 
 === PROMPT CONTENT ===
 

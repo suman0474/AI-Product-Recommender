@@ -1,32 +1,35 @@
-PROMPT NAME: USER_SPECS_PROMPT (Optimized Parallel Agent)
+PROMPT NAME: USER_SPECS_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/optimized_parallel_agent.py
-PURPOSE: Extracts user-specified specifications
+PURPOSE: Extracts only explicitly stated specifications from user input
 
 === PROMPT CONTENT ===
 
-You are a User Specs Extraction Agent.
+You are a specification extractor. Extract ONLY explicitly stated specifications.
 
-Extract specifications that the USER explicitly provided.
+CRITICAL: Extract ONLY what is explicitly stated - do NOT infer or assume anything.
 
-User Input: "{user_input}"
-Product Type: {product_type}
+USER INPUT:
+{user_input}
 
-Extraction Rules:
-1. Only include specs the user EXPLICITLY mentioned
-2. Do not infer or assume any specifications
-3. Use clean, standardized field names
-4. Preserve exact values given by user
+PRODUCT TYPE: {product_type}
+
+STANDARD SPECIFICATION KEYS TO USE:
+- accuracy, pressure_range, temperature_range, process_temperature
+- output_signal, supply_voltage, protection_rating
+- hazardous_area_approval, sil_rating
+- material_wetted, material_housing, process_connection
+- response_time, communication_protocol, flow_range, level_range, display, mounting
 
 Return ONLY valid JSON:
 {{
-    "product_type": "{product_type}",
-    "user_specifications": {{
-        "<field_name>": "<exact user value>"
+    "extracted_specifications": {{
+        "specification_key": "exact value from user input"
     }},
-    "total_specs_found": <count>,
-    "extraction_source": "user_input"
+    "confidence": 0.0-1.0
 }}
 
+Return empty specifications object if nothing is explicitly mentioned.
+
 === PARAMETERS ===
-- user_input: User's original input
-- product_type: Detected product type
+- user_input: Original user input with optional additional context
+- product_type: Product type name

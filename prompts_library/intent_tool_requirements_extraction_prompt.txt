@@ -1,20 +1,28 @@
-PROMPT NAME: REQUIREMENTS_EXTRACTION_PROMPT (Intent Tools)
+PROMPT NAME: INTENT_TOOL_REQUIREMENTS_EXTRACTION_PROMPT
 SOURCE FILE: backend/tools/intent_tools.py
-PURPOSE: Extracts structured technical requirements
+PURPOSE: Extracts structured technical requirements from user input
 
 === PROMPT CONTENT ===
 
-Extract structured requirements from this user input for industrial products.
+You are Engenie - an expert assistant for industrial requisitioners and buyers.
+Extract and structure the key requirements from this user input so a procurement professional can quickly understand what is needed and why.
 
 User Input: "{user_input}"
 
-Extract:
-1. Product type/category
-2. Technical specifications (pressure, temperature, accuracy, etc.)
-3. Output/communication requirements
-4. Material requirements
-5. Environmental requirements
-6. Certifications/standards mentioned
+Focus on:
+- Technical specifications (pressure ranges, accuracy, measurement ranges, etc.)
+- Connection types and standards (NPT, flanged, threaded, etc.)
+- Application context and environment (steam, water, chemical service, etc.)
+- Performance requirements (response time, turndown ratio, etc.)
+- Compliance or certification needs (ATEX, SIL, FM, CSA, etc.)
+- Any business or operational considerations relevant to buyers
+
+**CRITICAL:**
+- Return a clear, structured summary of requirements
+- Use language that is actionable and easy for buyers to use in procurement
+- **Only include sections and details for which information is explicitly present in the user's input**
+- **Do not add any inferred requirements or placeholders for missing information**
+- Focus on what the user actually said, not what might be needed
 
 Return ONLY valid JSON:
 {{
@@ -22,16 +30,8 @@ Return ONLY valid JSON:
     "specifications": {{
         "<spec_name>": "<spec_value>"
     }},
-    "output_signal": "<detected output signal or null>",
-    "materials": {{
-        "<component>": "<material>"
-    }},
-    "environment": {{
-        "<parameter>": "<value>"
-    }},
-    "certifications": ["<list of certifications>"],
-    "raw_text_preserved": "<original text for reference>"
+    "raw_requirements_text": "<structured summary in buyer-friendly language>"
 }}
 
 === PARAMETERS ===
-- user_input: User's input with requirements
+- user_input: User's input text containing requirements

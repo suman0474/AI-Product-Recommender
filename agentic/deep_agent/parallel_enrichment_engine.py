@@ -18,6 +18,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Callable
 from dataclasses import dataclass
 
+# Import global executor manager for bounded thread pool
+from agentic.global_executor_manager import get_global_executor
+
 logger = logging.getLogger(__name__)
 
 
@@ -246,40 +249,40 @@ class ParallelEnrichmentEngine:
         # Group by product type
         grouped = self.group_by_product_type(items)
 
-        # Process groups in parallel
+        # Process groups in parallel using global executor
         enriched_items = []
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {}
+        executor = get_global_executor()
+        futures = {}
 
-            # Submit all product type groups
-            for product_type, items_group in grouped.items():
-                future = executor.submit(
-                    self.process_product_type_group,
-                    product_type,
-                    items_group,
-                    rag_query_func,
-                    validator_func,
-                )
-                futures[product_type] = future
+        # Submit all product type groups using global executor (bounded to 16 workers)
+        for product_type, items_group in grouped.items():
+            future = executor.submit(
+                self.process_product_type_group,
+                product_type,
+                items_group,
+                rag_query_func,
+                validator_func,
+            )
+            futures[product_type] = future
+            logger.info(
+                f"[Executor] Submitted {len(items_group)} items "
+                f"of type: {product_type}"
+            )
+
+        # Collect results as they complete
+        for product_type, future in futures.items():
+            try:
+                results = future.result(timeout=self.rag_timeout * 2)
+                enriched_items.extend(results)
                 logger.info(
-                    f"[Executor] Submitted {len(items_group)} items "
-                    f"of type: {product_type}"
+                    f"[Executor] Completed {product_type}: "
+                    f"{len(results)} items"
                 )
-
-            # Collect results as they complete
-            for product_type, future in futures.items():
-                try:
-                    results = future.result(timeout=self.rag_timeout * 2)
-                    enriched_items.extend(results)
-                    logger.info(
-                        f"[Executor] Completed {product_type}: "
-                        f"{len(results)} items"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"[Executor] Error processing {product_type}: {e}",
-                        exc_info=True
-                    )
+            except Exception as e:
+                logger.error(
+                    f"[Executor] Error processing {product_type}: {e}",
+                    exc_info=True
+                )
 
         total_time = time.time() - start_time
         self.stats['total_time'] = total_time

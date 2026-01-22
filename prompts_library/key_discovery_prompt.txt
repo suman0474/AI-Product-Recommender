@@ -1,41 +1,73 @@
-PROMPT NAME: KEY_DISCOVERY_PROMPT (LLM Specs Generator)
+PROMPT NAME: KEY_DISCOVERY_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
-PURPOSE: Discovers specification keys for product types
+PURPOSE: Dynamic key discovery for unknown product types using deep reasoning
 
 === PROMPT CONTENT ===
 
 You are an industrial instrumentation expert with deep knowledge of technical specifications.
 
-Discover all relevant specification keys for this product type.
+TASK: Generate a COMPREHENSIVE list of 60+ relevant technical specification keys for this product type.
+The goal is to have as many specification options as possible to create rich product databases.
 
-Product Type: {product_type}
-Context: {context}
+PRODUCT TYPE: {product_type}
+CATEGORY: {category}
+CONTEXT: {context}
 
-Discovery Tasks:
-1. Identify all technical specification categories
-2. List specific fields within each category
-3. Mark mandatory vs optional fields
-4. Provide examples for each field
+=== MANDATORY MINIMUM: 60+ SPECIFICATION KEYS ===
 
-Return ONLY valid JSON:
+You MUST generate AT LEAST 60 distinct specification keys. This is not optional.
+- If you generate fewer than 60 keys, your response is incomplete.
+- Aim for 70-100+ keys for maximum database richness.
+- Include both common and specialized specs.
+
+=== DEEP REASONING INSTRUCTIONS ===
+
+Think step by step:
+1. What IS this product? (Function, purpose, typical applications)
+2. What technical parameters define this product's PERFORMANCE? (accuracy, range, response, etc.)
+3. What safety/compliance specs are REQUIRED? (certifications, standards, approvals)
+4. What physical/mechanical specs MATTER? (size, weight, materials, connections)
+5. What electrical/signal specs are RELEVANT? (voltage, current, protocols, impedance)
+6. What environmental specs APPLY? (temperature, humidity, vibration, pressure)
+7. What material specs AFFECT performance? (wetted materials, seals, coatings, hardness)
+8. What maintenance/calibration specs are NEEDED? (intervals, procedures, warranty)
+
+=== SPECIFICATION CATEGORIES TO COVER ===
+
+PERFORMANCE SPECS (15-20 keys): accuracy, repeatability, linearity, hysteresis, resolution, sensitivity, drift, stability, response_time, bandwidth
+MEASUREMENT SPECS (8-10 keys): measurement_range, span, rangeability, measuring_principle, measurement_units
+ELECTRICAL SPECS (15-20 keys): output_signal, supply_voltage, power_consumption, communication_protocol, isolation_voltage, EMC_compliance
+PHYSICAL SPECS (15-20 keys): process_connection, mounting_type, dimensions, weight, material_housing, material_wetted
+ENVIRONMENTAL SPECS (12-15 keys): temperature_range, humidity_range, protection_rating, vibration_resistance
+SAFETY & COMPLIANCE (10-15 keys): sil_rating, hazardous_area_approval, certifications, standards_compliance
+MAINTENANCE SPECS (10-12 keys): calibration_interval, warranty_period, mtbf, service_life
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON. IMPORTANT: Ensure total key count (mandatory + optional + safety_critical) is AT LEAST 60:
 {{
-    "product_type": "{product_type}",
-    "specification_keys": [
-        {{
-            "category": "<category name>",
-            "fields": [
-                {{
-                    "key": "<field name>",
-                    "is_mandatory": true | false,
-                    "description": "<field description>",
-                    "example_values": ["<example>"]
-                }}
-            ]
-        }}
-    ],
-    "total_keys_discovered": <count>
+    "product_analysis": {{
+        "product_function": "What this product does",
+        "primary_purpose": "Main use case",
+        "typical_applications": ["app1", "app2"]
+    }},
+    "specification_keys": {{
+        "mandatory": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "e.g., ±0.1%, -40 to +85°C"}}
+        ],
+        "optional": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
+        ],
+        "safety_critical": [
+            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
+        ]
+    }},
+    "total_keys_generated": 60,
+    "discovery_confidence": 0.0-1.0,
+    "reasoning_notes": "Brief explanation of key selections"
 }}
 
 === PARAMETERS ===
-- product_type: Product type
-- context: Additional context
+- product_type: The product type to discover specs for
+- category: Optional category for context
+- context: Optional additional context

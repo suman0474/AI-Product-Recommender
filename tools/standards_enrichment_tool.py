@@ -720,9 +720,6 @@ def populate_schema_fields_from_standards(
     start_time = time.time()
     
     logger.info(f"[StandardsEnrichment] Populating schema field values for: {product_type}")
-    print(f"\n{'='*70}")
-    print(f"📋 [SCHEMA POPULATION] Starting for: {product_type}")
-    print(f"{'='*70}\n")
     
     if not schema:
         logger.warning("[StandardsEnrichment] Empty schema provided")
@@ -809,12 +806,7 @@ Provide specific values where available according to standards documents."""
         }
         
         logger.info(f"[StandardsEnrichment] Populated {len(field_values)}/{len(schema_fields)} fields (took {elapsed:.2f}s)")
-        print(f"\n{'='*70}")
-        print(f"📋 [SCHEMA POPULATION] COMPLETED")
-        print(f"   Schema fields: {len(schema_fields)}")
-        print(f"   Fields populated: {len(field_values)}")
-        print(f"   Time: {elapsed:.2f}s")
-        print(f"{'='*70}\n")
+        logger.info(f"[SCHEMA POPULATION] COMPLETED - Fields: {len(field_values)}/{len(schema_fields)}, Time: {elapsed:.2f}s")
         
     except Exception as e:
         logger.error(f"[StandardsEnrichment] Error populating schema fields: {e}", exc_info=True)

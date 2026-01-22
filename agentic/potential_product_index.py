@@ -25,6 +25,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -35,97 +36,14 @@ LLM_SEMAPHORE = Semaphore(2)
 
 
 # ============================================================================
-# PROMPTS - Direct LLM Calls (Optimized Architecture)
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-VENDOR_DISCOVERY_PROMPT = """
-You are Engenie's Vendor Discovery component. Identify top vendors for a product type.
+VENDOR_DISCOVERY_PROMPT = load_prompt("vendor_discovery_prompt")
 
-Product Type: {product_type}
-Context: {context}
+MODEL_FAMILY_DISCOVERY_PROMPT = load_prompt("model_family_discovery_prompt")
 
-Identify the TOP 5 industrial vendors for this product type. Consider:
-1. Market leaders
-2. Quality and reliability
-3. Global availability
-4. Product range
-
-Return ONLY valid JSON:
-{{
-    "vendors": [
-        {{
-            "name": "<vendor name>",
-            "market_position": "leader" | "major" | "specialized",
-            "headquarters": "<country>",
-            "strengths": ["<strength 1>", "<strength 2>"]
-        }}
-    ],
-    "product_type": "{product_type}",
-    "confidence": <0.0-1.0>
-}}
-"""
-
-MODEL_FAMILY_DISCOVERY_PROMPT = """
-You are Engenie's Model Discovery component. Identify model families for a vendor.
-
-Vendor: {vendor}
-Product Type: {product_type}
-Context: {context}
-
-List the main MODEL FAMILIES/SERIES this vendor offers for this product type.
-Include both current and well-known legacy models.
-
-Return ONLY valid JSON:
-{{
-    "vendor": "{vendor}",
-    "model_families": [
-        {{
-            "name": "<series/family name>",
-            "generation": "current" | "legacy",
-            "typical_use": "<primary application>"
-        }}
-    ],
-    "confidence": <0.0-1.0>
-}}
-"""
-
-SCHEMA_GENERATION_PROMPT = """
-You are Engenie's Schema Generator. Create a product schema from extracted data.
-
-Product Type: {product_type}
-Extracted Specifications from PDFs:
-{extracted_specs}
-
-Generate a standardized schema for this product type, including:
-1. Required fields (mandatory specifications)
-2. Optional fields (nice-to-have specifications)
-3. Field types (string, number, boolean, enum)
-4. Typical ranges/values
-
-Return ONLY valid JSON:
-{{
-    "product_type": "{product_type}",
-    "schema": {{
-        "required": [
-            {{
-                "field": "<field name>",
-                "type": "string" | "number" | "boolean" | "enum",
-                "description": "<field description>",
-                "example": "<example value>"
-            }}
-        ],
-        "optional": [
-            {{
-                "field": "<field name>",
-                "type": "string" | "number" | "boolean" | "enum",
-                "description": "<field description>",
-                "example": "<example value>"
-            }}
-        ]
-    }},
-    "confidence": <0.0-1.0>
-}}
-"""
+SCHEMA_GENERATION_PROMPT = load_prompt("schema_generation_prompt")
 
 
 # ============================================================================

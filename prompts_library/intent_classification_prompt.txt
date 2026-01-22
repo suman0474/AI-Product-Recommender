@@ -32,29 +32,59 @@ Classify as "solution" ONLY when ALL of these are true:
 - Describes a complete process/plant instrumentation (not just one product)
 - Contains explicit system design language ("system", "complete instrumentation", "profiling")
 
-**RULE 2 - QUESTION Detection (DEFAULT for product searches):**
-If user wants to FIND, SEARCH, or GET information about products → "question"
-This includes:
-- "I need a pressure transmitter" → question (searching for product)
-- "Looking for temperature sensor" → question
-- "Need sensor with ATEX certification" → question (product search with standard)
+**SOLUTION Examples (→ solution workflow):**
+- "Design a temperature measurement SYSTEM for a chemical reactor with inlet, outlet, AND jacket monitoring" → solution (3+ locations)
+- "Complete instrumentation for distillation column: temperature, pressure, AND level transmitters" → solution (3+ different instruments)
+- "Reactor temperature profiling with 32 measurement points across 8 zones" → solution (multi-point system)
 
-**RULE 3 - REQUIREMENTS Detection:**
-Only classify as "requirements" when user provides VERY SPECIFIC technical specs:
-- "4-20mA, 0-100 psi, 316SS, -40 to 85°C"
-- Multiple detailed parameters in one message
+**NOT SOLUTION (→ question instead):**
+- "I need a pressure transmitter for SIL 2 application" → question (single product)
+- "Differential pressure transmitter meeting IEC 61508 for Zone 1" → question (single product with standards)
+- "Flow meter with ATEX certification" → question (single product with certification)
+- "Two pressure transmitters for hazardous area" → question (small quantity, not a system)
+
+**RULE 2 - QUESTION Detection (Product Search - DEFAULT for product requests):**
+Classify as "question" when user:
+- Searches for a SINGLE product type: "I need a...", "I want a...", "Looking for..."
+- Mentions a vendor: "...from Yokogawa", "...from Emerson"
+- Asks about standards/certifications: "SIL 2", "ATEX", "IEC 61508", "Zone 1"
+- Wants to find products for a specific application
+- Asks knowledge questions: "What is...", "How does...", "Tell me about..."
+
+**QUESTION Examples (→ ProductInfo/Index RAG):**
+- "I need a pressure transmitter from Yokogawa" → question
+- "I need a differential pressure transmitter meeting IEC 61508 SIL 2 for Zone 1" → question
+- "Flow meter for chemical applications with ATEX certification" → question
+- "What is ISA 84?" → question
+- "Looking for SIL 2 rated temperature sensor" → question
+
+**RULE 3 - REQUIREMENTS Detection (Very Detailed Specs):**
+Classify as "requirements" ONLY when user provides MULTIPLE specific technical values:
+- Measurement ranges: "0-100 PSI", "-40 to 200°C"
+- Accuracy: "±0.1%", "0.05% accuracy"
+- Protocols: "HART 7", "Modbus RTU"
+- Materials: "316L wetted parts"
+- Connections: "1/2 NPT", "DN50 flange"
+
+**Other Rules:**
+4. If only greeting words → "greeting"
+5. If says yes/proceed → "confirm"
+6. If says no/cancel → "reject"
+
+**DEFAULT RULE:** When in doubt, prefer "question" over "solution" for product searches.
+
 
 Return ONLY valid JSON:
 {{
     "intent": "<intent_type>",
     "confidence": <0.0-1.0>,
+    "next_step": "<suggested_next_step or null>",
+    "extracted_info": {{<any extracted information>}},
     "is_solution": <true if solution detected, false otherwise>,
-    "solution_indicators": ["<patterns that triggered solution>"],
-    "extracted_product_type": "<detected product type or null>",
-    "extracted_specs": {{}}
+    "solution_indicators": ["<list of patterns that triggered solution detection>"]
 }}
 
 === PARAMETERS ===
-- user_input: User's input message
+- user_input: User's input message to classify
 - current_step: Current workflow step
-- context: Additional context
+- context: Conversation context

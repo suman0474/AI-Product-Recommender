@@ -1,6 +1,6 @@
 PROMPT NAME: SUMMARY_GENERATION_PROMPT
 SOURCE FILE: backend/tools/sales_workflow_tools.py
-PURPOSE: Generates professional requirements summary
+PURPOSE: Generates a professional requirements summary
 
 === PROMPT CONTENT ===
 
@@ -26,7 +26,7 @@ Format the summary with:
 Keep it professional and concise.
 
 === PARAMETERS ===
-- product_type: Product type being searched
-- provided_requirements: Core requirements collected
-- additional_params: Additional specifications
-- advanced_params: Advanced parameters
+- product_type: Product type
+- provided_requirements: Core requirements (JSON)
+- additional_params: Additional specifications (JSON)
+- advanced_params: Advanced parameters (JSON)

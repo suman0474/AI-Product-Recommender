@@ -22,6 +22,6 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- product_type: Product type being searched
-- available_parameters: List of available parameters
+- product_type: Product type
+- available_parameters: List of available parameters (formatted display)
 - user_input: User's parameter selections

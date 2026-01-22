@@ -15,13 +15,79 @@ Usage:
 """
 
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
 from threading import Lock
 
+# Import prompt loader for external prompts
+from prompts_library import load_prompt
+
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# LOAD EXTERNAL PROMPTS AND PATTERNS
+# =============================================================================
+
+def _parse_pattern_list(content: str, section_name: str) -> List[str]:
+    """
+    Parse a list of patterns from a section in the prompt file.
+    
+    Args:
+        content: Full content of the prompt file
+        section_name: Name of section to parse (e.g., "EXIT_PHRASES:")
+    
+    Returns:
+        List of patterns from that section
+    """
+    patterns = []
+    in_section = False
+    
+    for line in content.split('\n'):
+        line = line.strip()
+        
+        # Check if we're entering the target section
+        if line.upper().startswith(section_name.upper()):
+            in_section = True
+            continue
+        
+        # Check if we're leaving the section (new section or empty line after patterns)
+        if in_section:
+            if line.startswith('#') and ':' in line:
+                # New section header
+                break
+            if line.endswith(':') and not line.startswith('-'):
+                # New section
+                break
+            
+            # Parse pattern line
+            if line.startswith('- '):
+                pattern = line[2:].strip()
+                if pattern:
+                    patterns.append(pattern)
+    
+    return patterns
+
+
+# Load external prompts
+OUT_OF_DOMAIN_MESSAGE = load_prompt("out_of_domain_message_prompt")
+
+# Load patterns from external file
+_patterns_content = load_prompt("intent_routing_patterns")
+
+EXIT_PHRASES = _parse_pattern_list(_patterns_content, "EXIT_PHRASES:")
+GREETING_PHRASES = _parse_pattern_list(_patterns_content, "GREETING_PHRASES:")
+
+# Combine all knowledge question patterns into one list
+KNOWLEDGE_QUESTION_PATTERNS = (
+    _parse_pattern_list(_patterns_content, "STANDARDS_KEYWORDS:") +
+    _parse_pattern_list(_patterns_content, "QUESTION_STARTERS:") +
+    _parse_pattern_list(_patterns_content, "CERTIFICATION_TERMS:")
+)
+
+logger.info(f"[IntentRouting] Loaded {len(EXIT_PHRASES)} exit phrases, {len(GREETING_PHRASES)} greeting phrases, {len(KNOWLEDGE_QUESTION_PATTERNS)} knowledge patterns")
 
 
 # =============================================================================
@@ -106,18 +172,41 @@ def get_workflow_memory() -> WorkflowStateMemory:
     return _workflow_memory
 
 
-# =============================================================================
-# EXIT DETECTION
-# =============================================================================
 
-# Phrases that indicate user wants to exit current workflow
-EXIT_PHRASES = [
-    "start over", "new search", "reset", "clear", "begin again", 
-    "start new", "exit", "quit", "cancel", "back to start"
-]
+# =============================================================================
+# EXIT AND KNOWLEDGE DETECTION FUNCTIONS
+# =============================================================================
+# Note: EXIT_PHRASES, GREETING_PHRASES, and KNOWLEDGE_QUESTION_PATTERNS
+# are loaded from external prompt files at module initialization (see above)
 
-# Greetings that indicate new conversation
-GREETING_PHRASES = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+def is_knowledge_question(user_input: str) -> bool:
+    """
+    Check if user input is a knowledge question that should break workflow lock.
+    
+    Knowledge questions include:
+    - Standards queries (SIL, ATEX, IEC, ISO)
+    - "What is X?" style questions
+    - "How does X work?" style questions
+    - Definition/explanation requests
+    
+    Returns:
+        True if this is a knowledge question that should route to EnGenie
+    """
+    lower_input = user_input.lower().strip()
+    
+    # Check for knowledge patterns
+    for pattern in KNOWLEDGE_QUESTION_PATTERNS:
+        if pattern in lower_input:
+            return True
+    
+    # Check for question mark with question words
+    if "?" in lower_input:
+        question_words = ["what", "how", "why", "when", "where", "which", "who", "does", "is", "are", "can"]
+        if any(lower_input.startswith(word) for word in question_words):
+            return True
+    
+    return False
+
 
 def should_exit_workflow(user_input: str) -> bool:
     """Check if user wants to exit current workflow."""
@@ -182,23 +271,9 @@ class WorkflowRoutingResult:
         }
 
 
-# =============================================================================
-# OUT OF DOMAIN RESPONSE
-# =============================================================================
-
-OUT_OF_DOMAIN_MESSAGE = """
-I'm EnGenie, your industrial automation and procurement assistant.
-
-I can help you with:
-• **Instrument Identification** - Finding sensors, transmitters, valves, and accessories
-• **Solution Design** - Complete instrumentation systems for your process needs
-• **Product Information** - Specifications, datasheets, and comparisons
-• **Standards & Compliance** - IEC, ISO, SIL, ATEX, and other certifications
-
-Please ask a question related to industrial automation or procurement.
-"""
 
 
+# Note: OUT_OF_DOMAIN_MESSAGE is loaded from external prompt file at module initialization (see above)
 # =============================================================================
 # INTENT TO WORKFLOW MAPPING
 # =============================================================================
@@ -524,10 +599,12 @@ __all__ = [
     'WorkflowStateMemory',
     'get_workflow_memory',
     'should_exit_workflow',
+    'is_knowledge_question',
     'route_to_workflow',
     'get_workflow_target',
     'is_valid_domain_query',
     'OUT_OF_DOMAIN_MESSAGE',
     'EXIT_PHRASES',
-    'GREETING_PHRASES'
+    'GREETING_PHRASES',
+    'KNOWLEDGE_QUESTION_PATTERNS'
 ]

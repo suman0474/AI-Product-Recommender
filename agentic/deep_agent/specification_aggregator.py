@@ -307,34 +307,30 @@ class SpecificationAggregator:
         existing_specs: Dict[str, Any]
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Force fill remaining specs to reach minimum count using placeholders.
+        Attempt to fill remaining specs to reach minimum count.
+        
+        IMPORTANT: We no longer add "Not specified" placeholders as they
+        pollute the schema with low-quality data. Instead, we log a warning
+        and return an empty dict if we can't reach the minimum through
+        legitimate means.
 
         Args:
             existing_specs: Current specifications
 
         Returns:
-            Placeholder specifications
+            Empty dict - we prefer quality over quantity
         """
-        forced = {}
-        counter = 1
-
-        # Generate placeholder specs until we reach minimum
-        while len(existing_specs) + len(forced) < self.MIN_SPEC_COUNT:
-            placeholder_key = f"specification_placeholder_{counter:03d}"
-
-            forced[placeholder_key] = {
-                "value": "Not specified",
-                "source": SpecSource.TEMPLATE.value,
-                "confidence": 0.3,
-                "priority": self.SOURCE_PRIORITY[SpecSource.TEMPLATE],
-                "note": "Placeholder to reach minimum spec count"
-            }
-            counter += 1
-
-        logger.warning(
-            f"[AGGREGATOR] Force-filled {len(forced)} placeholder specs to reach minimum"
-        )
-        return forced
+        current_count = len(existing_specs)
+        gap = self.MIN_SPEC_COUNT - current_count
+        
+        if gap > 0:
+            logger.warning(
+                f"[AGGREGATOR] Could not reach minimum of {self.MIN_SPEC_COUNT} specs "
+                f"(have {current_count}, missing {gap}). Proceeding without placeholders."
+            )
+        
+        # Return empty - no fake placeholders
+        return {}
 
     def _deduplicate_specs(self, specs: Dict[str, Any]) -> Dict[str, Any]:
         """

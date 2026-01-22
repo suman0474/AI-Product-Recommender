@@ -1,6 +1,6 @@
 PROMPT NAME: INVENTORY_RAG_PROMPT
 SOURCE FILE: backend/agentic/rag_components.py
-PURPOSE: Extracts installed base constraints (series restrictions, spare parts)
+PURPOSE: Extracts installed base and inventory constraints from RAG context
 
 === PROMPT CONTENT ===
 
@@ -34,5 +34,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- product_type: Product type being searched
-- requirements: User requirements (JSON)
+- product_type: Type of product being queried
+- requirements: User requirements dictionary

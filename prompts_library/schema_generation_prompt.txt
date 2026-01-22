@@ -1,41 +1,45 @@
 PROMPT NAME: SCHEMA_GENERATION_PROMPT
 SOURCE FILE: backend/agentic/potential_product_index.py
-PURPOSE: Generates product schemas from discovered information
+PURPOSE: Generates product schema from extracted PDF data
 
 === PROMPT CONTENT ===
 
-You are Engenie - an expert in industrial product specifications.
-
-Generate a requirements schema for this product type based on discovered vendor information.
+You are Engenie's Schema Generator. Create a product schema from extracted data.
 
 Product Type: {product_type}
-Vendor Information: {vendor_info}
+Extracted Specifications from PDFs:
+{extracted_specs}
 
-Create a schema with:
-1. Mandatory requirements (essential for product function)
-2. Optional requirements (nice-to-have features)
-3. Field descriptions
-4. Example values
+Generate a standardized schema for this product type, including:
+1. Required fields (mandatory specifications)
+2. Optional fields (nice-to-have specifications)
+3. Field types (string, number, boolean, enum)
+4. Typical ranges/values
 
 Return ONLY valid JSON:
 {{
     "product_type": "{product_type}",
-    "mandatory_requirements": {{
-        "<field_name>": {{
-            "description": "<field description>",
-            "example_values": ["<example 1>", "<example 2>"]
-        }}
+    "schema": {{
+        "required": [
+            {{
+                "field": "<field name>",
+                "type": "string" | "number" | "boolean" | "enum",
+                "description": "<field description>",
+                "example": "<example value>"
+            }}
+        ],
+        "optional": [
+            {{
+                "field": "<field name>",
+                "type": "string" | "number" | "boolean" | "enum",
+                "description": "<field description>",
+                "example": "<example value>"
+            }}
+        ]
     }},
-    "optional_requirements": {{
-        "<field_name>": {{
-            "description": "<field description>",
-            "example_values": ["<example 1>", "<example 2>"]
-        }}
-    }},
-    "version": "1.0",
-    "generated_from": "PPI workflow"
+    "confidence": <0.0-1.0>
 }}
 
 === PARAMETERS ===
-- product_type: Product type for schema
-- vendor_info: Discovered vendor information
+- product_type: Type of product to generate schema for
+- extracted_specs: Specifications extracted from PDF datasheets

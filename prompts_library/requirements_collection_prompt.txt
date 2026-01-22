@@ -1,19 +1,20 @@
 PROMPT NAME: REQUIREMENTS_COLLECTION_PROMPT
 SOURCE FILE: backend/tools/sales_agent_tools.py
-PURPOSE: Collects and merges additional requirements
+PURPOSE: Collects and merges additional requirements from user input
 
 === PROMPT CONTENT ===
 
-Extract and merge new requirements from this user input.
+You are Engenie - an expert assistant for industrial product requirements.
 
-Product Type: {product_type}
-User Input: "{user_input}"
+The user is adding requirements for a {product_type}.
+
+User Input: "{user_message}"
 
 Existing Requirements:
 {existing_requirements}
 
-Extract any NEW specifications mentioned in this message.
-Merge them with existing requirements.
+Extract and structure the NEW requirements from the user's input.
+Only include requirements explicitly mentioned in this message.
 
 Return ONLY valid JSON:
 {{
@@ -21,12 +22,12 @@ Return ONLY valid JSON:
         "<spec_name>": "<spec_value>"
     }},
     "merged_requirements": {{
-        "<all_spec_name>": "<all_spec_value>"
+        "<complete spec_name>": "<spec_value including existing and new>"
     }},
-    "has_new_specs": true | false
+    "summary": "<Brief summary of what was added>"
 }}
 
 === PARAMETERS ===
 - product_type: Product type being searched
-- user_input: User's input with new requirements
-- existing_requirements: Already collected requirements
+- user_message: User's input with additional requirements
+- existing_requirements: Already collected requirements (JSON)

@@ -1,6 +1,6 @@
-PROMPT NAME: GREETING_PROMPT
+PROMPT NAME: SALES_WORKFLOW_GREETING_PROMPT
 SOURCE FILE: backend/tools/sales_workflow_tools.py
-PURPOSE: Generates brief welcoming greeting
+PURPOSE: Generates a welcoming greeting for new customer sessions
 
 === PROMPT CONTENT ===
 
@@ -17,4 +17,4 @@ Keep it:
 Do NOT use bullet points or lists in greeting. Keep it conversational.
 
 === PARAMETERS ===
-- search_session_id: Session identifier
+- search_session_id: Session ID for personalization

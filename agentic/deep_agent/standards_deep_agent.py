@@ -36,6 +36,8 @@ from dotenv import load_dotenv
 from ..checkpointing import compile_with_checkpointing
 from ..vector_store import get_vector_store
 from llm_fallback import create_llm_with_fallback
+from ..llm_manager import get_cached_llm
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -220,314 +222,22 @@ class StandardsDeepAgentState(TypedDict, total=False):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-PLANNER_PROMPT = """
-You are a Standards Planning Agent for industrial instrumentation.
+PLANNER_PROMPT = load_prompt("deep_agent_planner_prompt")
 
-Given a user requirement, determine which standard document domains are relevant.
+WORKER_PROMPT = load_prompt("deep_agent_worker_prompt")
 
-USER REQUIREMENT:
-{user_requirement}
+SYNTHESIZER_PROMPT = load_prompt("deep_agent_synthesizer_prompt")
 
-AVAILABLE STANDARD DOMAINS:
-{available_domains}
-
-INSTRUCTIONS:
-1. Analyze the user requirement carefully
-2. Identify which standard domains are relevant to address this requirement
-3. Consider safety implications (always include "safety" if there's any hazardous area mention)
-4. Be thorough but don't include irrelevant domains
-
-Return ONLY valid JSON:
-{{
-    "relevant_domains": ["domain1", "domain2", ...],
-    "reasoning": "Brief explanation of why these domains are selected"
-}}
-"""
-
-WORKER_PROMPT = """
-You are a Standards Analysis Agent specialized in {standard_type} standards.
-
-Your task is to extract ALL relevant constraints and specifications from the provided standard document that apply to the user's requirement.
-
-USER REQUIREMENT:
-{user_requirement}
-
-STANDARD DOCUMENT ({standard_name}):
-{document_content}
-
-=== CRITICAL: VALUE FORMAT RULES ===
-
-Return ONLY the technical value - NO descriptions, NO explanations, NO sentences.
-
-CORRECT VALUES: "±0.1%", "IP67", "4-20mA HART", "-40 to +85°C", "SIL 2", "316L SS"
-WRONG VALUES: "typically ±0.1%", "IP67 for outdoor use", "depends on application"
-
-FORBIDDEN in values:
-- Words: "typically", "usually", "approximately", "may be", "can be", "should be"
-- Explanations in parentheses: "(depending on...)", "(for example...)", "(typically...)"
-- Sentences or descriptions
-
-=== EXTRACTION INSTRUCTIONS ===
-
-1. Read the document carefully for the user's requirement
-2. Extract constraints with CLEAN values only
-3. Include specific values, ranges, and tolerances
-4. Use null for specifications not found in the document
-5. Do NOT make up information not present in the document
-
-Return ONLY valid JSON:
-{{
-    "constraints": [
-        {{
-            "constraint_type": "requirement|recommendation|warning|specification",
-            "description": "Clear description of the constraint",
-            "value": "CLEAN technical value (e.g., 'SIL 2', '4-20mA', '±0.1%')",
-            "condition": "Condition under which this applies (if any)",
-            "standard_reference": "Referenced standard code (e.g., 'IEC 61511')",
-            "confidence": 0.0-1.0
-        }}
-    ],
-    "specifications": {{
-        "accuracy": "±0.1%" or null,
-        "repeatability": "±0.05%" or null,
-        "temperature_range": "-40 to +85°C" or null,
-        "ambient_temperature": "-20 to +60°C" or null,
-        "humidity_range": "0-95% RH" or null,
-        "output_signal": "4-20mA HART" or null,
-        "supply_voltage": "24 VDC" or null,
-        "power_consumption": "< 5W" or null,
-        "protection_rating": "IP67" or null,
-        "sil_rating": "SIL 2" or null,
-        "hazardous_area_approval": "ATEX Zone 1" or null,
-        "material_wetted": "316L SS" or null,
-        "material_housing": "Aluminum" or null,
-        "process_connection": "1/2 NPT" or null,
-        "communication_protocol": "HART, Modbus" or null,
-        "response_time": "< 250ms" or null,
-        "calibration_interval": "12 months" or null,
-        "stability": "±0.1% per year" or null,
-        "rangeability": "100:1" or null,
-        "weight": "1.5 kg" or null,
-        "certifications": "CE, IECEx" or null
-    }},
-    "warnings": ["List of important warnings or cautions"],
-    "summary": "Brief summary of findings"
-}}
-"""
-
-
-SYNTHESIZER_PROMPT = """
-You are a Standards Synthesis Agent for industrial instrumentation.
-
-Your task is to merge and consolidate constraints from multiple standard documents, identifying any conflicts.
-
-USER REQUIREMENT:
-{user_requirement}
-
-WORKER RESULTS:
-{worker_results}
-
-=== CRITICAL: VALUE FORMAT RULES ===
-
-All values must be CLEAN technical specifications - NO descriptions or explanations.
-CORRECT: "±0.1%", "IP67", "4-20mA HART"
-WRONG: "typically ±0.1%", "IP67 suitable for outdoor use"
-
-INSTRUCTIONS:
-1. Merge all constraints from different standards
-2. Identify and flag any CONFLICTS between standards
-3. Prioritize safety-related constraints
-4. Remove duplicate constraints
-5. Consolidate specifications into a unified set - CLEAN VALUES ONLY
-6. Only include specifications that have actual values (exclude nulls)
-
-Return ONLY valid JSON:
-{{
-    "merged_constraints": [
-        {{
-            "constraint_type": "requirement|recommendation|warning|specification",
-            "description": "Merged/consolidated constraint",
-            "value": "CLEAN technical value only",
-            "condition": "Condition if any",
-            "standard_reference": "Source standard(s)",
-            "confidence": 0.0-1.0,
-            "source_standards": ["list of contributing standards"]
-        }}
-    ],
-    "merged_specifications": {{
-        "accuracy": "±0.1%" or null,
-        "repeatability": "±0.05%" or null,
-        "temperature_range": "-40 to +85°C" or null,
-        "ambient_temperature": "-20 to +60°C" or null,
-        "humidity_range": "0-95% RH" or null,
-        "output_signal": "4-20mA HART" or null,
-        "supply_voltage": "24 VDC" or null,
-        "power_consumption": "< 5W" or null,
-        "protection_rating": "IP67" or null,
-        "sil_rating": "SIL 2" or null,
-        "hazardous_area_approval": "ATEX Zone 1" or null,
-        "material_wetted": "316L SS" or null,
-        "material_housing": "Aluminum" or null,
-        "process_connection": "1/2 NPT" or null,
-        "communication_protocol": "HART, Modbus" or null,
-        "response_time": "< 250ms" or null,
-        "calibration_interval": "12 months" or null,
-        "stability": "±0.1% per year" or null,
-        "rangeability": "100:1" or null,
-        "weight": "1.5 kg" or null,
-        "certifications": "CE, IECEx" or null
-    }},
-    "conflicts": [
-        {{
-            "description": "Description of conflict",
-            "standard_a": "First standard",
-            "value_a": "Value from first standard",
-            "standard_b": "Second standard",
-            "value_b": "Value from second standard",
-            "resolution": "Suggested resolution or 'REQUIRES_REVIEW'"
-        }}
-    ],
-    "warnings": ["Consolidated warnings"],
-    "sources": ["List of all standard types analyzed"]
-}}
-"""
-
-
-MERGER_PROMPT = """
-You are a Specifications Merger Agent for industrial instrumentation.
-
-Your task is to merge standards-based specifications with database-inferred specifications, with standards taking precedence for safety-critical items.
-
-USER REQUIREMENT:
-{user_requirement}
-
-STANDARDS-BASED SPECIFICATIONS:
-{standards_specs}
-
-DATABASE-INFERRED SPECIFICATIONS:
-{inferred_specs}
-
-INSTRUCTIONS:
-1. Start with the database-inferred specifications as baseline
-2. Overlay standards-based specifications on top
-3. For conflicts, standards specifications override EXCEPT for product-specific details
-4. Flag any overrides or conflicts for user review
-5. Ensure safety-critical specifications from standards are never overridden
-6. Output ONLY specifications that have actual values (not null or empty)
-
-STANDARD SPECIFICATION KEYS TO USE:
-- accuracy: Measurement accuracy
-- temperature_range: Operating temperature range
-- process_temperature: Process medium temperature
-- pressure_range: Pressure measurement range
-- output_signal: Signal type
-- supply_voltage: Power supply voltage
-- protection_rating: IP/NEMA rating
-- hazardous_area_approval: Zone certification
-- sil_rating: Safety integrity level
-- material_wetted: Wetted parts material
-- material_housing: Housing material
-- process_connection: Connection type
-- response_time: Sensor response time
-- communication_protocol: Communication protocol
-- calibration_interval: Recommended calibration frequency
-- ambient_temperature: Ambient operating range
-
-Return ONLY valid JSON:
-{{
-    "final_specifications": {{
-        "accuracy": "value if applicable",
-        "temperature_range": "value if applicable",
-        "output_signal": "value if applicable",
-        "protection_rating": "value if applicable",
-        "sil_rating": "value if applicable",
-        "hazardous_area_approval": "value if applicable",
-        "material_wetted": "value if applicable",
-        "process_connection": "value if applicable",
-        "communication_protocol": "value if applicable",
-        "supply_voltage": "value if applicable",
-        "response_time": "value if applicable",
-        "calibration_interval": "value if applicable"
-    }},
-    "constraints_applied": [
-        {{
-            "constraint": "Constraint that was applied",
-            "impact": "How it affected the final specs"
-        }}
-    ],
-    "overrides": [
-        {{
-            "field": "Field name",
-            "inferred_value": "Original inferred value",
-            "standards_value": "Value from standards",
-            "reason": "Why standards value was used"
-        }}
-    ],
-    "warnings": ["Any warnings for the user"],
-    "confidence": 0.0-1.0
-}}
-"""
-
+MERGER_PROMPT = load_prompt("deep_agent_merger_prompt")
 
 # ============================================================================
 # ITERATIVE WORKER PROMPT - For extracting additional specs from more domains
 # ============================================================================
 
-ITERATIVE_WORKER_PROMPT = """
-You are a Standards Analysis Agent extracting ADDITIONAL specifications.
-
-Your task is to extract specifications from this standard document that are NOT already in the existing list.
-
-USER REQUIREMENT:
-{user_requirement}
-
-STANDARD DOCUMENT ({standard_name}):
-{document_content}
-
-=== EXISTING SPECIFICATIONS (DO NOT REPEAT THESE) ===
-{existing_specs}
-
-=== CRITICAL: VALUE FORMAT RULES ===
-
-Return ONLY clean technical values - NO descriptions, NO explanations.
-
-CORRECT VALUES: "±0.1%", "IP67", "4-20mA HART", "-40 to +85°C", "SIL 2"
-WRONG VALUES: "typically ±0.1%", "IP67 for outdoor use", "depends on application"
-
-=== EXTRACT {specs_needed} NEW SPECIFICATIONS ===
-
-Focus on specifications NOT already covered:
-- Physical characteristics: dimensions, weight, mounting options
-- Electrical parameters: isolation, surge protection, grounding
-- Environmental ratings: vibration, shock, altitude, humidity
-- Safety requirements: burst pressure, overpressure, failure modes
-- Maintenance: MTBF, service intervals, diagnostic coverage
-- Certifications: marine, food-grade, nuclear, railway
-- Communication: fieldbus options, wireless, redundancy
-
-Return ONLY valid JSON with NEW specifications:
-{{
-    "specifications": {{
-        "new_spec_key_1": "clean technical value",
-        "new_spec_key_2": "clean technical value"
-    }},
-    "constraints": [
-        {{
-            "constraint_type": "requirement|recommendation|specification",
-            "description": "Clear description",
-            "value": "CLEAN technical value",
-            "standard_reference": "Referenced standard code",
-            "confidence": 0.0-1.0
-        }}
-    ],
-    "summary": "Brief summary of additional findings"
-}}
-
-CRITICAL: Do NOT repeat any specifications from the existing list above!
-"""
+ITERATIVE_WORKER_PROMPT = load_prompt("deep_agent_iterative_worker_prompt")
 
 
 # ============================================================================
@@ -619,7 +329,7 @@ def plan_analysis_node(state: StandardsDeepAgentState) -> Dict[str, Any]:
     logger.info("[Planner] Analyzing requirement to determine relevant standards...")
 
     try:
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
         prompt = ChatPromptTemplate.from_template(PLANNER_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
@@ -724,7 +434,7 @@ def analyze_standard_doc_node(state: Dict[str, Any]) -> Dict[str, Any]:
             }
 
         # Analyze with LLM
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
         prompt = ChatPromptTemplate.from_template(WORKER_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
@@ -799,7 +509,7 @@ def synthesize_specs_node(state: StandardsDeepAgentState) -> Dict[str, Any]:
         # Format worker results for prompt
         worker_results_text = json.dumps(parallel_results, indent=2)
 
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
         prompt = ChatPromptTemplate.from_template(SYNTHESIZER_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
@@ -874,7 +584,7 @@ def merge_with_inferred_node(state: StandardsDeepAgentState) -> Dict[str, Any]:
         }
 
     try:
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
         prompt = ChatPromptTemplate.from_template(MERGER_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
@@ -1093,7 +803,7 @@ def _extract_additional_specs_from_domain(
         ])
 
         # Create LLM and prompt
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
         prompt = ChatPromptTemplate.from_template(ITERATIVE_WORKER_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
@@ -1382,149 +1092,15 @@ def run_standards_deep_agent(
 
 
 # ============================================================================
-# BATCH PROCESSING FOR MULTIPLE ITEMS
+# BATCH PROCESSING FOR MULTIPLE ITEMS - Prompts loaded from prompts_library
 # ============================================================================
 
-BATCH_PLANNER_PROMPT = """
-You are a Standards Planner Agent for industrial instrumentation.
+BATCH_PLANNER_PROMPT = load_prompt("deep_agent_batch_planner_prompt")
 
-Your task is to analyze MULTIPLE items and determine which standard domains are relevant for ALL of them collectively.
+BATCH_WORKER_PROMPT = load_prompt("deep_agent_batch_worker_prompt")
 
-ITEMS TO ANALYZE:
-{items_summary}
+BATCH_SYNTHESIZER_PROMPT = load_prompt("deep_agent_batch_synthesizer_prompt")
 
-AVAILABLE STANDARD DOMAINS:
-{available_domains}
-
-INSTRUCTIONS:
-1. Identify all unique standard domains needed to cover ALL items
-2. Prioritize safety-related domains (safety, hazardous area)
-3. Group items by their primary domain requirements
-4. Return a consolidated list of domains (max 5 to optimize performance)
-
-Return ONLY valid JSON:
-{{
-    "relevant_domains": ["domain1", "domain2", ...],
-    "reasoning": "Why these domains were selected",
-    "item_domain_mapping": {{
-        "item_name_1": ["domain1", "domain2"],
-        "item_name_2": ["domain2", "domain3"]
-    }}
-}}
-"""
-
-BATCH_WORKER_PROMPT = """
-You are a Standards Extraction Worker for industrial instrumentation.
-
-Your task is to analyze a standard document and extract specifications for MULTIPLE items at once.
-
-STANDARD DOMAIN: {standard_type}
-STANDARD NAME: {standard_name}
-
-ITEMS REQUIRING ANALYSIS:
-{items_requiring_this_standard}
-
-DOCUMENT CONTENT:
-{document_content}
-
-INSTRUCTIONS:
-1. For EACH item in the list, extract relevant specifications from this standard
-2. Focus on safety-critical parameters first
-3. Include applicable standards references (IEC, ISO, API, etc.)
-4. Skip items that are not relevant to this standard domain
-
-STANDARD SPECIFICATION KEYS TO EXTRACT:
-- accuracy: Measurement accuracy
-- temperature_range: Operating temperature range
-- process_temperature: Process medium temperature
-- pressure_range: Pressure measurement range
-- output_signal: Signal type (4-20mA, HART, etc.)
-- supply_voltage: Power supply voltage
-- protection_rating: IP/NEMA rating
-- hazardous_area_approval: Zone certification (ATEX, IECEx)
-- sil_rating: Safety integrity level rating
-- material_wetted: Wetted parts material
-- material_housing: Housing material
-- process_connection: Connection type
-- response_time: Sensor response time
-- communication_protocol: Communication protocol
-- calibration_interval: Calibration frequency
-- ambient_temperature: Ambient operating range
-
-Return ONLY valid JSON:
-{{
-    "items_results": [
-        {{
-            "item_name": "Name of the item",
-            "applicable": true/false,
-            "constraints": [
-                {{
-                    "constraint_type": "requirement|recommendation|warning|specification",
-                    "description": "Clear description",
-                    "value": "Specific value",
-                    "standard_reference": "Referenced standard code"
-                }}
-            ],
-            "specifications": {{
-                "accuracy": "extracted value or null",
-                "temperature_range": "extracted value or null",
-                "output_signal": "extracted value or null",
-                "protection_rating": "extracted value or null",
-                "sil_rating": "extracted value or null",
-                "hazardous_area_approval": "extracted value or null"
-            }}
-        }}
-    ],
-    "standard_summary": "Brief summary of this standard's relevance",
-    "warnings": ["Any important warnings"]
-}}
-"""
-
-BATCH_SYNTHESIZER_PROMPT = """
-You are a Batch Synthesizer Agent for industrial instrumentation.
-
-Your task is to merge results from multiple standard analyses into final specifications for EACH item.
-
-ITEMS LIST:
-{items_list}
-
-WORKER RESULTS FROM ALL STANDARDS:
-{worker_results}
-
-INSTRUCTIONS:
-1. For EACH item, consolidate specifications from all applicable standards
-2. Resolve conflicts by prioritizing safety standards
-3. Ensure each item has a complete specification set
-4. Mark confidence based on how many standards contributed
-
-Return ONLY valid JSON:
-{{
-    "items_final_specs": [
-        {{
-            "item_name": "Item name",
-            "item_index": 0,
-            "specifications": {{
-                "accuracy": "consolidated value or null",
-                "temperature_range": "consolidated value or null",
-                "output_signal": "consolidated value or null",
-                "protection_rating": "consolidated value or null",
-                "sil_rating": "consolidated value or null",
-                "hazardous_area_approval": "consolidated value or null"
-            }},
-            "constraints_applied": [
-                {{
-                    "constraint": "Applied constraint description",
-                    "standard_reference": "Source standard"
-                }}
-            ],
-            "standards_analyzed": ["list of standards that contributed"],
-            "confidence": 0.0-1.0
-        }}
-    ],
-    "batch_summary": "Overview of the batch analysis",
-    "total_standards_analyzed": 3
-}}
-"""
 
 
 def _batch_extract_specs_for_items_parallel(
@@ -1664,15 +1240,21 @@ def run_standards_deep_agent_batch(
                 context_string += f"\nHazardous Area: Yes"
         
         items_summary_text = "\n".join(items_summary) + context_string
-        
-        llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
-        
+
+        llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+
         # Batch planning
         planner_prompt = ChatPromptTemplate.from_template(BATCH_PLANNER_PROMPT)
         planner_parser = JsonOutputParser()
         planner_chain = planner_prompt | llm | planner_parser
         
+        # Extract product types and count for template
+        product_types_list = list(set(item.get('category', 'Unknown') for item in items))
+        product_types_str = ", ".join(product_types_list)
+        
         plan_result = planner_chain.invoke({
+            "product_count": len(items),
+            "product_types": product_types_str,
             "items_summary": items_summary_text,
             "available_domains": format_domains_for_prompt()
         })
@@ -1747,8 +1329,8 @@ def run_standards_deep_agent_batch(
             logger.info(f"[BATCH-PARALLEL] Analyzing domain '{domain}' for {len(relevant_items)} items...")
             
             # Create a separate LLM instance for this thread to enable true parallelism
-            thread_llm = create_llm_with_fallback(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
-            
+            thread_llm = get_cached_llm(model=DEEP_AGENT_LLM_MODEL, temperature=0.1)
+
             # Single LLM call for this domain covering all relevant items
             worker_prompt = ChatPromptTemplate.from_template(BATCH_WORKER_PROMPT)
             worker_parser = JsonOutputParser()

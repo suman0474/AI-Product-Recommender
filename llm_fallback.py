@@ -288,6 +288,8 @@ def create_llm_langchain(
     )
 
 
+from agentic.context_managers import LLMResourceManager, GlobalResourceRegistry
+
 class FallbackLLMClient:
     """
     Wrapper class for non-LangChain LLM usage with fallback support
@@ -307,8 +309,28 @@ class FallbackLLMClient:
         self.openai_api_key = openai_api_key or OPENAI_API_KEY
         self.client = None
         self.client_type = None  # 'gemini' or 'openai'
+        
+        # Context manager support
+        self._resource_manager: Optional[LLMResourceManager] = None
+        self._registry = GlobalResourceRegistry()
 
         self._initialize_client()
+        
+    def __enter__(self):
+        """Enable context manager usage"""
+        self._resource_manager = LLMResourceManager(
+            "llm_client",
+            f"fallback_{self.model_name}_{id(self)}",
+            timeout_seconds=150
+        )
+        self._resource_manager.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cleanup LLM resources"""
+        if self._resource_manager:
+            self._resource_manager.__exit__(exc_type, exc_val, exc_tb)
+        return False
 
     def _initialize_client(self):
         """Initialize the LLM client with fallback logic"""
@@ -355,8 +377,8 @@ class FallbackLLMClient:
         """
         import time
         
-        max_retries = 3
-        base_retry_delay = 10  # Base delay in seconds
+        max_retries = 5
+        base_retry_delay = 5  # Base delay in seconds (exponential backoff: 5, 10, 20, 40, 80)
         last_exception = None
         
         for attempt in range(max_retries):
@@ -382,7 +404,8 @@ class FallbackLLMClient:
 
             except Exception as e:
                 error_msg = str(e)
-                is_rate_limit = any(x in error_msg for x in ['429', 'Resource exhausted', 'RESOURCE_EXHAUSTED', 'quota'])
+                # FIX: Added 503 and 'overloaded' to retryable errors
+                is_rate_limit = any(x in error_msg for x in ['429', 'Resource exhausted', 'RESOURCE_EXHAUSTED', 'quota', '503', 'overloaded'])
                 
                 if is_rate_limit and attempt < max_retries - 1:
                     wait_time = base_retry_delay * (2 ** attempt)  # Exponential backoff: 10s, 20s, 40s

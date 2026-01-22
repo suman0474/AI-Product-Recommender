@@ -11,101 +11,22 @@ from langchain_core.output_parsers import JsonOutputParser
 import os
 from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
+from .llm_manager import get_cached_llm
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# RAG QUERY PROMPTS
+# RAG QUERY PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-STRATEGY_RAG_PROMPT = """
-You are Engenie's Strategy RAG component. Extract procurement strategy information relevant to the query.
+STRATEGY_RAG_PROMPT = load_prompt("strategy_rag_prompt")
 
-Query Context:
-- Product Type: {product_type}
-- User Requirements: {requirements}
+STANDARDS_RAG_PROMPT = load_prompt("standards_rag_prompt")
 
-STRATEGY CATEGORIES TO IDENTIFY:
-1. Preferred Vendors - Vendors with strategic partnerships or preferred status
-2. Forbidden Vendors - Vendors to avoid due to quality, compliance, or policy
-3. Neutral Vendors - All other acceptable vendors
-4. Procurement Priorities - Cost optimization, lifecycle cost, sustainability, etc.
-
-Based on your knowledge of industrial procurement strategies, provide:
-
-Return ONLY valid JSON:
-{{
-    "preferred_vendors": ["<list of preferred vendors for this product type>"],
-    "forbidden_vendors": ["<list of vendors to avoid>"],
-    "neutral_vendors": ["<list of neutral vendors>"],
-    "procurement_priorities": {{
-        "<vendor>": <priority_score 1-10>
-    }},
-    "strategy_notes": "<any relevant strategy notes>",
-    "confidence": <0.0-1.0>
-}}
-"""
-
-STANDARDS_RAG_PROMPT = """
-You are Engenie's Standards RAG component. Extract standards and certification requirements.
-
-Query Context:
-- Product Type: {product_type}
-- User Requirements: {requirements}
-
-STANDARDS TO CHECK:
-1. SIL Ratings - Safety Integrity Level requirements (SIL1, SIL2, SIL3)
-2. ATEX Zones - Explosive atmosphere zones (Zone 0, 1, 2)
-3. API Standards - American Petroleum Institute standards
-4. Plant Codes - Facility-specific codes
-5. Certifications - ISO, CE, NACE, etc.
-
-Based on your knowledge of industrial standards, provide:
-
-Return ONLY valid JSON:
-{{
-    "required_sil_rating": "<SIL1|SIL2|SIL3 or null>",
-    "atex_zone": "<Zone 0|Zone 1|Zone 2 or null>",
-    "required_certifications": ["<list of required certifications>"],
-    "api_standards": ["<list of applicable API standards>"],
-    "plant_codes": ["<list of plant codes>"],
-    "standards_notes": "<any relevant standards notes>",
-    "confidence": <0.0-1.0>
-}}
-"""
-
-INVENTORY_RAG_PROMPT = """
-You are Engenie's Inventory RAG component. Extract installed base and inventory constraints.
-
-Query Context:
-- Product Type: {product_type}
-- User Requirements: {requirements}
-
-INVENTORY ASPECTS TO IDENTIFY:
-1. Installed Series - What product series are already installed?
-2. Series Restrictions - Are there restrictions like "800 series only"?
-3. Spare Parts - Which spare parts are available?
-4. Standardized Vendor - Is there a plant-standardized vendor?
-5. Compatibility - What compatibility requirements exist?
-
-Based on your knowledge of industrial installations, provide:
-
-Return ONLY valid JSON:
-{{
-    "installed_series": {{
-        "<vendor>": ["<list of installed series>"]
-    }},
-    "series_restrictions": ["<list of series restrictions>"],
-    "available_spare_parts": {{
-        "<model>": ["<list of spare parts>"]
-    }},
-    "standardized_vendor": "<vendor name or null>",
-    "compatibility_notes": "<any compatibility requirements>",
-    "confidence": <0.0-1.0>
-}}
-"""
+INVENTORY_RAG_PROMPT = load_prompt("inventory_rag_prompt")
 
 
 # ============================================================================
@@ -119,10 +40,9 @@ class RAGAggregator:
     """
     
     def __init__(self, model_name: str = "gemini-2.5-flash", temperature: float = 0.1):
-        self.llm = create_llm_with_fallback(
+        self.llm = get_cached_llm(
             model=model_name,
-            temperature=temperature,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=temperature
         )
         self.parser = JsonOutputParser()
         logger.info("RAGAggregator initialized")

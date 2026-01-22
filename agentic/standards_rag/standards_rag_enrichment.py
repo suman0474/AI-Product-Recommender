@@ -197,15 +197,11 @@ def enrich_identified_items_with_standards(
     # ║     🔵 PARALLEL STANDARDS ENRICHMENT (Performance Optimized)  🔵     ║
     # ╚══════════════════════════════════════════════════════════════════════╝
     logger.info("="*70)
-    logger.info(f"🔵 PARALLEL STANDARDS ENRICHMENT STARTING 🔵")
+    logger.info("PARALLEL STANDARDS ENRICHMENT STARTING")
     logger.info(f"   Items to enrich: {len(items)}")
     logger.info(f"   Max workers: {max_workers}")
     logger.info(f"   Cache size: {len(_standards_cache)}")
     logger.info("="*70)
-    print(f"\n{'='*70}")
-    print(f"🔵 [STANDARDS ENRICHMENT] PARALLEL PROCESSING")
-    print(f"   Items: {len(items)}, Workers: {max_workers}")
-    print(f"{'='*70}\n")
     
     try:
         # Determine optimal worker count
@@ -247,16 +243,12 @@ def enrich_identified_items_with_standards(
         cache_hits = sum(1 for item in enriched_items if item.get("standards_info", {}).get("from_cache", False))
         
         logger.info("="*70)
-        logger.info(f"🔵 PARALLEL STANDARDS ENRICHMENT COMPLETED 🔵")
+        logger.info("PARALLEL STANDARDS ENRICHMENT COMPLETED")
         logger.info(f"   Total time: {elapsed_time:.2f}s")
         logger.info(f"   Items enriched: {len(enriched_items)}")
         logger.info(f"   Cache hits: {cache_hits}")
         logger.info(f"   Avg time per item: {elapsed_time/len(items):.2f}s")
         logger.info("="*70)
-        print(f"\n{'='*70}")
-        print(f"🔵 [STANDARDS ENRICHMENT] COMPLETED")
-        print(f"   Time: {elapsed_time:.2f}s, Items: {len(enriched_items)}, Cache hits: {cache_hits}")
-        print(f"{'='*70}\n")
         
         return enriched_items
         

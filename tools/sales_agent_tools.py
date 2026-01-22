@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 import os
 from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -40,62 +41,12 @@ class CollectRequirementsInput(BaseModel):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-SALES_AGENT_PROMPT = """
-You are Engenie - a professional AI sales agent for industrial procurement.
+SALES_AGENT_PROMPT = load_prompt("sales_agent_prompt")
 
-Current conversation step: {step}
-Product type: {product_type}
-
-User Input: "{user_message}"
-
-Based on the step and user input, generate an appropriate response:
-
-**Step Guide:**
-- initialInput: Acknowledge requirements, ask for missing details
-- awaitAdditionalAndLatestSpecs: Ask if user wants to add optional specs (if yes/no response, handle accordingly)
-- awaitAdvancedSpecs: Offer advanced parameter selection
-- showSummary: Present requirements summary, ask to proceed
-- finalAnalysis: Confirm analysis is starting/complete
-
-For yes/no questions, detect affirmative (yes, y, yeah, sure, ok) or negative (no, n, nope, skip) responses.
-
-Return ONLY valid JSON:
-{{
-    "response": "<Your professional response to the user>",
-    "next_step": "<Next workflow step>",
-    "maintain_workflow": true,
-    "user_confirmed": true | false | null,
-    "action": "<action like 'proceed', 'collect_specs', 'skip', null>"
-}}
-"""
-
-REQUIREMENTS_COLLECTION_PROMPT = """
-You are Engenie - an expert assistant for industrial product requirements.
-
-The user is adding requirements for a {product_type}.
-
-User Input: "{user_message}"
-
-Existing Requirements:
-{existing_requirements}
-
-Extract and structure the NEW requirements from the user's input.
-Only include requirements explicitly mentioned in this message.
-
-Return ONLY valid JSON:
-{{
-    "new_requirements": {{
-        "<spec_name>": "<spec_value>"
-    }},
-    "merged_requirements": {{
-        "<complete spec_name>": "<spec_value including existing and new>"
-    }},
-    "summary": "<Brief summary of what was added>"
-}}
-"""
+REQUIREMENTS_COLLECTION_PROMPT = load_prompt("requirements_collection_prompt")
 
 
 # ============================================================================

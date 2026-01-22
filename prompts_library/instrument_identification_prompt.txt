@@ -1,6 +1,6 @@
 PROMPT NAME: INSTRUMENT_IDENTIFICATION_PROMPT
 SOURCE FILE: backend/tools/instrument_tools.py
-PURPOSE: Identifies Bill of Materials from process requirements
+PURPOSE: Identifies instruments and Bill of Materials from process requirements
 
 === PROMPT CONTENT ===
 
@@ -71,4 +71,4 @@ Return ONLY valid JSON:
 Respond ONLY with valid JSON, no additional text.
 
 === PARAMETERS ===
-- requirements: Process requirements or problem statement
+- requirements: Process requirements or problem statement text

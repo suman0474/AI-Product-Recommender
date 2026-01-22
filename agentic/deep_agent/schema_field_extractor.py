@@ -9,10 +9,68 @@ field and extracts relevant technical specifications.
 import logging
 import json
 import re
+import os
+import datetime
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# INVALID VALUE PATTERNS - Detect LLM garbage responses
+# =============================================================================
+INVALID_VALUE_PATTERNS = [
+    "i don't have specific information",
+    "**: i don't",
+    "i don't have",
+    "this parameter is recognized",
+    "this specification is recognized",
+    "this specification is listed",
+    "consult datasheet",
+    "not mentioned",
+    "[source:",
+    "source: document",
+    "source: unknown",
+    "is a recognized parameter",
+    "is a relevant parameter",
+    "is referred to as",
+    "in the available standards",
+]
+
+
+def is_value_invalid(val) -> bool:
+    """
+    Check if a schema field value is invalid and should be replaced.
+    Catches empty values, placeholders, and LLM meta-phrases.
+    """
+    if not val:
+        return True
+    if not isinstance(val, str):
+        return False  # Non-string values (lists, dicts) are considered valid
+    
+    clean = val.strip().lower()
+    if not clean:
+        return True
+    
+    # Check obvious placeholders
+    if clean in ["not specified", "n/a", "none", "unknown", ""]:
+        return True
+    
+    # Check bracketed placeholders like [Maximum burst pressure]
+    if clean.startswith("[") and clean.endswith("]"):
+        return True
+    
+    # Check LLM garbage patterns
+    for pattern in INVALID_VALUE_PATTERNS:
+        if pattern in clean:
+            return True
+    
+    # Check if value is just "**" or starts with "**:"
+    if clean.startswith("**") or clean == "**":
+        return True
+    
+    return False
+
 
 # =============================================================================
 # FIELD CATEGORIES MAPPING
@@ -140,6 +198,14 @@ PRESSURE_TRANSMITTER_DEFAULTS = {
     "Long Term Stability": "±0.1% URL per 5 years",
     "Turndown Ratio": "100:1",
     "Repeatability": "±0.05% of span",
+    # Additional missing fields
+    "Display Options": "Optional LCD with local configuration",
+    "Mounting Options": "Direct mount, remote mount, panel mount",
+    "Humidity Limits": "0-100% RH",
+    "Advanced Diagnostics": "Device diagnostics per NE107",
+    "Device Description Files": "DTM, EDDL, FDI available",
+    "NACE Compliance": "NACE MR0175/ISO 15156 available",
+    "Certifications": "ATEX, IECEx, FM, CSA, CE, SIL",
 }
 
 TEMPERATURE_SENSOR_DEFAULTS = {
@@ -378,32 +444,58 @@ FLOW_METER_DEFAULTS = {
     "Repeatability": "±0.1% of reading",
     "Turndown Ratio": "100:1 or higher",
     "Flow Range": "0.01 to 10,000 m³/h depending on size",
+    "Flow Rate Range": "0.01 to 10,000 m³/h depending on size",
     "Measurement Type": "Volumetric or Mass flow",
+    "Measured Variable": "Volumetric flow, Mass flow, Velocity",
     "Response Time": "<1 second per IEC 61298",
+    "Gas Steam Quality Measurement": "Optional with Coriolis meters",
+    "Fluid Type And Properties": "Liquids, gases, steam per application",
+    "Density Measurement Range": "0.3 to 3 kg/L typical for Coriolis",
+    "Viscosity Measurement Range": "0.1 to 10,000 cP typical",
+    "Pressure Drop": "Model dependent, see sizing calculation",
 
     # Electrical
     "Output Signal": "4-20mA with HART per NAMUR NE43",
+    "Output Signals": "4-20mA with HART per NAMUR NE43",
     "Power Supply": "10.5-42.5 VDC loop powered or 85-265 VAC",
+    "Power Supply Requirements": "10.5-42.5 VDC loop powered or 85-265 VAC",
     "Communication Protocol": "HART 7, Foundation Fieldbus H1, Profibus PA, Modbus",
+    "Communication Protocols": "HART 7, Foundation Fieldbus H1, Profibus PA, Modbus",
     "Digital Communication Protocol": "HART 7, Foundation Fieldbus, Modbus RTU/TCP",
+    "Internal Data Logging": "Optional with smart transmitter",
+    "Wireless Communication Options": "WirelessHART per IEC 62591",
+    "Integrated Display HMI": "Backlit LCD with configuration buttons",
 
     # Mechanical
     "Process Connection": "Flanged (ANSI, DIN, JIS), wafer, threaded per ASME B16.5",
+    "Process Connection Type": "Flanged (ANSI, DIN, JIS), wafer, threaded per ASME B16.5",
     "Wetted Parts Material": "316L SS, Hastelloy C-276, Tantalum per NACE MR0175",
     "Housing Material": "Aluminum or 316 SS per IEC 60079",
+    "Transmitter Housing Material": "Aluminum or 316 SS per IEC 60079",
+    "Sensor Housing Material": "316L SS per IEC 60079",
     "Line Size": "DN15 to DN3000 / 0.5\" to 120\"",
+    "Nominal Pipe Size": "DN15 to DN3000 / 0.5\" to 120\"",
+    "Lining Material": "PTFE, PFA, rubber, ceramic per media",
+    "Mounting Configuration": "Inline, insertion, clamp-on per application",
+    "Heating Cooling Jacket Options": "Optional steam or electrical tracing",
+    "Drain Vent Connections": "Optional drain/vent ports available",
 
     # Environmental
     "Process Temperature Range": "-200°C to +400°C",
+    "Process Pressure Range": "Up to 420 bar / 6000 psi per ASME B16.5",
     "Process Pressure Rating": "Up to 420 bar / 6000 psi per ASME B16.5",
     "Ambient Temperature Range": "-40°C to +85°C",
     "Ingress Protection": "IP66/IP67 per IEC 60529",
     "Hazardous Area Rating": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2 per IEC 60079",
+    "Hazardous Area Certifications": "ATEX, IECEx, FM, CSA, Class I Div 1/2",
+    "Vibration And Shock Resistance": "IEC 60068-2-6: 1g, 10-150Hz",
 
     # Features
     "Diagnostics": "Advanced diagnostics per NE107, process noise, electrode coating detection",
+    "Advanced Diagnostics": "Process noise, electrode coating, empty pipe detection per NE107",
     "Local Display": "Backlit LCD with configuration buttons",
     "Calibration Options": "NIST traceable, ISO 17025 accredited",
+    "Software Tools Verification Functionality": "DTM/EDDL, Asset Management integration",
 
     # Compliance
     "Safety Integrity Level": "SIL 2/3 per IEC 61508/IEC 61511",
@@ -647,6 +739,398 @@ CALIBRATOR_DEFAULTS = {
     "EMC": "CE marked per EN 61326-1",
 }
 
+# =============================================================================
+# POWER SUPPLY DEFAULTS
+# =============================================================================
+POWER_SUPPLY_DEFAULTS = {
+    # Electrical Input
+    "Input Voltage Range": "100-240 VAC, 50/60 Hz or 24 VDC per IEC 61131-2",
+    "Input Frequency": "47-63 Hz per IEC 61131-2",
+    "Input Current": "Varies by power rating, see datasheet",
+    "Inrush Current": "<30A at 25°C per IEC 61000-3-3",
+    "Power Factor": ">0.95 with PFC per IEC 61000-3-2",
+
+    # Electrical Output
+    "Output Voltage": "24 VDC regulated ±1% per IEC 61131-2",
+    "Output Current": "2A to 20A per model rating",
+    "Output Power": "48W to 480W per model",
+    "Ripple And Noise": "<100mVp-p per IEC 61131-2",
+    "Efficiency": ">90% at full load per IEC 62040",
+    "Hold Up Time": ">20ms at full load per IEC 61131-2",
+    "Isolation Voltage": "3000 VAC input-output per IEC 61010-1",
+
+    # Protection Features
+    "Over Voltage Protection": "Yes, 110-130% of rated voltage",
+    "Overload Protection": "Yes, 105-150% of rated current",
+    "Short Circuit Protection": "Yes, hiccup mode or constant current limiting",
+    "Thermal Overload Protection": "Yes, auto-recovery per IEC 61131-2",
+    "Power Factor Correction": "Active PFC per IEC 61000-3-2",
+
+    # Mechanical
+    "Mounting Type": "DIN rail 35mm, Panel mount per IEC 60715",
+    "Dimensions": "Varies by power rating",
+    "Weight": "Varies by power rating",
+    "Cooling Method": "Convection or forced air per model",
+    "Terminal Block Type": "Screw terminal, Spring clamp per IEC 60947-7-1",
+
+    # Environmental
+    "Operating Temperature Range": "-25°C to +70°C with derating",
+    "Storage Temperature Range": "-40°C to +85°C",
+    "Humidity": "10-95% RH non-condensing per IEC 60068-2-78",
+    "Altitude": "Up to 2000m without derating per IEC 61131-2",
+    "Vibration Resistance": "IEC 60068-2-6: 2g, 10-500Hz",
+    "Shock Resistance": "IEC 60068-2-27: 30g, 11ms",
+
+    # Compliance
+    "Safety Certifications": "UL 508, UL 60950-1, IEC 61010-1, CE",
+    "EMCStandards": "EN 55032 Class B, EN 61000-4 series",
+    "Ro HSCompliance": "Yes, RoHS 2011/65/EU",
+
+    # Features
+    "Parallel Operation": "Available for redundancy per model",
+    "Series Operation": "Not recommended",
+    "Redundancy": "N+1 redundancy capable",
+    "Remote Monitoring": "Optional relay contact or signal",
+    "LED Indicators": "Power OK, Overload status",
+
+    # Integration
+    "Communication Interface": "Optional Modbus RTU, relay contacts",
+    "Fieldbus Protocol": "Optional per model",
+
+    # Service
+    "Warranty Period": "3-5 years manufacturer warranty",
+    "MTBF": ">500,000 hours at 25°C per MIL-HDBK-217F",
+}
+
+# =============================================================================
+# VARIABLE FREQUENCY DRIVE DEFAULTS
+# =============================================================================
+VFD_DEFAULTS = {
+    # Electrical - Input
+    "Input Voltage Range": "380-480 VAC ±10%, 3-phase",
+    "Input Phase": "3-phase",
+    "Input Frequency": "50/60 Hz ±5%",
+    
+    # Electrical - Output
+    "Rated Output Power": "0.75 kW to 500 kW per model",
+    "Rated Output Current": "Per motor nameplate, see datasheet",
+    "Output Frequency Range": "0-400 Hz typical",
+    "Output Voltage": "0 to Input voltage",
+    
+    # Performance
+    "Overload Capacity": "150% for 60 seconds, 180% for 2 seconds",
+    "Control Method": "V/f, Sensorless Vector, Closed-loop Vector",
+    "Motor Type Compatibility": "Induction, PM synchronous, reluctance",
+    "Speed Regulation": "±0.5% (open loop), ±0.01% (closed loop)",
+    "Torque Response": "<10 ms typical",
+    
+    # I/O
+    "Number Of Digital Inputs": "6-8 programmable",
+    "Number Of Analog Inputs": "2 (0-10V, 4-20mA)",
+    "Number Of Digital Outputs": "2-3 (relay or open collector)",
+    "Number Of Analog Outputs": "1-2 (0-10V, 4-20mA)",
+    "Number Of Relay Outputs": "1-2 programmable",
+    
+    # Features
+    "Integrated EMC Filter": "Built-in C1/C2 per IEC 61800-3",
+    "Braking Chopper": "Built-in or external per model",
+    "Power Factor Correction": "Active front end optional",
+    "Integrated PID Controller": "Yes, single or dual loop",
+    "Safe Torque Off": "STO per IEC 61800-5-2, SIL 3 / PLe",
+    "Multi Motor Control Capability": "Up to 3 motors per drive",
+    "Energy Optimization Features": "Auto Energy Optimization (AEO)",
+    "Auto Tuning Functionality": "Automatic motor tuning",
+    
+    # Mechanical
+    "User Interface Keypad Type": "LED/LCD keypad, removable",
+    "Display Type": "Backlit LCD with parameter display",
+    "Cooling Method": "Forced air cooling, heat sink",
+    "Mounting Type": "Wall mount, panel mount, floor standing",
+    
+    # Environmental
+    "Operating Ambient Temperature Range": "-10°C to +50°C without derating",
+    "Maximum Operating Altitude": "1000m without derating, 4000m with derating",
+    "Humidity Range": "5-95% RH non-condensing",
+    "Ingress Protection": "IP20/IP21 (indoor), IP54/IP55 (outdoor)",
+    
+    # Communication
+    "Standard Communication Protocol": "Modbus RTU built-in",
+    "Optional Communication Protocols": "Profibus DP, Profinet, EtherNet/IP, EtherCAT, CANopen",
+    "IoT Cloud Connectivity Support": "Optional cloud gateway",
+    
+    # Compliance
+    "Safety Certifications": "CE, UL, cULus, EAC, CCC per model",
+    "EMC Standards": "IEC 61800-3 C1/C2/C3",
+    "Safety Integrity Level": "SIL 3 capable (STO function)",
+    
+    # Service
+    "Standard Warranty Period": "2 years manufacturer warranty",
+}
+
+# =============================================================================
+# PULSATION DAMPENER DEFAULTS
+# =============================================================================
+PULSATION_DAMPENER_DEFAULTS = {
+    # Performance
+    "Operating Pressure Range": "0-400 bar per model",
+    "Nominal Volume": "0.1 to 50 liters per model",
+    "Gas Pre Charge Pressure Range": "50-90% of minimum operating pressure",
+    "Fluid Compatibility": "Hydraulic oil, water-glycol, phosphate ester",
+    "Pulsation Reduction": "Up to 95% depending on design",
+    
+    # Mechanical
+    "Process Connection Size": "1/4\" to 2\" NPT/BSP",
+    "Process Connection Type": "Threaded, Flanged, SAE",
+    "Housing Material": "Carbon steel, Stainless steel 316, Aluminum",
+    "Elastomer Material": "NBR, Viton, EPDM, PTFE per fluid compatibility",
+    "Gas Valve Type": "Schrader valve, High-pressure valve",
+    "Overall Dimensions": "Per model, see datasheet",
+    "Weight": "Per model and material",
+    "Mounting Orientation": "Vertical (gas on top) recommended",
+    
+    # Environmental
+    "Fluid Operating Temperature Range": "-20°C to +120°C per elastomer",
+    "Ambient Temperature Range": "-40°C to +80°C",
+    "Ingress Protection": "N/A (pressure vessel)",
+    "Hazardous Area Rating": "ATEX available for hazardous locations",
+    
+    # Compliance
+    "Pressure Vessel Code": "ASME Section VIII, PED 2014/68/EU",
+    "Other Certifications": "CE, API 618, API 674",
+    "Testing Documentation": "Hydrostatic test certificate included",
+    
+    # Features
+    "Internal Flow Path Design": "Through-flow, Bottom entry, Side entry",
+    "Maintenance Features": "Rebuildable bladder/diaphragm",
+    "Customization Availability": "Custom materials and sizes available",
+    "Pressure Gauge Integration": "Optional pre-charge gauge port",
+    
+    # Service
+    "Warranty": "1-2 years manufacturer warranty",
+    "Lifetime Service Interval": "Inspect bladder annually",
+    "Spare Parts Availability": "Bladder/diaphragm kits available",
+}
+
+# =============================================================================
+# PROTECTIVE ACCESSORY DEFAULTS
+# =============================================================================
+PROTECTIVE_ACCESSORY_DEFAULTS = {
+    # General
+    "Product Type": "Protective Accessory",
+    "Protection Type": "Mechanical protection, Weather protection, UV protection",
+
+    # Mechanical
+    "Material Construction": "Stainless Steel 316L, Aluminum, Fiberglass, Plastic (UV-stabilized)",
+    "Mounting Type": "Screw mount, Clip-on, Bolt mount, Strap mount",
+    "Dimensions Overall": "Varies by instrument compatibility",
+    "Weight Of Bracket": "Varies by material and size",
+    "Finish Coating": "Powder coated, Anodized, Electro-polished",
+    "Color": "Gray RAL 7035, Custom colors available",
+    "Fastener Type And Size": "Stainless Steel 304/316 hardware included",
+
+    # Environmental
+    "Operating Temperature Range": "-40°C to +85°C",
+    "Ambient Temperature Range": "-40°C to +85°C",
+    "Humidity Range": "0-100% RH",
+    "Ingress Protection": "IP65/IP66/IP67 per IEC 60529",
+    "Corrosion Resistance Rating": "ASTM B117 Salt Spray 500+ hours",
+    "UV Resistance": "UV stabilized per ASTM G154",
+    "Vibration Resistance": "IEC 60068-2-6: 4g, 10-500Hz",
+
+    # Compatibility
+    "Instrument Compatibility": "Universal or instrument-specific per model",
+    "Mounting Surface Compatibility": "Wall, Pipe (1\"-4\" diameter), Panel, Pole",
+    "Mounting Hole Pattern": "Standard or custom drilling available",
+    "Mounting Orientation": "Horizontal, Vertical, Angled",
+
+    # Features
+    "Design Features": "Ventilation slots, Cable routing, Drainage holes",
+    "Adjustability Features": "Tilt adjustment ±15° available",
+    "Accessories Included": "Mounting hardware, gaskets included",
+
+    # Compliance
+    "Applicable Standards": "IEC 60529, NEMA 250, ASTM B117",
+    "Certifications": "CE, RoHS, REACH compliant",
+
+    # Service
+    "Installation Instructions Availability": "Included with product",
+    "Warranty Period": "2 years manufacturer warranty",
+}
+
+# =============================================================================
+# INDUSTRIAL INSTRUMENT DEFAULTS (Generic)
+# =============================================================================
+INDUSTRIAL_INSTRUMENT_DEFAULTS = {
+    # Performance
+    "Accuracy": "Consult datasheet for specific model",
+    "Repeatability": "±0.05% to ±0.1% of span typical",
+    "Measurement Range": "Varies by instrument type",
+    "Measurement Principle": "Varies by instrument type",
+    "Response Time": "Model dependent, see datasheet",
+
+    # Electrical
+    "Output Signal": "4-20mA with HART per NAMUR NE43",
+    "Power Supply": "10.5-42.5 VDC loop powered or 24 VDC",
+    "Auxiliary Outputs": "Optional relay, pulse output",
+    "Load Resistance": "Max (Vsupply - 10.5V) / 0.022A ohms",
+    "Cable Entry": "M20x1.5, 1/2\" NPT per IEC 60079",
+
+    # Mechanical
+    "Housing Material": "Stainless Steel 316L, Aluminum, Fiberglass per NEMA 250",
+    "Process Connection": "1/2\" NPT, 1/2\" BSP, flanged per ISO 1179",
+    "Wetted Parts Material": "316L SS, Hastelloy C-276 per NACE MR0175",
+    "Mounting Options": "Wall, Pole, Panel mount, 2\" pipe mount",
+    "Display Options": "Optional LCD with local configuration",
+    "Probe Length": "Application specific",
+    "Process Connection Material": "316L SS standard, other materials available",
+
+    # Environmental
+    "Ambient Temperature Range": "-40°C to +85°C",
+    "Process Temperature Range": "Model dependent",
+    "Process Pressure Range": "Model dependent",
+    "Ingress Protection": "IP66/IP67 per IEC 60529",
+    "Hazardous Area Rating": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2",
+    "Vibration Resistance": "IEC 60068-2-6: 4g, 10-500Hz",
+    "Shock Resistance": "IEC 60068-2-27: 30g",
+
+    # Compliance
+    "Safety Integrity Level": "SIL 2/3 capable per IEC 61508/61511",
+    "Certifications": "ATEX, IECEx, cULus, CE, RoHS",
+
+    # Features
+    "Diagnostics": "Device diagnostics per NE107",
+    "Data Logging": "Optional with smart transmitter",
+    "Remote Configuration": "HART, DTM/EDDL available",
+    "Wireless Connectivity": "WirelessHART option per IEC 62591",
+
+    # Integration
+    "Communication Protocol Version": "HART 7, FF H1, Profibus PA available",
+
+    # Performance Extended
+    "Temperature Effect": "±0.05% to ±0.1% per 10°C typical",
+    "Vibration Effect": "±0.05% of URL per IEC 60770",
+    "Turndown Ratio": "Model dependent, up to 100:1",
+    "Measurement Units": "Engineering units configurable",
+
+    # Service
+    "Warranty Period": "2-5 years manufacturer warranty",
+    "Calibration Options": "NIST traceable, ISO 17025 accredited",
+}
+
+# =============================================================================
+# DIAPHRAGM SEAL / REMOTE SEAL DEFAULTS
+# =============================================================================
+DIAPHRAGM_SEAL_DEFAULTS = {
+    # General
+    "Product Type": "Diaphragm Seal / Remote Seal Assembly",
+
+    # Mechanical Integration
+    "Process Connection": "Flanged (ANSI, DIN, JIS), threaded, sanitary per ASME B16.5",
+    "Instrument Connection": "1/2\" NPT, direct mount, remote capillary",
+    "Bore Size": "Standard or extended bore per application",
+    "Insertion Length": "Flush mount to extended per process",
+    "Tip Configuration": "Flush, extended, tubular per application",
+    "Design Type": "Welded, bolted, threaded per pressure class",
+
+    # Materials
+    "Wetted Parts Material": "316L SS, Hastelloy C-276, Tantalum, Monel per NACE MR0175",
+    "Non Wetted Parts Material": "316 SS, Carbon steel per application",
+    "Diaphragm Material": "316L SS, Hastelloy C-276, Tantalum, PTFE-coated",
+    "Filling Fluid": "Silicone DC200, Halocarbon, Glycerin, Neobee per temperature",
+    "Damping Element": "Optional needle valve or orifice",
+
+    # Performance
+    "Max Process Temperature": "-70°C to +400°C per fill fluid and diaphragm",
+    "Max Process Pressure": "Up to 400 bar per pressure class",
+    "Process Medium Compatibility": "Chemical compatibility per wetted material",
+    "Overpressure Limit": "2x to 4x rated pressure per design",
+
+    # Advanced Options
+    "Capillary Length": "1m to 15m per application",
+    "Connection Orientation": "Vertical, horizontal, angled",
+    "Cooling Fin Option": "Available for high temperature applications",
+    "Lagging Extension": "Available for insulated vessels",
+    "Drain Vent Ports": "Optional per application",
+    "Pressure Equalization Valve": "Available for differential pressure",
+
+    # Surface and Coating
+    "Surface Finish": "Ra 0.4 to 3.2 µm per application",
+    "Special Coatings": "PTFE coating, Gold plating, PFA lining available",
+    "Pressure Rating Class": "ANSI 150 to 2500, PN 16 to PN 420",
+    "Seal Design": "Welded, O-ring, gasket per application",
+
+    # Environmental
+    "Ambient Temperature Range": "-40°C to +85°C",
+    "Hazardous Area Certification": "ATEX, IECEx, FM, CSA available",
+    "Ingress Protection Rating": "IP66/IP67 per IEC 60529",
+
+    # Documentation
+    "Calibration Services": "Factory calibration included",
+    "Traceability Certificate": "EN 10204 3.1 available",
+    "Tagging Options": "Engraved or stamped tags available",
+    "Pre Assembly Options": "Pre-assembled with transmitter available",
+
+    # Service
+    "Warranty Period": "1-2 years manufacturer warranty",
+}
+
+# =============================================================================
+# MULTIPOINT THERMOCOUPLE ASSEMBLY DEFAULTS
+# =============================================================================
+MULTIPOINT_TC_DEFAULTS = {
+    # General
+    "Product Type": "Multi-point Thermocouple Assembly",
+
+    # Performance
+    "Number Of Measuring Points": "2 to 24 points per assembly",
+    "Point Spacing Junction Locations": "Custom spacing per customer specification, typical 50-500mm",
+    "Temperature Measurement Range": "-200°C to +1260°C per IEC 60584-1",
+    "Thermocouple Type": "Type K, J, N, T, E, R, S, B per IEC 60584-1",
+    "Accuracy Tolerance Class": "Class 1 or Class 2 per IEC 60584-1",
+    "Measuring Junction Type": "Grounded, Ungrounded, Exposed per application",
+
+    # Electrical
+    "Sensor Output Type": "mV (direct thermocouple), 4-20mA with transmitter",
+    "Power Supply": "Loop powered 10.5-42.5 VDC with transmitter",
+    "Transmitter Integration": "Head-mounted or remote transmitter available",
+    "Cable Entry Type": "M20x1.5, 1/2\" NPT gland",
+
+    # Mechanical
+    "Sheath Diameter": "3mm, 4.5mm, 6mm, 8mm, 10mm per application",
+    "Sheath Material": "Inconel 600, 316 SS, 310 SS, Hastelloy per temperature",
+    "Insertion Length": "100mm to 6000mm per vessel depth",
+    "Process Connection Type": "Flanged, threaded, compression fitting, thermowell",
+    "Connection Head Type": "KNE, DIN B, explosion-proof per IEC 60079",
+    "Head Enclosure Material": "Aluminum, 316 SS, Cast Iron per IEC 60079",
+    "Internal Insulation Material": "Magnesium oxide (MgO) compacted per IEC 60584",
+    "Thermovell Material": "316 SS, Inconel 600, Hastelloy per ASME PTC 19.3",
+
+    # Environmental
+    "Ambient Temperature Range": "-40°C to +85°C",
+    "Hazardous Area Rating": "ATEX II 1/2 G Ex ia/d, IECEx, Class I Div 1/2",
+    "Ingress Protection Rating": "IP66/IP67 per IEC 60529",
+    "Vibration Resistance": "IEC 60068-2-6: 4g, 10-500Hz",
+
+    # Features
+    "Diagnostics Capabilities": "Sensor break detection, loop diagnostics per NE107",
+    "Removable Insert Feature": "Available for easy maintenance",
+    "Spring Loaded Design": "Available for improved thermal contact",
+    "Special Sheath Treatments": "Ground finish, passivation, electropolish available",
+
+    # Extended Options
+    "Extension Lead Wire Length": "1m to 50m per specification",
+    "Extension Lead Wire Material": "Type KX, JX extension wire, PVC/Teflon insulation",
+    "Communication Protocol": "HART with transmitter, direct mV output",
+
+    # Performance Extended
+    "Response Time T90": "<10 seconds per sheath and thermowell",
+    "Repeatability": "±0.1°C or ±0.1% of reading per IEC 60584",
+
+    # Service
+    "Calibration Options Certificates": "NIST traceable, ISO 17025 accredited",
+    "Warranty Period": "1-2 years manufacturer warranty",
+}
+
 # Map product types to their defaults - EXTENDED for better matching
 PRODUCT_TYPE_DEFAULTS = {
     # Thermocouples - all variants
@@ -809,6 +1293,75 @@ PRODUCT_TYPE_DEFAULTS = {
     "panel mount": MOUNTING_BRACKET_DEFAULTS,
     "mounting hardware": MOUNTING_BRACKET_DEFAULTS,
     "instrument mount": MOUNTING_BRACKET_DEFAULTS,
+
+    # Power Supply - NEW
+    "power supply": POWER_SUPPLY_DEFAULTS,
+    "industrial power supply": POWER_SUPPLY_DEFAULTS,
+    "din rail power supply": POWER_SUPPLY_DEFAULTS,
+    "switching power supply": POWER_SUPPLY_DEFAULTS,
+    "dc power supply": POWER_SUPPLY_DEFAULTS,
+    "ac power supply": POWER_SUPPLY_DEFAULTS,
+    "24v power supply": POWER_SUPPLY_DEFAULTS,
+    "power module": POWER_SUPPLY_DEFAULTS,
+    "power unit": POWER_SUPPLY_DEFAULTS,
+
+    # Protective Accessory - NEW
+    "protective accessory": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "protection accessory": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "protective cover": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "sunshade": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "sun shade": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "weather protection": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "rain shield": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "protective housing": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "instrument cover": PROTECTIVE_ACCESSORY_DEFAULTS,
+    "accessory": PROTECTIVE_ACCESSORY_DEFAULTS,
+
+    # Industrial Instrument - NEW (Generic fallback)
+    "industrial instrument": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "process instrument": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "field instrument": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "instrument": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "transmitter": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "sensor": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "gauge": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "indicator": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+    "monitor": INDUSTRIAL_INSTRUMENT_DEFAULTS,
+
+    # Diaphragm Seal / Remote Seal - NEW
+    "diaphragm seal": DIAPHRAGM_SEAL_DEFAULTS,
+    "remote seal": DIAPHRAGM_SEAL_DEFAULTS,
+    "chemical seal": DIAPHRAGM_SEAL_DEFAULTS,
+    "seal assembly": DIAPHRAGM_SEAL_DEFAULTS,
+    "capillary seal": DIAPHRAGM_SEAL_DEFAULTS,
+    "flush seal": DIAPHRAGM_SEAL_DEFAULTS,
+    "sanitary seal": DIAPHRAGM_SEAL_DEFAULTS,
+
+    # Multi-point Thermocouple - NEW
+    "multipoint thermocouple": MULTIPOINT_TC_DEFAULTS,
+    "multi-point thermocouple": MULTIPOINT_TC_DEFAULTS,
+    "multi point thermocouple": MULTIPOINT_TC_DEFAULTS,
+    "multipoint tc": MULTIPOINT_TC_DEFAULTS,
+    "multipoint thermocouple assembly": MULTIPOINT_TC_DEFAULTS,
+    "cable and connector types for multi-point thermocouple assembly": MULTIPOINT_TC_DEFAULTS,
+    "cable and connector types for multi point thermocouple assembly": MULTIPOINT_TC_DEFAULTS,
+
+    # Variable Frequency Drive - NEW
+    "variable frequency drive": VFD_DEFAULTS,
+    "vfd": VFD_DEFAULTS,
+    "frequency drive": VFD_DEFAULTS,
+    "ac drive": VFD_DEFAULTS,
+    "inverter": VFD_DEFAULTS,
+    "motor drive": VFD_DEFAULTS,
+    "speed drive": VFD_DEFAULTS,
+    "variable speed drive": VFD_DEFAULTS,
+
+    # Pulsation Dampener - NEW
+    "pulsation dampener": PULSATION_DAMPENER_DEFAULTS,
+    "dampener": PULSATION_DAMPENER_DEFAULTS,
+    "accumulator": PULSATION_DAMPENER_DEFAULTS,
+    "surge dampener": PULSATION_DAMPENER_DEFAULTS,
+    "pressure dampener": PULSATION_DAMPENER_DEFAULTS,
 }
 
 
@@ -917,7 +1470,7 @@ def get_default_value_for_field(product_type: str, field_name: str) -> Optional[
                 logger.debug(f"[SCHEMA_FIELD] Reverse substring match: '{product_lower}' in '{key}'")
                 break
 
-    # Fourth try: keyword overlap
+    # Fourth try: keyword overlap with significant word match
     if not defaults:
         product_words = set(product_lower.split())
         for key, values in PRODUCT_TYPE_DEFAULTS.items():
@@ -928,6 +1481,42 @@ def get_default_value_for_field(product_type: str, field_name: str) -> Optional[
                 defaults = values
                 logger.debug(f"[SCHEMA_FIELD] Keyword match: {common} for '{product_type}'")
                 break
+
+    # Fifth try: partial keyword match with scoring (lower threshold)
+    if not defaults:
+        product_words = set(product_lower.split())
+        best_match_score = 0
+        best_match_defaults = None
+        best_match_key = None
+
+        for key, values in PRODUCT_TYPE_DEFAULTS.items():
+            key_words = set(key.split())
+            common = product_words & key_words
+
+            if common:
+                # Calculate overlap score
+                score = len(common) / max(len(product_words), len(key_words))
+                if score > best_match_score and score >= 0.15:  # 15% threshold
+                    best_match_score = score
+                    best_match_defaults = values
+                    best_match_key = key
+
+        if best_match_defaults:
+            defaults = best_match_defaults
+            logger.debug(f"[SCHEMA_FIELD] Partial keyword match: '{product_type}' -> '{best_match_key}' (score={best_match_score:.2f})")
+
+    # Sixth try: Use generic INDUSTRIAL_INSTRUMENT_DEFAULTS as ultimate fallback
+    if not defaults:
+        # Check if product looks like an instrument
+        instrument_keywords = ["instrument", "sensor", "transmitter", "gauge", "meter", "monitor", "analyzer", "indicator"]
+        if any(kw in product_lower for kw in instrument_keywords):
+            defaults = INDUSTRIAL_INSTRUMENT_DEFAULTS
+            logger.debug(f"[SCHEMA_FIELD] Generic instrument fallback for: {product_type}")
+        else:
+            # Even if not obviously an instrument, try industrial instrument defaults
+            # as many schema fields are common across products
+            defaults = INDUSTRIAL_INSTRUMENT_DEFAULTS
+            logger.debug(f"[SCHEMA_FIELD] Ultimate fallback to INDUSTRIAL_INSTRUMENT_DEFAULTS for: {product_type}")
 
     if not defaults:
         logger.debug(f"[SCHEMA_FIELD] No defaults found for product type: {product_type}")
@@ -1011,6 +1600,8 @@ def extract_schema_field_values_from_standards(
     fields_populated = 0
     fields_total = 0
 
+
+
     def populate_section(section: Dict[str, Any], section_path: str = ""):
         """Recursively populate a section of the schema."""
         nonlocal fields_populated, fields_total
@@ -1026,9 +1617,19 @@ def extract_schema_field_values_from_standards(
                 if "value" in field_value or "suggested_values" in field_value:
                     # This is a field with metadata
                     fields_total += 1
-                    if not field_value.get("value") or field_value.get("value") == "":
+                    
+                    val = field_value.get("value")
+                    initial_val_display = str(val)[:50] if val else "None"
+                    status = "Valid"
+                    default_match_info = "-"
+                    
+                    # Use centralized invalid value detection (catches LLM garbage patterns)
+                    if is_value_invalid(val):
+                        status = "Invalid"
                         default_value = get_default_value_for_field(product_type, field_key)
                         if default_value:
+                            status = "Enriched"
+                            default_match_info = str(default_value)[:50]
                             # Extract standards referenced from the value string
                             standards_refs = extract_standards_from_value(default_value)
 
@@ -1039,15 +1640,28 @@ def extract_schema_field_values_from_standards(
 
                             fields_populated += 1
                             logger.debug(f"[SCHEMA_FIELD_EXTRACTOR] Populated {current_path} with standards: {standards_refs}")
+                        else:
+                            status = "Invalid (No Default)"
+                    
+                    final_val = field_value.get("value", "")
+
+
                 else:
                     # Recurse into nested section
                     populate_section(field_value, current_path)
             elif isinstance(field_value, str):
                 fields_total += 1
-                # Empty string or "Not specified"
-                if not field_value.strip() or field_value.lower() in ["not specified", ""]:
+                initial_val_display = field_value[:50]
+                status = "Valid"
+                default_match_info = "-"
+                
+                # Use centralized invalid value detection (catches LLM garbage patterns)
+                if is_value_invalid(field_value):
+                    status = "Invalid"
                     default_value = get_default_value_for_field(product_type, field_key)
                     if default_value:
+                        status = "Enriched"
+                        default_match_info = str(default_value)[:50]
                         # Extract standards referenced from the value string
                         standards_refs = extract_standards_from_value(default_value)
 
@@ -1061,14 +1675,30 @@ def extract_schema_field_values_from_standards(
 
                         fields_populated += 1
                         logger.debug(f"[SCHEMA_FIELD_EXTRACTOR] Populated {current_path} = {default_value[:50]}... with standards: {standards_refs}")
+                    else:
+                        status = "Invalid (No Default)"
+                
+                final_val = section[field_key]["value"] if isinstance(section[field_key], dict) else section[field_key]
+
 
     # Process each section of the schema
+    # Include both camelCase and space-separated versions for consistency
     sections_to_process = [
+        # Standard schema sections
         "mandatory_requirements", "mandatory",
         "optional_requirements", "optional",
         "Compliance", "Electrical", "Mechanical", "Performance",
         "Environmental", "Features", "Integration", "MechanicalOptions",
-        "ServiceAndSupport", "Certifications"
+        "ServiceAndSupport", "Certifications",
+        # General section (common in inferred specs)
+        "General",
+        # Space-separated versions (for schemas with different naming conventions)
+        "Service And Support", "Mechanical Options", "Compliance And Safety",
+        # Additional sections from specs_bug.md
+        "Functional Parameters", "Installation Requirements",
+        "Mechanical Integration", "Advanced Mechanical Options",
+        "Documentation And Services", "Environmental And Safety",
+        "Specific Features", "Features", "Integration",
     ]
 
     for section_name in sections_to_process:
@@ -1086,6 +1716,102 @@ def extract_schema_field_values_from_standards(
         "source": "standards_specifications",
         "method": "default_values_from_standards"
     }
+
+    # ==========================================================================
+    # ITERATIVE RAG ENRICHMENT (Triggered if >60% fields are invalid)
+    # ==========================================================================
+    invalid_rate = 1 - (fields_populated / max(fields_total, 1))
+    INVALID_THRESHOLD = 0.60  # 60% threshold
+    
+    if invalid_rate > INVALID_THRESHOLD:
+        logger.warning(
+            f"[SCHEMA_FIELD_EXTRACTOR] High invalid rate ({invalid_rate:.1%}) detected for {product_type}. "
+            f"Triggering iterative RAG enrichment..."
+        )
+
+        
+        # Collect fields that still need enrichment
+        invalid_fields = []
+        
+        def collect_invalid_fields(section: Dict[str, Any], section_path: str = ""):
+            """Collect fields that are still invalid after first pass."""
+            for field_key, field_value in section.items():
+                if field_key.startswith("_"):
+                    continue
+                current_path = f"{section_path}.{field_key}" if section_path else field_key
+                
+                if isinstance(field_value, dict):
+                    if "value" in field_value:
+                        val = field_value.get("value")
+                        if is_value_invalid(val):
+                            invalid_fields.append({
+                                "path": current_path,
+                                "field_key": field_key,
+                                "section": section,
+                                "field_value": field_value
+                            })
+                    else:
+                        collect_invalid_fields(field_value, current_path)
+                elif isinstance(field_value, str) and is_value_invalid(field_value):
+                    invalid_fields.append({
+                        "path": current_path,
+                        "field_key": field_key,
+                        "section": section,
+                        "field_value": field_value
+                    })
+        
+        # Collect from all sections
+        for section_name in sections_to_process:
+            if section_name in populated_schema:
+                collect_invalid_fields(populated_schema[section_name], section_name)
+        
+        # Limit to first 20 fields to avoid excessive API calls
+        fields_to_enrich = invalid_fields[:20]
+        
+        if fields_to_enrich:
+            logger.info(f"[SCHEMA_FIELD_EXTRACTOR] Attempting RAG enrichment for {len(fields_to_enrich)} fields")
+            
+            rag_enriched_count = 0
+            for field_info in fields_to_enrich:
+                try:
+                    # Query Standards RAG with improved prompt
+                    rag_value = query_standards_for_field_enhanced(
+                        product_type=product_type,
+                        field_name=field_info["field_key"],
+                        field_path=field_info["path"]
+                    )
+                    
+                    if rag_value and not is_value_invalid(rag_value):
+                        # Update the field with RAG result
+                        field_value = field_info["field_value"]
+                        section = field_info["section"]
+                        field_key = field_info["field_key"]
+                        
+                        if isinstance(field_value, dict):
+                            field_value["value"] = rag_value
+                            field_value["source"] = "standards_rag_iterative"
+                            field_value["confidence"] = 0.85
+                        else:
+                            section[field_key] = {
+                                "value": rag_value,
+                                "source": "standards_rag_iterative",
+                                "confidence": 0.85
+                            }
+                        
+                        rag_enriched_count += 1
+                        logger.debug(f"[SCHEMA_FIELD_EXTRACTOR] RAG enriched: {field_info['path']} = {rag_value[:50]}")
+                        
+                except Exception as e:
+                    logger.warning(f"[SCHEMA_FIELD_EXTRACTOR] RAG enrichment failed for {field_info['path']}: {e}")
+            
+            # Update metadata
+            populated_schema["_schema_field_extraction"]["rag_enriched_count"] = rag_enriched_count
+            populated_schema["_schema_field_extraction"]["iterative_rag_triggered"] = True
+            fields_populated += rag_enriched_count
+            
+            logger.info(f"[SCHEMA_FIELD_EXTRACTOR] Iterative RAG enriched {rag_enriched_count} additional fields")
+
+
 
     logger.info(
         f"[SCHEMA_FIELD_EXTRACTOR] Populated {fields_populated}/{fields_total} fields "
@@ -1135,6 +1861,78 @@ def query_standards_for_field(
         return None
 
 
+def query_standards_for_field_enhanced(
+    product_type: str,
+    field_name: str,
+    field_path: str = ""
+) -> Optional[str]:
+    """
+    Enhanced RAG query with improved prompt to get concrete specification values.
+    
+    This function uses an improved prompt that:
+    1. Explicitly asks for a concrete value, not a description
+    2. Provides example format for the expected response
+    3. Instructs the LLM to say "UNKNOWN" if not found (easier to filter)
+    
+    Args:
+        product_type: Product type being processed
+        field_name: The schema field name
+        field_path: Full path to the field (e.g., "mandatory_requirements.Electrical.outputSignal")
+
+    Returns:
+        Extracted concrete value or None
+    """
+    try:
+        from agentic.standards_rag.standards_rag_workflow import run_standards_rag_workflow
+        
+        # Convert camelCase to readable format
+        readable_field = _camel_to_words(field_name)
+        
+        # Enhanced prompt that demands concrete values
+        query = f"""For a {product_type}, what is the standard specification value for "{readable_field}"?
+
+IMPORTANT INSTRUCTIONS:
+1. Return ONLY the concrete specification value (e.g., "IP66/IP67 per IEC 60529", "-40°C to +85°C", "4-20mA with HART")
+2. Do NOT return descriptions like "This parameter is recognized as..."
+3. Do NOT return phrases like "I don't have specific information"
+4. If you cannot find the specific value in the standards documents, respond with exactly: UNKNOWN
+5. Include the relevant standard reference if available (e.g., "per IEC 60529", "per NAMUR NE43")
+
+Example good responses:
+- "IP66/IP67 per IEC 60529"
+- "316L SS, Hastelloy C-276 per NACE MR0175"
+- "±0.1% of span per IEC 60770"
+
+Now provide the value for "{readable_field}":"""
+
+        result = run_standards_rag_workflow(
+            question=query,
+            top_k=5  # More documents for better coverage
+        )
+
+        if result.get("status") == "success":
+            answer = result.get("final_response", {}).get("answer", "")
+            
+            # Validate the response
+            if answer and len(answer) > 5:
+                answer_clean = answer.strip()
+                
+                # Reject obvious non-answers
+                if answer_clean.upper() == "UNKNOWN":
+                    return None
+                if is_value_invalid(answer_clean):
+                    return None
+                    
+                # Return the cleaned value
+                return answer_clean
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"[SCHEMA_FIELD_EXTRACTOR] Enhanced RAG query failed for {field_name}: {e}")
+        return None
+
+
 # =============================================================================
 # EXPORTS
 # =============================================================================
@@ -1144,6 +1942,9 @@ __all__ = [
     "extract_standards_from_value",
     "get_default_value_for_field",
     "query_standards_for_field",
+    "query_standards_for_field_enhanced",
+    "is_value_invalid",
+    # Original defaults
     "THERMOCOUPLE_DEFAULTS",
     "PRESSURE_TRANSMITTER_DEFAULTS",
     "TEMPERATURE_SENSOR_DEFAULTS",
@@ -1156,4 +1957,16 @@ __all__ = [
     "ANALYZER_DEFAULTS",
     "SIGNAL_CONDITIONER_DEFAULTS",
     "CALIBRATOR_DEFAULTS",
+    # New defaults added for fixing schema population issues
+    "POWER_SUPPLY_DEFAULTS",
+    "PROTECTIVE_ACCESSORY_DEFAULTS",
+    "INDUSTRIAL_INSTRUMENT_DEFAULTS",
+    "DIAPHRAGM_SEAL_DEFAULTS",
+    "MULTIPOINT_TC_DEFAULTS",
+    "VFD_DEFAULTS",
+    "PULSATION_DAMPENER_DEFAULTS",
+    # Product type mapping
+    "PRODUCT_TYPE_DEFAULTS",
+    # Invalid value patterns
+    "INVALID_VALUE_PATTERNS",
 ]

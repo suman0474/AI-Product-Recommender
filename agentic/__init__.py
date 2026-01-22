@@ -207,6 +207,48 @@ def create_deep_agent_workflow():
 # ============================================================================
 from .api import agentic_bp
 
+# ============================================================================
+# SESSION & INSTANCE ORCHESTRATION (NEW)
+# ============================================================================
+from .session_orchestrator import (
+    SessionOrchestrator,
+    SessionContext,
+    WorkflowContext,
+    get_session_orchestrator
+)
+
+from .instance_manager import (
+    WorkflowInstanceManager,
+    InstanceMetadata,
+    InstancePool,
+    InstanceStatus,
+    InstancePriority,
+    get_instance_manager
+)
+
+from .orchestrator_utils import (
+    validate_main_thread_id,
+    validate_workflow_thread_id,
+    validate_item_thread_id,
+    validate_thread_id,
+    extract_user_from_main_thread_id,
+    get_thread_type,
+    verify_session_for_request,
+    get_or_create_instance,
+    complete_instance_with_result,
+    start_background_cleanup,
+    stop_background_cleanup,
+    get_orchestrator_stats,
+    reset_all_orchestrators
+)
+
+from .session_api import (
+    session_bp,
+    instances_bp,
+    initialize_session_api,
+    register_session_blueprints
+)
+
 
 __all__ = [
     # ==================== MODELS ====================
@@ -332,6 +374,42 @@ __all__ = [
     'get_schema_population_stats',
 
     # ==================== API ====================
-    'agentic_bp'
+    'agentic_bp',
+
+    # ==================== SESSION & INSTANCE ORCHESTRATION (NEW) ====================
+    # Session Orchestrator
+    'SessionOrchestrator',
+    'SessionContext',
+    'WorkflowContext',
+    'get_session_orchestrator',
+
+    # Instance Manager
+    'WorkflowInstanceManager',
+    'InstanceMetadata',
+    'InstancePool',
+    'InstanceStatus',
+    'InstancePriority',
+    'get_instance_manager',
+
+    # Orchestrator Utilities
+    'validate_main_thread_id',
+    'validate_workflow_thread_id',
+    'validate_item_thread_id',
+    'validate_thread_id',
+    'extract_user_from_main_thread_id',
+    'get_thread_type',
+    'verify_session_for_request',
+    'get_or_create_instance',
+    'complete_instance_with_result',
+    'start_background_cleanup',
+    'stop_background_cleanup',
+    'get_orchestrator_stats',
+    'reset_all_orchestrators',
+
+    # Session API Blueprints
+    'session_bp',
+    'instances_bp',
+    'initialize_session_api',
+    'register_session_blueprints'
 ]
 

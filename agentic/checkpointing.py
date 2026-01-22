@@ -730,7 +730,143 @@ class WorkflowExecutor:
         """
         config = {"configurable": {"thread_id": thread_id}}
         config.update(stream_kwargs)
-        
+
         logger.info(f"Streaming workflow for thread: {thread_id}")
         for state in self.compiled.stream(initial_state, config):
             yield state
+
+
+# ============================================================================
+# AUTOMATIC CHECKPOINT CLEANUP (PHASE 1 IMPROVEMENT #4)
+# ============================================================================
+# Background thread for automatic checkpoint cleanup
+# Problem: Checkpoints accumulate indefinitely, causing memory bloat
+# Solution: Background thread cleans up old checkpoints automatically
+# Impact: Prevents unbounded memory growth over time
+# See: IMPLEMENTATION_ROADMAP.md Phase 1, Item 4
+
+import threading
+
+
+class AutoCheckpointCleaner:
+    """
+    Background thread for automatic checkpoint cleanup.
+
+    Periodically removes old checkpoints to prevent memory bloat
+    and maintain system stability over long-running deployments.
+    """
+
+    def __init__(
+        self,
+        checkpoint_manager: CheckpointManager,
+        cleanup_interval_seconds: int = 300,  # 5 minutes
+        max_age_hours: int = 72
+    ):
+        """
+        Initialize automatic checkpoint cleaner.
+
+        Args:
+            checkpoint_manager: CheckpointManager instance to clean
+            cleanup_interval_seconds: How often to run cleanup (default: 5 min)
+            max_age_hours: Age threshold for cleanup (default: 72 hours)
+        """
+        self.checkpoint_manager = checkpoint_manager
+        self.cleanup_interval = cleanup_interval_seconds
+        self.max_age_hours = max_age_hours
+        self._cleanup_thread: Optional[threading.Thread] = None
+        self._running = False
+        self._lock = threading.RLock()
+        self.total_cleaned = 0
+
+    def start(self):
+        """Start the automatic cleanup background thread"""
+        with self._lock:
+            if self._running:
+                logger.warning("AutoCheckpointCleaner is already running")
+                return
+
+            self._running = True
+            self._cleanup_thread = threading.Thread(
+                target=self._cleanup_loop,
+                daemon=True,
+                name="checkpoint_cleaner"
+            )
+            self._cleanup_thread.start()
+            logger.info(
+                f"Started AutoCheckpointCleaner "
+                f"(interval: {self.cleanup_interval}s, TTL: {self.max_age_hours}h)"
+            )
+
+    def stop(self):
+        """Stop the automatic cleanup background thread"""
+        with self._lock:
+            self._running = False
+            if self._cleanup_thread:
+                self._cleanup_thread.join(timeout=5)
+                logger.info(
+                    f"Stopped AutoCheckpointCleaner "
+                    f"(total cleaned: {self.total_cleaned} checkpoints)"
+                )
+
+    def _cleanup_loop(self):
+        """Main cleanup loop (runs in background thread)"""
+        while self._running:
+            try:
+                # Perform cleanup
+                result = self.checkpoint_manager.cleanup_old_checkpoints()
+                if result.get("success"):
+                    removed = result.get("removed_count", 0)
+                    if removed > 0:
+                        with self._lock:
+                            self.total_cleaned += removed
+                        logger.info(
+                            f"Checkpoint cleanup: removed {removed} checkpoints, "
+                            f"kept {result.get('kept_count', 0)}"
+                        )
+
+                # Sleep until next cleanup
+                time.sleep(self.cleanup_interval)
+
+            except Exception as e:
+                logger.error(f"Error in checkpoint cleanup loop: {e}")
+                time.sleep(self.cleanup_interval)
+
+
+# Global cleaner instance
+_auto_cleaner: Optional[AutoCheckpointCleaner] = None
+
+
+def start_auto_checkpoint_cleanup(
+    checkpoint_manager: CheckpointManager,
+    cleanup_interval_seconds: int = 300,
+    max_age_hours: int = 72
+):
+    """
+    Start automatic checkpoint cleanup.
+
+    Call this during application startup to enable background cleanup.
+
+    Args:
+        checkpoint_manager: CheckpointManager instance
+        cleanup_interval_seconds: Cleanup interval in seconds (default: 5 min)
+        max_age_hours: Checkpoint TTL in hours (default: 72)
+    """
+    global _auto_cleaner
+    if _auto_cleaner is None:
+        _auto_cleaner = AutoCheckpointCleaner(
+            checkpoint_manager,
+            cleanup_interval_seconds=cleanup_interval_seconds,
+            max_age_hours=max_age_hours
+        )
+    _auto_cleaner.start()
+
+
+def stop_auto_checkpoint_cleanup():
+    """
+    Stop automatic checkpoint cleanup.
+
+    Call this during application shutdown.
+    """
+    global _auto_cleaner
+    if _auto_cleaner is not None:
+        _auto_cleaner.stop()

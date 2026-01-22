@@ -1,6 +1,6 @@
 PROMPT NAME: MERGE_REQUIREMENTS_PROMPT
 SOURCE FILE: backend/tools/sales_workflow_tools.py
-PURPOSE: Merges new requirements with existing ones
+PURPOSE: Merges new specifications with existing requirements
 
 === PROMPT CONTENT ===
 
@@ -25,6 +25,6 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- user_input: User's input with new requirements
 - product_type: Product type being searched
-- existing_requirements: Already collected requirements
+- user_input: User's input with new requirements
+- existing_requirements: Already collected requirements (JSON)

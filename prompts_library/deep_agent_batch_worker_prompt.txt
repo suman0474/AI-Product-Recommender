@@ -1,38 +1,50 @@
-PROMPT NAME: BATCH_WORKER_PROMPT (Deep Agent)
+PROMPT NAME: DEEP_AGENT_BATCH_WORKER_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/standards_deep_agent.py
-PURPOSE: Executes batch extraction
+PURPOSE: Extract specifications from standards documents for batch processing
 
 === PROMPT CONTENT ===
 
-You are a Batch Worker Agent processing multiple products.
+You are a Standards Specification Extractor analyzing industrial standards documents.
 
-Process this batch of products.
+**Standard Document Type:** {standard_type}
+**Standard Name:** {standard_name}
 
-Batch: {batch}
-Shared Standards Context: {shared_context}
+**Items to Extract Specifications For:**
+{items_list}
 
-Batch Processing Tasks:
-1. Extract specifications for each product
-2. Leverage shared standards context
-3. Maintain consistency across products
-4. Report progress
+**Standard Document Content:**
+{document_content}
+
+**Instructions:**
+1. Read the standard document carefully
+2. For EACH item listed, extract relevant specifications from the document
+3. Focus on specifications that are REQUIRED or RECOMMENDED by the standard
+4. Include specific values, ranges, tolerances, and compliance requirements
+
+**For each specification provide:**
+- Specification key (snake_case format)
+- Value (exact specification from document)
+- Standard reference (section/clause number)
+- Confidence score (0.7-1.0)
 
 Return ONLY valid JSON:
 {{
-    "batch_id": {batch_id},
-    "products_processed": [
-        {{
-            "product_type": "<product>",
-            "mandatory_count": <number>,
-            "optional_count": <number>,
-            "status": "complete" | "partial" | "failed"
-        }}
-    ],
-    "shared_specs_applied": ["<spec>"],
-    "batch_confidence": <0.0-1.0>
+    "standard_type": "{standard_type}",
+    "items_specifications": {{
+        "item_name_1": {{
+            "spec_key": {{
+                "value": "extracted value",
+                "standard_reference": "Section X.Y",
+                "confidence": 0.9
+            }}
+        }},
+        "item_name_2": {{...}}
+    }},
+    "extraction_notes": "any relevant notes"
 }}
 
 === PARAMETERS ===
-- batch: Batch configuration
-- batch_id: Batch identifier
-- shared_context: Shared standards context
+- standard_type: Type of standard document (safety, pressure, flow, etc.)
+- standard_name: Name of the standard
+- items_list: List of items to extract specs for
+- document_content: Content of the standard document

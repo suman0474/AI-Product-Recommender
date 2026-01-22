@@ -13,6 +13,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 import time
 
+# Import global executor manager for bounded thread pool
+from agentic.global_executor_manager import get_global_executor
+
 logger = logging.getLogger(__name__)
 
 
@@ -111,43 +114,44 @@ class ParallelSchemaGenerator:
                 return (product_type, error_result, False)
 
         # ╔═══════════════════════════════════════════════════════════════════════╗
-        # ║  PHASE 2: Submit all schema generation tasks to ThreadPoolExecutor    ║
-        # ║  All products start simultaneously (up to max_workers at once)        ║
+        # ║  PHASE 2: Submit all schema generation tasks to global executor      ║
+        # ║  All products start simultaneously (global pool bounded to 16 workers)║
         # ╚═══════════════════════════════════════════════════════════════════════╝
 
         completed_count = 0
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all tasks
-            futures = {
-                executor.submit(generate_single_schema, product_type): product_type
-                for product_type in product_types
-            }
+        executor = get_global_executor()
 
-            logger.info(f"[PARALLEL_SCHEMA] Submitted {len(futures)} tasks to executor")
+        # Submit all tasks using global executor (bounded to 16 workers globally)
+        futures = {
+            executor.submit(generate_single_schema, product_type): product_type
+            for product_type in product_types
+        }
 
-            # Collect results as they complete (not necessarily in order)
-            for future in as_completed(futures):
-                try:
-                    product_type, schema, is_cached = future.result()
-                    completed_count += 1
+        logger.info(f"[PARALLEL_SCHEMA] Submitted {len(futures)} tasks to global executor")
 
-                    if schema.get('success'):
-                        results[product_type] = schema
-                        cache_status = "(cached)" if is_cached else "(generated)"
-                        logger.info(
-                            f"[PARALLEL_SCHEMA] [{completed_count}/{len(product_types)}] "
-                            f"✓ {product_type} {cache_status}"
-                        )
-                    else:
-                        failed[product_type] = schema.get('error', 'Unknown error')
-                        logger.warning(
-                            f"[PARALLEL_SCHEMA] [{completed_count}/{len(product_types)}] "
-                            f"✗ {product_type} - {schema.get('error', 'Failed')}"
-                        )
+        # Collect results as they complete (not necessarily in order)
+        for future in as_completed(futures):
+            try:
+                product_type, schema, is_cached = future.result()
+                completed_count += 1
 
-                except Exception as e:
-                    logger.error(f"[PARALLEL_SCHEMA] Error collecting result: {e}")
-                    completed_count += 1
+                if schema.get('success'):
+                    results[product_type] = schema
+                    cache_status = "(cached)" if is_cached else "(generated)"
+                    logger.info(
+                        f"[PARALLEL_SCHEMA] [{completed_count}/{len(product_types)}] "
+                        f"✓ {product_type} {cache_status}"
+                    )
+                else:
+                    failed[product_type] = schema.get('error', 'Unknown error')
+                    logger.warning(
+                        f"[PARALLEL_SCHEMA] [{completed_count}/{len(product_types)}] "
+                        f"✗ {product_type} - {schema.get('error', 'Failed')}"
+                    )
+
+            except Exception as e:
+                logger.error(f"[PARALLEL_SCHEMA] Error collecting result: {e}")
+                completed_count += 1
 
         elapsed = time.time() - start_time
 

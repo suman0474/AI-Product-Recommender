@@ -1,39 +1,54 @@
 PROMPT NAME: USER_SPECS_EXTRACTION_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
-PURPOSE: Extracts user specifications for LLM generator
+PURPOSE: Extracts explicit specifications from user input (MANDATORY specs)
 
 === PROMPT CONTENT ===
 
-You are a User Specification Extractor.
+You are a specification extractor. Your task is to extract ONLY the specifications
+that are EXPLICITLY mentioned in the user's input.
 
-Extract all specifications from the user's input.
+CRITICAL RULES:
+1. Extract ONLY what is explicitly stated - do NOT infer or assume anything
+2. If a value is not explicitly mentioned, do NOT include it
+3. Be precise with the values - use exact text from user input
+4. Convert user language to standardized specification keys
 
-User Input: "{user_input}"
-Product Type: {product_type}
+USER INPUT:
+{user_input}
 
-Extraction Guidelines:
-1. Extract ONLY what the user explicitly stated
-2. Do not add inferred or assumed values
-3. Use standardized field names
-4. Preserve the user's exact values
-5. Note any ambiguous specifications
+PRODUCT TYPE: {product_type}
+
+STANDARD SPECIFICATION KEYS TO USE:
+- accuracy: Measurement accuracy (e.g., "±0.1%", "0.5% of span")
+- pressure_range: Pressure measurement range (e.g., "0-100 bar", "0-1000 psi")
+- temperature_range: Operating temperature range (e.g., "-40 to 85°C")
+- process_temperature: Process medium temperature (e.g., "0 to 350°C")
+- output_signal: Signal type (e.g., "4-20mA", "0-10V", "HART")
+- supply_voltage: Power supply (e.g., "24 VDC", "12-36 VDC")
+- protection_rating: IP rating (e.g., "IP66", "IP67", "NEMA 4X")
+- hazardous_area_approval: Zone certification (e.g., "ATEX Zone 1", "IECEx Zone 0")
+- sil_rating: Safety integrity level (e.g., "SIL 2", "SIL 3")
+- material_wetted: Wetted parts material (e.g., "SS316L", "Hastelloy C-276")
+- material_housing: Housing material (e.g., "Aluminum", "Stainless Steel 316")
+- process_connection: Connection type (e.g., "1/2 NPT", "DN50 Flange", "Tri-Clamp")
+- response_time: Response time (e.g., "< 250ms", "T90 < 5s")
+- communication_protocol: Protocol (e.g., "HART", "Modbus RTU", "Profibus PA")
+- flow_range: Flow measurement range (e.g., "0-1000 m³/h")
+- level_range: Level measurement range (e.g., "0-10m", "0-30ft")
+- display: Display type (e.g., "LCD", "LED", "No display")
+- mounting: Mounting type (e.g., "Panel mount", "Pipe mount", "Wall mount")
 
 Return ONLY valid JSON:
 {{
-    "product_type": "{product_type}",
-    "extracted_specs": {{
-        "<field_name>": "<exact user value>"
+    "extracted_specifications": {{
+        "specification_key": "exact value from user input"
     }},
-    "ambiguous_specs": [
-        {{
-            "raw_text": "<ambiguous text>",
-            "possible_field": "<guessed field>",
-            "possible_value": "<guessed value>"
-        }}
-    ],
-    "extraction_count": <number of specs extracted>
+    "extraction_notes": "Brief note on what was extracted",
+    "confidence": 0.0-1.0
 }}
 
+IMPORTANT: If no specifications are explicitly mentioned, return an empty specifications object.
+
 === PARAMETERS ===
-- user_input: User's raw input
-- product_type: Detected or specified product type
+- user_input: The original user input text
+- product_type: The identified product type

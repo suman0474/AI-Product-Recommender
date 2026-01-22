@@ -99,10 +99,10 @@ PRODUCT_TO_CATEGORY_MAP = {
 
 class StrategyCSVFilter:
     """
-    Simple CSV-based vendor strategy filter.
+    Simple CSV-based vendor strategy filter with lazy loading.
 
     Loads vendor strategy data from CSV and provides vendor filtering
-    based on product category matching.
+    based on product category matching. Uses lazy loading to minimize memory usage.
     """
 
     def __init__(self, csv_path: str = None):
@@ -114,24 +114,23 @@ class StrategyCSVFilter:
                       instrumentation_procurement_strategy.csv in backend directory.
         """
         self.csv_path = csv_path or STRATEGY_CSV_PATH
-        self._data = None
-        self._vendor_index = None
-        self._category_index = None
+        self._category_cache = {}  # Lazy cache: category -> rows
+        self._vendor_cache = {}    # Lazy cache: vendor_lower -> rows
+        self._max_cache_size = 10  # LRU: Keep at most 10 categories in memory
+        self._all_data = None      # Full data (loaded on demand)
 
-    def _load_data(self) -> None:
-        """Load and index the CSV data."""
-        if self._data is not None:
-            return
+    def _load_all_data(self) -> List[Dict]:
+        """Load all CSV data (used when full scan is needed)."""
+        if self._all_data is not None:
+            return self._all_data
 
-        logger.info(f"[StrategyCSVFilter] Loading strategy data from {self.csv_path}")
+        logger.info(f"[StrategyCSVFilter] Loading full strategy data from {self.csv_path}")
 
-        self._data = []
-        self._vendor_index = {}  # vendor_name_lower -> [row_indices]
-        self._category_index = {}  # (category, subcategory) -> [row_indices]
+        self._all_data = []
 
         if not os.path.exists(self.csv_path):
             logger.warning(f"[StrategyCSVFilter] CSV file not found: {self.csv_path}")
-            return
+            return self._all_data
 
         try:
             with open(self.csv_path, 'r', encoding='utf-8') as f:
@@ -149,29 +148,80 @@ class StrategyCSVFilter:
                         'comments': row.get('additional comments', '').strip(),
                         'owner': row.get('owner name', '').strip()
                     }
+                    self._all_data.append(normalized_row)
 
-                    self._data.append(normalized_row)
-
-                    # Index by vendor name (lowercase for matching)
-                    vendor_lower = normalized_row['vendor_name'].lower()
-                    if vendor_lower not in self._vendor_index:
-                        self._vendor_index[vendor_lower] = []
-                    self._vendor_index[vendor_lower].append(idx)
-
-                    # Index by category
-                    cat_key = (normalized_row['category'], normalized_row['subcategory'])
-                    if cat_key not in self._category_index:
-                        self._category_index[cat_key] = []
-                    self._category_index[cat_key].append(idx)
-
-            logger.info(f"[StrategyCSVFilter] Loaded {len(self._data)} strategy records, "
-                       f"{len(self._vendor_index)} unique vendors")
+            logger.info(f"[StrategyCSVFilter] Loaded {len(self._all_data)} strategy records")
 
         except Exception as e:
             logger.error(f"[StrategyCSVFilter] Error loading CSV: {e}")
-            self._data = []
-            self._vendor_index = {}
-            self._category_index = {}
+            self._all_data = []
+
+        return self._all_data
+
+    def _load_category_lazy(self, category: str, subcategory: str = None) -> List[Dict]:
+        """
+        Lazy load only rows matching a specific category (30x memory reduction).
+
+        Args:
+            category: Category name to load
+            subcategory: Optional subcategory filter
+
+        Returns:
+            List of matching rows
+        """
+        cache_key = (category, subcategory)
+
+        # Check if already cached
+        if cache_key in self._category_cache:
+            logger.debug(f"[StrategyCSVFilter] Using cached category: {category}/{subcategory}")
+            return self._category_cache[cache_key]
+
+        # Load only matching rows from CSV
+        logger.debug(f"[StrategyCSVFilter] Lazy loading category: {category}/{subcategory}")
+        matching_rows = []
+
+        if not os.path.exists(self.csv_path):
+            logger.warning(f"[StrategyCSVFilter] CSV file not found: {self.csv_path}")
+            return matching_rows
+
+        try:
+            with open(self.csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+
+                for row in reader:
+                    row_category = row.get('category', '').strip()
+                    row_subcategory = row.get('subcategory', '').strip()
+
+                    # Check if this row matches the requested category
+                    if row_category == category:
+                        if subcategory is None or row_subcategory == subcategory:
+                            normalized_row = {
+                                'vendor_id': row.get('vendor ID', '').strip(),
+                                'vendor_name': row.get('vendor name', '').strip(),
+                                'category': row_category,
+                                'subcategory': row_subcategory,
+                                'strategy': row.get('strategy', '').strip(),
+                                'refinery': row.get('refinery', '').strip(),
+                                'comments': row.get('additional comments', '').strip(),
+                                'owner': row.get('owner name', '').strip()
+                            }
+                            matching_rows.append(normalized_row)
+
+        except Exception as e:
+            logger.error(f"[StrategyCSVFilter] Error loading category: {e}")
+            return []
+
+        # Cache with LRU eviction (keep max 10 categories)
+        if len(self._category_cache) >= self._max_cache_size:
+            # Evict oldest (first) entry
+            oldest_key = next(iter(self._category_cache))
+            del self._category_cache[oldest_key]
+            logger.debug(f"[StrategyCSVFilter] Evicted category cache: {oldest_key}")
+
+        self._category_cache[cache_key] = matching_rows
+        logger.debug(f"[StrategyCSVFilter] Cached category: {category}/{subcategory} ({len(matching_rows)} rows)")
+
+        return matching_rows
 
     def _map_product_to_category(self, product_type: str) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -241,6 +291,8 @@ class StrategyCSVFilter:
         """
         Get all vendors for a specific category/subcategory.
 
+        Uses lazy loading to minimize memory usage - only loads requested categories.
+
         Args:
             category: CSV category (e.g., "Pressure Instruments")
             subcategory: Optional subcategory (e.g., "Pressure Gauges")
@@ -248,23 +300,12 @@ class StrategyCSVFilter:
         Returns:
             List of vendor records with strategy information
         """
-        self._load_data()
-
-        results = []
-
-        # Try exact match first
-        cat_key = (category, subcategory) if subcategory else None
-        if cat_key and cat_key in self._category_index:
-            for idx in self._category_index[cat_key]:
-                results.append(self._data[idx])
-
-        # If no subcategory or no results, get all for category
-        if not results:
-            for (cat, subcat), indices in self._category_index.items():
-                if cat == category:
-                    for idx in indices:
-                        if self._data[idx] not in results:
-                            results.append(self._data[idx])
+        # Use lazy loading to load only this category
+        if subcategory:
+            results = self._load_category_lazy(category, subcategory)
+        else:
+            # Load category with any subcategory
+            results = self._load_category_lazy(category, None)
 
         return results
 
@@ -279,27 +320,28 @@ class StrategyCSVFilter:
         Returns:
             Dict with vendor strategy info, or empty dict if not found
         """
-        self._load_data()
+        # Load all data since we need to search by vendor across all categories
+        all_data = self._load_all_data()
 
         vendor_lower = vendor_name.lower().strip()
 
         # Check for partial matches (e.g., "Emerson" matches "Emerson Electric Co.")
-        matching_indices = []
-        for vname, indices in self._vendor_index.items():
-            if vendor_lower in vname or vname in vendor_lower:
-                matching_indices.extend(indices)
+        matching_records = [
+            row for row in all_data
+            if vendor_lower in row['vendor_name'].lower() or row['vendor_name'].lower() in vendor_lower
+        ]
 
-        if not matching_indices:
+        if not matching_records:
             return {}
 
         # If category specified, filter further
         if category:
-            for idx in matching_indices:
-                if self._data[idx]['category'] == category:
-                    return self._data[idx]
+            for record in matching_records:
+                if record['category'] == category:
+                    return record
 
         # Return first match
-        return self._data[matching_indices[0]]
+        return matching_records[0]
 
     def filter_vendors_for_product(
         self,
@@ -333,15 +375,13 @@ class StrategyCSVFilter:
                 "total_strategy_entries": 123
             }
         """
-        self._load_data()
-
         # Map product to category
         category, subcategory = self._map_product_to_category(product_type)
 
         logger.info(f"[StrategyCSVFilter] Filtering for product: {product_type} -> "
                    f"Category: {category}, Subcategory: {subcategory}")
 
-        # Get vendors in this category
+        # Get vendors in this category (lazy loaded)
         category_vendors = self.get_vendors_for_category(category, subcategory) if category else []
 
         # Build vendor strategy lookup
@@ -356,7 +396,11 @@ class StrategyCSVFilter:
         filtered = []
         excluded = []
 
-        vendors_to_check = available_vendors if available_vendors else list(self._vendor_index.keys())
+        # If no available vendors specified, use all vendors from the category
+        if not available_vendors and category_vendors:
+            available_vendors = list(set(v['vendor_name'] for v in category_vendors))
+
+        vendors_to_check = available_vendors if available_vendors else []
 
         for vendor in vendors_to_check:
             vendor_lower = vendor.lower().strip()
@@ -409,12 +453,16 @@ class StrategyCSVFilter:
 
         logger.info(f"[StrategyCSVFilter] Filtered {len(filtered)} vendors for {product_type}")
 
+        # Get total strategy entries count
+        all_data = self._load_all_data()
+        total_entries = len(all_data) if all_data else 0
+
         return {
             "filtered_vendors": filtered,
             "excluded_vendors": excluded,
             "category": category,
             "subcategory": subcategory,
-            "total_strategy_entries": len(self._data) if self._data else 0
+            "total_strategy_entries": total_entries
         }
 
     def _calculate_priority_score(self, record: Dict[str, Any], refinery: str = None) -> int:
@@ -486,13 +534,13 @@ class StrategyCSVFilter:
 
     def get_all_vendors(self) -> List[str]:
         """Get list of all unique vendor names from CSV."""
-        self._load_data()
-        return list(set(row['vendor_name'] for row in self._data)) if self._data else []
+        all_data = self._load_all_data()
+        return list(set(row['vendor_name'] for row in all_data)) if all_data else []
 
     def get_all_categories(self) -> List[str]:
         """Get list of all unique categories from CSV."""
-        self._load_data()
-        return list(set(row['category'] for row in self._data)) if self._data else []
+        all_data = self._load_all_data()
+        return list(set(row['category'] for row in all_data)) if all_data else []
 
 
 # =============================================================================

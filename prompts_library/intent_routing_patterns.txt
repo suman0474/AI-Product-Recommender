@@ -1,0 +1,93 @@
+PROMPT NAME: INTENT_ROUTING_PATTERNS
+SOURCE FILE: backend/agentic/intent_classification_routing_agent.py
+PURPOSE: Pattern lists for exit detection, greetings, and knowledge questions
+
+=== PROMPT CONTENT ===
+
+# EXIT PHRASES
+# Phrases that indicate user wants to exit/restart current workflow
+EXIT_PHRASES:
+- start over
+- new search
+- reset
+- clear
+- begin again
+- start new
+- exit
+- quit
+- cancel
+- back to start
+
+# GREETING PHRASES
+# Pure greetings that indicate a new conversation
+GREETING_PHRASES:
+- hi
+- hello
+- hey
+- good morning
+- good afternoon
+- good evening
+
+# KNOWLEDGE QUESTION PATTERNS
+# Patterns that indicate user is asking a knowledge question
+# These should BREAK workflow lock and route to EnGenie/ProductInfo
+
+## Standards Keywords (SIL, ATEX, IEC, ISO)
+STANDARDS_KEYWORDS:
+- sil
+- sil1
+- sil2
+- sil3
+- sil4
+- atex
+- iecex
+- hazloc
+- iec 61508
+- iec 61511
+- iec 62443
+- iso 9001
+- iso 14001
+- nace
+- nema
+- ip rating
+- ip65
+- ip66
+- ip67
+- ip68
+
+## Question Starters
+QUESTION_STARTERS:
+- what is
+- what are
+- what does
+- what's
+- how does
+- how do
+- how to
+- how can
+- why is
+- why does
+- why do
+- why are
+- explain
+- define
+- meaning of
+- definition of
+- tell me about
+- describe
+- what about
+- difference between
+- compare
+
+## Certification Terms
+CERTIFICATION_TERMS:
+- certification
+- compliance
+- certified
+- standard
+- regulation
+- requirement
+- specification
+
+=== PARAMETERS ===
+- None (static configuration)

@@ -20,6 +20,8 @@ from langchain_core.exceptions import OutputParserException
 from dotenv import load_dotenv
 
 from llm_fallback import create_llm_with_fallback
+from .llm_manager import get_cached_llm
+from prompts_library import load_prompt
 
 # Import Intent Classification Agent for convenience
 # (Avoids circular dependency as it doesn't import from shared_agents)
@@ -133,101 +135,14 @@ class WebVerificationResult(BaseModel):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-CHAT_AGENT_PROMPT = """
-You are Engenie's Industrial Instrumentation Expert. Answer user questions using ONLY the provided context.
+CHAT_AGENT_PROMPT = load_prompt("chat_agent_prompt")
 
-USER QUESTION: {question}
+VALIDATOR_PROMPT = load_prompt("validator_prompt")
 
-PRODUCT TYPE: {product_type}
-
-RAG CONTEXT (Company-specific knowledge):
-{rag_context}
-
-COMPANY PREFERENCES:
-- Preferred Vendors: {preferred_vendors}
-- Required Standards: {required_standards}
-- Installed Series: {installed_series}
-
-INSTRUCTIONS:
-1. Answer ONLY based on the provided context
-2. If information is not in context, say "I don't have specific information about that"
-3. Cite your sources using [Source: <source_name>] format
-4. Be conversational but precise
-5. Mention specific product series, models, or standards when relevant
-6. NO HALLUCINATION - Do not make up information
-
-Return ONLY valid JSON:
-{{
-    "answer": "<your grounded answer with [Source: ...] citations>",
-    "citations": [
-        {{"source": "<source_name>", "content": "<relevant quote>"}}
-    ],
-    "rag_sources_used": ["Strategy RAG", "Standards RAG", "Inventory RAG"],
-    "confidence": <0.0-1.0 based on context relevance>
-}}
-"""
-
-VALIDATOR_PROMPT = """
-You are a Response Quality Validator. Evaluate this response for grounding and accuracy.
-
-USER QUESTION: {question}
-
-GENERATED RESPONSE: {response}
-
-AVAILABLE CONTEXT: {context}
-
-Perform these 5 validation checks:
-
-1. RELEVANCE (0-1): Does the response directly address the user's question?
-2. ACCURACY (0-1): Is the information factually correct based on context?
-3. GROUNDING (0-1): Is the response grounded in the provided context (no external info)?
-4. CITATIONS (0-1): Are sources properly cited with [Source: ...] format?
-5. HALLUCINATION: Is there any fabricated/made-up information NOT in context?
-
-Return ONLY valid JSON:
-{{
-    "is_valid": <true if all scores >= 0.6 and no hallucination>,
-    "overall_score": <average of 4 scores>,
-    "relevance_score": <0.0-1.0>,
-    "accuracy_score": <0.0-1.0>,
-    "grounding_score": <0.0-1.0>,
-    "citation_score": <0.0-1.0>,
-    "hallucination_detected": <true/false>,
-    "issues_found": ["<issue 1>", "<issue 2>"],
-    "suggestions": "<how to fix issues>"
-}}
-"""
-
-WEB_VERIFIER_PROMPT = """
-You are a Web Search Results Verifier for industrial instrumentation questions.
-
-USER QUESTION: {question}
-
-WEB RESULTS:
-{web_results}
-
-EXTRACTED ENTITIES: {entities}
-
-Perform 4-dimensional verification:
-
-1. FACT_CHECK (0-1): Are the facts in these results verifiable and consistent across sources?
-2. CREDIBILITY (0-1): Are these sources authoritative? (vendor sites, technical docs, journals > forums, blogs)
-3. HALLUCINATION_RISK: low/medium/high - Risk of using unverified information
-4. CROSS_REFERENCE: verified/partial/unverified - Do sources corroborate each other?
-
-Return ONLY valid JSON:
-{{
-    "fact_check_score": <0.0-1.0>,
-    "credibility_score": <0.0-1.0>,
-    "hallucination_risk": "low" | "medium" | "high",
-    "cross_reference_status": "verified" | "partial" | "unverified",
-    "reliable_sources": ["<source1>", "<source2>"],
-    "warnings": ["<warning if any>"]
-}}
-"""
+WEB_VERIFIER_PROMPT = load_prompt("web_verifier_prompt")
 
 
 # ============================================================================
@@ -248,10 +163,9 @@ class ResponseValidatorAgent:
 
     def __init__(self, llm=None, components: Dict = None):
         self.components = components or {}
-        self.llm = llm or create_llm_with_fallback(
+        self.llm = llm or get_cached_llm(
             model="gemini-2.5-flash",
-            temperature=0.1,  # Low temperature for objective validation
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=0.1  # Low temperature for objective validation
         )
         logger.info("ResponseValidatorAgent initialized")
 
@@ -369,10 +283,9 @@ class WebSearchVerifierAgent:
 
     def __init__(self, llm=None, components: Dict = None):
         self.components = components or {}
-        self.llm = llm or create_llm_with_fallback(
+        self.llm = llm or get_cached_llm(
             model="gemini-2.5-flash",
-            temperature=0.1,  # Low temperature for objective verification
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=0.1  # Low temperature for objective verification
         )
         logger.info("WebSearchVerifierAgent initialized")
 
@@ -451,10 +364,9 @@ class ChatAgent:
 
     def __init__(self, llm=None, components: Dict = None):
         self.components = components or {}
-        self.llm = llm or create_llm_with_fallback(
+        self.llm = llm or get_cached_llm(
             model="gemini-2.5-flash",
-            temperature=0.3,
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=0.3
         )
         logger.info("ChatAgent initialized")
 

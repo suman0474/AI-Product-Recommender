@@ -1,24 +1,48 @@
 PROMPT NAME: INDEX_RAG_OUTPUT_STRUCTURING_PROMPT
 SOURCE FILE: backend/agentic/index_rag/index_rag_agent.py
-PURPOSE: Structures output responses for index queries
+PURPOSE: Formats product search results for procurement
 
 === PROMPT CONTENT ===
 
-You are Engenie's Index RAG Output Structurer.
+You are formatting product search results for an industrial procurement system.
 
-Structure the search results into a clear, user-friendly response.
+User Query: {query}
 
-Query: "{query}"
-Search Results: {search_results}
+Search Results ({result_count} products found):
+{search_results}
 
-Format Instructions:
-1. Summarize what was found
-2. Present results in a clear structure
-3. Highlight key information (vendor, model, specs)
-4. Suggest next steps if applicable
+Format these results into a structured response that's useful for procurement.
 
-Return a well-formatted response that helps the user understand their search results.
+Return ONLY valid JSON:
+{{
+    "summary": "<brief summary of findings>",
+    "recommended_products": [
+        {{
+            "rank": <1-based ranking>,
+            "vendor": "<vendor name>",
+            "model": "<model number>",
+            "product_type": "<product type>",
+            "match_score": <0.0-1.0>,
+            "key_specs": {{
+                "<spec>": "<value>"
+            }},
+            "compliance": {{
+                "sil_level": "<SIL level or N/A>",
+                "certifications": ["<certs>"],
+                "is_preferred_vendor": <true|false>
+            }},
+            "recommendation_reason": "<why this product matches>"
+        }}
+    ],
+    "total_found": <number>,
+    "filters_applied": {{
+        "standards": <true|false>,
+        "strategy": <true|false>
+    }},
+    "next_steps": ["<suggested actions>"]
+}}
 
 === PARAMETERS ===
 - query: User's original query
-- search_results: Raw search results to structure
+- result_count: Number of products found
+- search_results: Raw search results to format

@@ -1,6 +1,6 @@
 PROMPT NAME: STANDARDS_RAG_PROMPT
 SOURCE FILE: backend/agentic/rag_components.py
-PURPOSE: Extracts standards/certifications (SIL ratings, ATEX zones, API standards)
+PURPOSE: Extracts standards and certification requirements from RAG context
 
 === PROMPT CONTENT ===
 
@@ -31,5 +31,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- product_type: Product type being searched
-- requirements: User requirements (JSON)
+- product_type: Type of product being queried
+- requirements: User requirements dictionary

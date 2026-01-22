@@ -1,39 +1,152 @@
-PROMPT NAME: WORKER_PROMPT (Deep Agent)
+PROMPT NAME: DEEP_AGENT_WORKER_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/standards_deep_agent.py
-PURPOSE: Executes schema extraction work
+PURPOSE: Extracts constraints and specifications from standard documents
 
 === PROMPT CONTENT ===
 
-You are a Worker Agent extracting specifications from standards documents.
+You are a Standards Analysis Agent specialized in {standard_type} standards.
 
-Extract specifications for this category.
+Your task is to extract ALL relevant constraints and specifications from the provided standard document that apply to the user's requirement.
 
-Product Type: {product_type}
-Category: {category}
-Standards Context: {standards_context}
+USER REQUIREMENT:
+{user_requirement}
 
-Extraction Rules:
-1. Extract ONLY specifications relevant to this category
-2. Use clean, standardized field names
-3. Provide example values from standards
-4. Mark mandatory vs optional fields
+STANDARD DOCUMENT ({standard_name}):
+{document_content}
+
+=== CRITICAL: VALUE FORMAT RULES ===
+
+Return ONLY the technical value - NO descriptions, NO explanations, NO sentences.
+
+CORRECT VALUES: "±0.1%", "IP67", "4-20mA HART", "-40 to +85°C", "SIL 2", "316L SS"
+WRONG VALUES: "typically ±0.1%", "IP67 for outdoor use", "depends on application"
+
+FORBIDDEN in values:
+- Words: "typically", "usually", "approximately", "may be", "can be", "should be"
+- Explanations in parentheses: "(depending on...)", "(for example...)", "(typically...)"
+- Sentences or descriptions
+
+=== EXTRACTION INSTRUCTIONS ===
+
+1. Read the document carefully for the user's requirement
+2. Extract constraints with CLEAN values only
+3. Include specific values, ranges, and tolerances
+4. Use null for specifications not found in the document
+5. Do NOT make up information not present in the document
 
 Return ONLY valid JSON:
 {{
-    "category": "{category}",
-    "specifications": [
+    "constraints": [
         {{
-            "field_name": "<standardized field name>",
-            "description": "<field description>",
-            "is_mandatory": true | false,
-            "example_values": ["<value 1>", "<value 2>"],
-            "standards_reference": "<source standard>"
+            "constraint_type": "requirement|recommendation|warning|specification",
+            "description": "Clear description of the constraint",
+            "value": "CLEAN technical value (e.g., 'SIL 2', '4-20mA', '±0.1%')",
+            "condition": "Condition under which this applies (if any)",
+            "standard_reference": "Referenced standard code (e.g., 'IEC 61511')",
+            "confidence": 0.0-1.0
         }}
     ],
-    "extraction_confidence": <0.0-1.0>
+    "specifications": {{
+        // ELECTRICAL SPECIFICATIONS
+        "electrical_connection_type": "M12 connector" or null,
+        "electrical_output_signal": "4-20mA HART" or null,
+        "supply_voltage": "24 VDC" or null,
+        "power_consumption": "< 5W" or null,
+        "sensor_output_type": "Analog, Digital" or null,
+        "advanced_communication_protocols": "HART, Modbus, Profibus" or null,
+        "cable_entry_type": "M20 cable gland" or null,
+        "power_supply": "Loop-powered" or null,
+        "transmitter_integration": "Integrated 4-20mA" or null,
+
+        // ENVIRONMENTAL SPECIFICATIONS
+        "ingress_protection": "IP67" or null,
+        "operating_ambient_temperature_range": "-40 to +85°C" or null,
+        "ambient_temperature_range": "-20 to +60°C" or null,
+        "humidity_range": "0-95% RH" or null,
+        "chemical_compatibility_contact_material": "Compatible with acids, bases" or null,
+        "hazardous_area_certifications": "ATEX Zone 1, IECEx" or null,
+        "vibration_and_shock_resistance": "IEC 60068-2-6" or null,
+        "vibration_resistance": "10g, 10-2000 Hz" or null,
+        "ingress_protection_rating": "IP65/IP67" or null,
+
+        // MECHANICAL SPECIFICATIONS
+        "contact_material": "Platinum, Nickel" or null,
+        "junction_configuration": "Grounded, Ungrounded, Exposed" or null,
+        "lead_wire_length": "3 meters" or null,
+        "lead_wire_type": "PTFE insulated" or null,
+        "mounting_method": "Threaded, Flanged" or null,
+        "mounting_type": "DIN rail, Wall mount" or null,
+        "physical_dimensions": "100mm x 50mm x 30mm" or null,
+        "connection_head_type": "Aluminum weatherproof" or null,
+        "insertion_length": "150mm, 300mm, 450mm" or null,
+        "point_spacing_junction_locations": "50mm spacing" or null,
+        "process_connection_type": "1/2 NPT, M20x1.5" or null,
+        "sheath_diameter": "6mm, 8mm" or null,
+        "sheath_material": "316L Stainless Steel" or null,
+        "material_wetted": "316L SS, Hastelloy" or null,
+        "material_housing": "Aluminum, Stainless Steel" or null,
+        "enclosure_housing_material": "Die-cast aluminum" or null,
+        "cable_entry_method": "Cable gland, Conduit" or null,
+        "conduit_connection": "1/2 NPT conduit" or null,
+        "lead_wire_armor_sheath": "Stainless steel braided" or null,
+        "maximum_operating_pressure": "400 bar" or null,
+        "mounting_hardware_accessories": "Bracket, DIN rail clip" or null,
+        "weight_sensor_assembly": "2.5 kg" or null,
+        "extension_lead_wire_length": "5 meters" or null,
+        "extension_lead_wire_material": "Copper, compensating cable" or null,
+        "head_enclosure_material": "Aluminum, Polycarbonate" or null,
+        "internal_insulation_material": "Ceramic, MgO" or null,
+        "removable_insert_feature": "Yes/No" or null,
+        "special_sheath_treatments": "Polished, Electropolished" or null,
+        "spring_loaded_design": "Yes/No" or null,
+        "thermowell_material": "316 SS, Inconel" or null,
+
+        // PERFORMANCE SPECIFICATIONS
+        "accuracy": "±0.1%" or null,
+        "accuracy_tolerance_class": "Class A, Class B" or null,
+        "repeatability": "±0.05%" or null,
+        "measurement_temperature_range": "-200 to +1200°C" or null,
+        "temperature_measurement_range": "-50 to +400°C" or null,
+        "response_time": "T90 < 10 seconds" or null,
+        "response_time_t90": "< 5 seconds" or null,
+        "sensor_type": "RTD, Thermocouple, Thermistor" or null,
+        "thermocouple_type": "K, J, T, E, N" or null,
+        "measuring_junction_type": "Grounded, Ungrounded" or null,
+        "number_of_measuring_points": "2, 3, 4, multipoint" or null,
+        "stability": "±0.1% per year" or null,
+        "stability_drift": "±0.02%/year" or null,
+        "rangeability": "100:1" or null,
+        "calibration_interval": "12 months" or null,
+
+        // COMPLIANCE SPECIFICATIONS
+        "calibration_certificates": "Factory calibration, NIST traceable" or null,
+        "calibration_options_certificates": "ISO 17025 certificate" or null,
+        "other_regulatory_approvals": "FDA, 3A" or null,
+        "hazardous_area_rating": "Zone 0, Zone 1, Zone 2" or null,
+        "sil_rating": "SIL 2, SIL 3" or null,
+        "certifications": "CE, ATEX, IECEx, FM, CSA" or null,
+
+        // FEATURES & OPTIONS
+        "advanced_diagnostics": "Self-diagnostics, sensor monitoring" or null,
+        "diagnostics_capabilities": "Process diagnostics, health monitoring" or null,
+        "configuration_software_tools": "DTM, FDT" or null,
+        "customization_availability": "Custom lengths, materials" or null,
+        "local_display_interface": "LCD, LED indicator" or null,
+        "communication_protocol": "HART, Modbus RTU, Profibus" or null,
+
+        // SERVICE & SUPPORT
+        "product_warranty": "2 years standard, 5 years extended" or null,
+
+        // GENERAL
+        "weight": "1.5 kg" or null,
+        "product_type": "Temperature sensor, Transmitter" or null
+    }},
+    "warnings": ["List of important warnings or cautions"],
+    "summary": "Brief summary of findings"
 }}
 
 === PARAMETERS ===
-- product_type: Product type being processed
-- category: Category to extract specs for
-- standards_context: Standards document context
+- standard_type: Type of standard being analyzed
+- user_requirement: User's requirement or product description
+- standard_name: Name of the standard document
+- document_content: Full text content of the standard document

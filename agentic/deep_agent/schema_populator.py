@@ -248,8 +248,113 @@ SCHEMA_SECTIONS = {
     "ServiceAndSupport": [
         "warranty", "calibration", "certificate", "maintenance", "service",
         "traceability", "spare", "support"
+    ],
+    # General section - maps to Performance for defaults lookup
+    "General": [
+        "accuracy", "certification", "ip", "rating", "material", "output",
+        "range", "product", "type"
+    ],
+    # Additional sections from specs_bug.md
+    "FunctionalParameters": [
+        "max", "process", "pressure", "temperature", "medium", "compatibility"
+    ],
+    "InstallationRequirements": [
+        "mounting", "type", "installation"
+    ],
+    "MechanicalIntegration": [
+        "bore", "damping", "design", "filling", "insertion", "connection",
+        "tip", "wetted", "parts"
+    ],
+    "DocumentationAndServices": [
+        "calibration", "pre", "assembly", "tagging", "traceability", "warranty"
     ]
 }
+
+# =============================================================================
+# SECTION NAME NORMALIZATION
+# =============================================================================
+
+# Map variant section names to their canonical names
+SECTION_NAME_MAPPINGS = {
+    # Space-separated to camelCase
+    "Service And Support": "ServiceAndSupport",
+    "service and support": "ServiceAndSupport",
+    "Mechanical Options": "MechanicalOptions",
+    "mechanical options": "MechanicalOptions",
+    "Compliance And Safety": "Compliance",
+    "compliance and safety": "Compliance",
+    "Environmental And Safety": "Environmental",
+    "environmental and safety": "Environmental",
+    "Documentation And Services": "DocumentationAndServices",
+    "documentation and services": "DocumentationAndServices",
+    "Functional Parameters": "FunctionalParameters",
+    "functional parameters": "FunctionalParameters",
+    "Installation Requirements": "InstallationRequirements",
+    "installation requirements": "InstallationRequirements",
+    "Mechanical Integration": "MechanicalIntegration",
+    "mechanical integration": "MechanicalIntegration",
+    "Advanced Mechanical Options": "MechanicalOptions",
+    "advanced mechanical options": "MechanicalOptions",
+    "Specific Features": "Features",
+    "specific features": "Features",
+    # General maps to Performance for defaults lookup (common fields)
+    "General": "General",
+    "general": "General",
+}
+
+
+def normalize_section_name(name: str) -> str:
+    """
+    Normalize section names for consistent matching.
+
+    Handles various naming conventions:
+    - "Service And Support" -> "ServiceAndSupport"
+    - "Mechanical Options" -> "MechanicalOptions"
+    - "General" -> "General" (kept as-is, but can look up Performance defaults)
+
+    Args:
+        name: Original section name
+
+    Returns:
+        Normalized section name
+    """
+    if not name:
+        return name
+
+    # Check direct mapping first
+    if name in SECTION_NAME_MAPPINGS:
+        return SECTION_NAME_MAPPINGS[name]
+
+    # Try lowercase version
+    lower_name = name.lower()
+    if lower_name in SECTION_NAME_MAPPINGS:
+        return SECTION_NAME_MAPPINGS[lower_name]
+
+    # If no mapping found, return original
+    return name
+
+
+def get_section_for_defaults_lookup(section_name: str) -> str:
+    """
+    Get the section name to use for defaults lookup.
+
+    Some sections like 'General' should look up defaults from 'Performance'.
+
+    Args:
+        section_name: The section name
+
+    Returns:
+        Section name to use for defaults lookup
+    """
+    # Normalize first
+    normalized = normalize_section_name(section_name)
+
+    # General section uses Performance defaults for common fields
+    # like Accuracy, Range, etc.
+    if normalized == "General":
+        return "Performance"
+
+    return normalized
 
 # Map section names to relevant standards document categories
 SECTION_TO_STANDARDS_DOCS = {
@@ -405,17 +510,29 @@ def segregate_schema_by_sections(schema: Dict[str, Any]) -> Dict[str, List[Dict[
                     })
 
     # Process all main sections of the schema
+    # Include both camelCase and space-separated versions
     main_sections = [
         "mandatory", "mandatory_requirements",
         "optional", "optional_requirements",
         "Performance", "Electrical", "Mechanical",
         "Environmental", "Compliance", "Features",
-        "Integration", "ServiceAndSupport", "MechanicalOptions"
+        "Integration", "ServiceAndSupport", "MechanicalOptions",
+        # General section (common in inferred specs)
+        "General",
+        # Space-separated variants
+        "Service And Support", "Mechanical Options", "Compliance And Safety",
+        "Environmental And Safety", "Documentation And Services",
+        # Additional sections from specs_bug.md
+        "Functional Parameters", "Installation Requirements",
+        "Mechanical Integration", "Advanced Mechanical Options",
+        "Specific Features", "Certifications"
     ]
 
     for section_name in main_sections:
         if section_name in schema:
-            extract_fields_dedup(schema[section_name], section_name)
+            # Normalize section name for consistent classification
+            normalized_section = normalize_section_name(section_name)
+            extract_fields_dedup(schema[section_name], normalized_section)
 
     # Also extract from root level (skip already processed)
     extract_fields_dedup(schema)
@@ -463,8 +580,15 @@ def analyze_standards_for_sections(
             if not schema_sections[section_name]:
                 continue
 
+            # Normalize section name for consistent lookup
+            normalized_section = normalize_section_name(section_name)
+            lookup_section = get_section_for_defaults_lookup(normalized_section)
+
             # Get relevant document names for this section
-            relevant_docs = SECTION_TO_STANDARDS_DOCS.get(section_name, [])
+            relevant_docs = SECTION_TO_STANDARDS_DOCS.get(lookup_section, [])
+            # Also try original section name if no match
+            if not relevant_docs:
+                relevant_docs = SECTION_TO_STANDARDS_DOCS.get(section_name, [])
 
             # Collect content from relevant documents
             section_content = {
@@ -1031,7 +1155,11 @@ __all__ = [
     "segregate_schema_by_sections",
     "SchemaPopulatorMemory",
     "SCHEMA_SECTIONS",
-    "SECTION_TO_STANDARDS_DOCS"
+    "SECTION_TO_STANDARDS_DOCS",
+    # New normalization functions
+    "normalize_section_name",
+    "get_section_for_defaults_lookup",
+    "SECTION_NAME_MAPPINGS",
 ]
 
 

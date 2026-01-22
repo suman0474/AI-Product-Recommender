@@ -33,50 +33,17 @@ from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-INSTRUMENT_LIST_PROMPT = """
-You are Engenie's Instrument Presenter. Format the identified instruments and accessories for user selection.
-
-Identified Instruments:
-{instruments}
-
-Identified Accessories:
-{accessories}
-
-Project Name: {project_name}
-
-Create a numbered list for user selection. Each item should have:
-- number: Sequential number (1, 2, 3, ...)
-- type: "instrument" or "accessory"
-- name: Product name
-- category: Product category
-- quantity: How many needed
-- key_specs: Brief specification summary (1 line)
-
-Return ONLY valid JSON:
-{{
-    "formatted_list": [
-        {{
-            "number": 1,
-            "type": "instrument" | "accessory",
-            "name": "<product name>",
-            "category": "<category>",
-            "quantity": <quantity>,
-            "key_specs": "<brief specs>"
-        }}
-    ],
-    "total_items": <count>,
-    "message": "Please select an item number to search for products."
-}}
-"""
+INSTRUMENT_LIST_PROMPT = load_prompt("instrument_list_prompt")
 
 
 # ============================================================================
@@ -99,62 +66,66 @@ def initialize_thread_tree_node(state: InstrumentIdentifierState) -> InstrumentI
     logger.info("[IDENTIFIER] Node 0: Initializing thread tree (using UI-provided IDs)...")
 
     try:
-        # ✅ EXPECT THREAD IDS FROM UI REQUEST
+        # Get values from state
         main_thread_id = state.get("main_thread_id")
         workflow_thread_id = state.get("workflow_thread_id")
-        zone_str = state.get("zone", "DEFAULT")
+        zone_str = state.get("zone")
+        user_id = state.get("user_id") or state.get("session_id", "anonymous")
 
-        # ✅ VALIDATE THEY'RE PROVIDED BY UI
+        # ZONE DETECTION: Use provided zone or detect from IP
+        if not zone_str or zone_str == "DEFAULT":
+            try:
+                from utils.zone_detector import detect_zone_from_request
+                zone = detect_zone_from_request()
+                logger.info(f"[IDENTIFIER] Detected zone: {zone.value}")
+            except Exception as e:
+                logger.warning(f"[IDENTIFIER] Zone detection failed: {e}, using DEFAULT")
+                zone = ThreadZone.DEFAULT
+        else:
+            try:
+                zone = ThreadZone.from_string(zone_str)
+            except Exception as e:
+                logger.warning(f"[IDENTIFIER] Invalid zone '{zone_str}', using DEFAULT")
+                zone = ThreadZone.DEFAULT
+
+        # MAIN THREAD ID: Generate if not provided
         if not main_thread_id:
-            logger.error("[IDENTIFIER] main_thread_id not provided by UI")
-            raise ValueError(
-                "main_thread_id must be provided by UI (format: main_*). "
-                "Backend no longer generates thread IDs."
+            main_thread_id = HierarchicalThreadManager.generate_main_thread_id(
+                user_id=user_id,
+                zone=zone
             )
+            state["main_thread_id"] = main_thread_id
+            logger.info(f"[IDENTIFIER] Generated main thread ID: {main_thread_id}")
+        else:
+            logger.info(f"[IDENTIFIER] Using provided main thread ID: {main_thread_id}")
 
+        # WORKFLOW THREAD ID: Generate if not provided
         if not workflow_thread_id:
-            logger.error("[IDENTIFIER] workflow_thread_id not provided by UI")
-            raise ValueError(
-                "workflow_thread_id must be provided by UI. "
-                "Backend no longer generates thread IDs."
+            workflow_thread_id = HierarchicalThreadManager.generate_workflow_thread_id(
+                workflow_type=WorkflowThreadType.INSTRUMENT_IDENTIFIER,
+                main_thread_id=main_thread_id
             )
+            state["workflow_thread_id"] = workflow_thread_id
+            logger.info(f"[IDENTIFIER] Generated workflow thread ID: {workflow_thread_id}")
+        else:
+            logger.info(f"[IDENTIFIER] Using provided workflow thread ID: {workflow_thread_id}")
 
-        # ✅ CONVERT ZONE STRING TO ENUM
-        try:
-            zone = ThreadZone.from_string(zone_str)
-        except Exception as e:
-            logger.warning(f"[IDENTIFIER] Invalid zone '{zone_str}', using DEFAULT")
-            zone = ThreadZone.DEFAULT
-
-        # ✅ LOG FOR DEBUGGING - explicitly indicate origin
-        logger.info(f"[IDENTIFIER] Using UI-provided thread IDs:")
-        logger.info(f"[IDENTIFIER]   Main Thread ID: {main_thread_id}")
-        logger.info(f"[IDENTIFIER]   Workflow Thread ID: {workflow_thread_id}")
-        logger.info(f"[IDENTIFIER]   Zone: {zone.value}")
-
-        # ✅ STORE IN STATE (already there from request, but validate)
-        state["main_thread_id"] = main_thread_id
-        state["workflow_thread_id"] = workflow_thread_id
+        
+        # Update state
         state["zone"] = zone.value
-
-        # ✅ INITIALIZE ITEM_THREADS (UI will create item threads on response)
         state["item_threads"] = {}
 
         state["messages"] = state.get("messages", []) + [{
             "role": "system",
-            "content": f"Thread context initialized: main={main_thread_id[:30]}..., workflow={workflow_thread_id[:30]}..., zone={zone.value}"
+            "content": f"Thread tree initialized: main={main_thread_id}, workflow={workflow_thread_id}, zone={zone.value}"
         }]
 
-    except ValueError as ve:
-        # Validation error - these are CRITICAL
-        logger.error(f"[IDENTIFIER] Thread ID validation failed: {ve}")
-        state["error"] = str(ve)
-        raise  # Re-raise to fail the workflow
+        logger.info(f"[IDENTIFIER] Thread tree initialization complete")
 
     except Exception as e:
         logger.error(f"[IDENTIFIER] Thread tree initialization failed: {e}")
-        state["error"] = f"Thread init error: {str(e)}"
-        raise  # Fail the workflow if thread init fails
+        # Non-fatal - continue with workflow even if thread init fails
+        state["error"] = f"Thread init warning: {str(e)}"
 
     return state
 

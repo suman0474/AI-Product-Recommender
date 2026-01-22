@@ -1,5 +1,515 @@
 {
-  "failures": {},
+  "failures": {
+    "Multi-point Thermocouple Assembly": [
+      {
+        "failure_id": "fail_Multi-point Thermocouple Assembly_20260121125328722507",
+        "product_type": "Multi-point Thermocouple Assembly",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T12:53:28.722543",
+        "context": {
+          "session_id": "search_1768979962930_5kizudner"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 91411
+      },
+      {
+        "failure_id": "fail_Multi-point Thermocouple Assembly_20260121151319519398",
+        "product_type": "Multi-point Thermocouple Assembly",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T15:13:19.519441",
+        "context": {
+          "session_id": "search_1768988370621_4eoxabzw4"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 131993
+      }
+    ],
+    "Cable and Connector Types for Multi-point Thermocouple Assembly": [
+      {
+        "failure_id": "fail_Cable and Connector Types for Multi-point Thermocouple Assembly_20260121142225667087",
+        "product_type": "Cable and Connector Types for Multi-point Thermocouple Assembly",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T14:22:25.667140",
+        "context": {
+          "session_id": "search_1768985328517_0maensfu9"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 93568
+      }
+    ],
+    "Industrial instrument": [
+      {
+        "failure_id": "fail_Industrial instrument_20260121142317286704",
+        "product_type": "Industrial instrument",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T14:23:17.286749",
+        "context": {
+          "session_id": "search_1768985354583_l0ct49agu"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 84542
+      }
+    ],
+    "Mounting Bracket": [
+      {
+        "failure_id": "fail_Mounting Bracket_20260121142344438805",
+        "product_type": "Mounting Bracket",
+        "failure_type": "schema_mismatch",
+        "error_message": "2 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T14:23:44.438847",
+        "context": {
+          "session_id": "search_1768985336173_c4tpsuvkw"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 157271
+      },
+      {
+        "failure_id": "fail_Mounting Bracket_20260122131602486456",
+        "product_type": "Mounting Bracket",
+        "failure_type": "schema_mismatch",
+        "error_message": "2 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-22T13:16:02.486524",
+        "context": {
+          "session_id": "search_1769067532232_minlwsex9"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 221405
+      }
+    ],
+    "Variable Frequency Drive (VFD)": [
+      {
+        "failure_id": "fail_Variable Frequency Drive (VFD)_20260121151317510198",
+        "product_type": "Variable Frequency Drive (VFD)",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T15:13:17.510239",
+        "context": {
+          "session_id": "search_1768988380836_knlukdzqy"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 119509
+      },
+      {
+        "failure_id": "fail_Variable Frequency Drive (VFD)_20260121161047368070",
+        "product_type": "Variable Frequency Drive (VFD)",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T16:10:47.368118",
+        "context": {
+          "session_id": "search_1768991277444_quzzfuay8"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 663680
+      }
+    ],
+    "Temperature Transmitter": [
+      {
+        "failure_id": "fail_Temperature Transmitter_20260121151428988813",
+        "product_type": "Temperature Transmitter",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T15:14:28.988841",
+        "context": {
+          "session_id": "search_1768988347607_16kwvfngs"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 70942
+      }
+    ],
+    "Temperature Transmitter with Pt100 RTD": [
+      {
+        "failure_id": "fail_Temperature Transmitter with Pt100 RTD_20260121160021433909",
+        "product_type": "Temperature Transmitter with Pt100 RTD",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T16:00:21.433954",
+        "context": {
+          "session_id": "search_1768991199819_khjadrqbx"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 96090
+      }
+    ],
+    "Flow Meter": [
+      {
+        "failure_id": "fail_Flow Meter_20260121160028993590",
+        "product_type": "Flow Meter",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T16:00:28.993687",
+        "context": {
+          "session_id": "search_1768991178934_0dbm79kxu"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 72563
+      },
+      {
+        "failure_id": "fail_Flow Meter_20260121222648651508",
+        "product_type": "Flow Meter",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T22:26:48.651551",
+        "context": {
+          "session_id": "search_1769014021557_lus4m79fp"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 464636
+      }
+    ],
+    "Thermowell": [
+      {
+        "failure_id": "fail_Thermowell_20260121163305674998",
+        "product_type": "Thermowell",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T16:33:05.675042",
+        "context": {
+          "session_id": "search_1768993181348_5zky3t1nj"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 85603
+      },
+      {
+        "failure_id": "fail_Thermowell_20260121184107183184",
+        "product_type": "Thermowell",
+        "failure_type": "schema_mismatch",
+        "error_message": "2 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T18:41:07.183229",
+        "context": {
+          "session_id": "search_1769000349029_0fuwbjx99"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 402887
+      },
+      {
+        "failure_id": "fail_Thermowell_20260121213355740528",
+        "product_type": "Thermowell",
+        "failure_type": "schema_mismatch",
+        "error_message": "2 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T21:33:55.740573",
+        "context": {
+          "session_id": "search_1769011054292_73674mj8p"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 128190
+      }
+    ],
+    "Variable Frequency Drive": [
+      {
+        "failure_id": "fail_Variable Frequency Drive_20260121163353395799",
+        "product_type": "Variable Frequency Drive",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T16:33:53.395829",
+        "context": {
+          "session_id": "search_1768993205859_z81ic1dmr"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 83836
+      },
+      {
+        "failure_id": "fail_Variable Frequency Drive_20260121214622606098",
+        "product_type": "Variable Frequency Drive",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T21:46:22.606137",
+        "context": {
+          "session_id": "search_1769011130291_6mfearczy"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 355613
+      }
+    ],
+    "Multi-point Thermocouple with High-Pressure Thermowell": [
+      {
+        "failure_id": "fail_Multi-point Thermocouple with High-Pressure Thermowell_20260121183413953498",
+        "product_type": "Multi-point Thermocouple with High-Pressure Thermowell",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T18:34:13.953553",
+        "context": {
+          "session_id": "search_1769000420644_ybwmyx83b"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 97614
+      }
+    ],
+    "Spring-loaded Conventional Pressure Relief Valve": [
+      {
+        "failure_id": "fail_Spring-loaded Conventional Pressure Relief Valve_20260121183641237027",
+        "product_type": "Spring-loaded Conventional Pressure Relief Valve",
+        "failure_type": "schema_mismatch",
+        "error_message": "2 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T18:36:41.237104",
+        "context": {
+          "session_id": "search_1769000599892_wicuwjma1"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 65045
+      }
+    ],
+    "Junction Boxes and Enclosures": [
+      {
+        "failure_id": "fail_Junction Boxes and Enclosures_20260121184009337236",
+        "product_type": "Junction Boxes and Enclosures",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T18:40:09.337278",
+        "context": {
+          "session_id": "search_1769000670386_g4vw8udfu"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 93703
+      },
+      {
+        "failure_id": "fail_Junction Boxes and Enclosures_20260122220105591193",
+        "product_type": "Junction Boxes and Enclosures",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-22T22:01:05.591232",
+        "context": {
+          "session_id": "search_1769098770216_xqkszk6h5"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 256667
+      }
+    ],
+    "Surface Mount Thermocouple": [
+      {
+        "failure_id": "fail_Surface Mount Thermocouple_20260121184243438297",
+        "product_type": "Surface Mount Thermocouple",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T18:42:43.438350",
+        "context": {
+          "session_id": "search_1769000424717_yzlu6d63a"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 64376
+      }
+    ],
+    "Temperature Sensor Accessory": [
+      {
+        "failure_id": "fail_Temperature Sensor Accessory_20260121213702116841",
+        "product_type": "Temperature Sensor Accessory",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T21:37:02.116897",
+        "context": {
+          "session_id": "search_1769011116779_n9jjldm26"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 65531
+      },
+      {
+        "failure_id": "fail_Temperature Sensor Accessory_20260121213727041027",
+        "product_type": "Temperature Sensor Accessory",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T21:37:27.041064",
+        "context": {
+          "session_id": "search_1769011112024_csg0q4613"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 152009
+      }
+    ],
+    "Pulsation Dampener": [
+      {
+        "failure_id": "fail_Pulsation Dampener_20260121213735276321",
+        "product_type": "Pulsation Dampener",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T21:37:35.276362",
+        "context": {
+          "session_id": "search_1769011085855_gsfh3o756"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 73333
+      }
+    ],
+    "Thermowells": [
+      {
+        "failure_id": "fail_Thermowells_20260121221902835696",
+        "product_type": "Thermowells",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T22:19:02.835730",
+        "context": {
+          "session_id": "search_1769013807101_9s4s01q0b"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 72428
+      }
+    ],
+    "Mounting Brackets and Supports": [
+      {
+        "failure_id": "fail_Mounting Brackets and Supports_20260121222056385679",
+        "product_type": "Mounting Brackets and Supports",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T22:20:56.385725",
+        "context": {
+          "session_id": "search_1769014036637_op2gc6map"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 65386
+      }
+    ],
+    "Surface Thermocouple": [
+      {
+        "failure_id": "fail_Surface Thermocouple_20260121222504670968",
+        "product_type": "Surface Thermocouple",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-21T22:25:04.671010",
+        "context": {
+          "session_id": "search_1769014042729_ygiqj2wv4"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 169641
+      }
+    ],
+    "Control Valve": [
+      {
+        "failure_id": "fail_Control Valve_20260122191849640535",
+        "product_type": "Control Valve",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-22T19:18:49.640585",
+        "context": {
+          "session_id": "search_1769089182842_o8bz9qkn1"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 230607
+      }
+    ],
+    "Temperature Transmitter with RTD": [
+      {
+        "failure_id": "fail_Temperature Transmitter with RTD_20260122215631745169",
+        "product_type": "Temperature Transmitter with RTD",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-22T21:56:31.745223",
+        "context": {
+          "session_id": "search_1769098756981_n4bncbkin"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 84570
+      }
+    ],
+    "Process Connection for Flow Meter": [
+      {
+        "failure_id": "fail_Process Connection for Flow Meter_20260122221856598367",
+        "product_type": "Process Connection for Flow Meter",
+        "failure_type": "schema_mismatch",
+        "error_message": "1 (of 3) futures unfinished",
+        "prompt_hash": "03ad2d787c0fa3af",
+        "prompt_preview": "[schema generation]",
+        "timestamp": "2026-01-22T22:18:56.598395",
+        "context": {
+          "session_id": "search_1769100103562_4rooczh2x"
+        },
+        "recovery_attempted": null,
+        "recovery_successful": false,
+        "duration_ms": 294005
+      }
+    ]
+  },
   "successes": {
     "Junction Box": [
       {
@@ -44,15 +554,372 @@
         "duration_ms": 14863,
         "sources_used": []
       }
+    ],
+    "Multi-Point Thermocouple": [
+      {
+        "success_id": "succ_Multi-Point Thermocouple_20260121121602988157",
+        "product_type": "Multi-Point Thermocouple",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T12:16:02.988213",
+        "duration_ms": 21161,
+        "sources_used": []
+      }
+    ],
+    "High-Pressure Thermowell": [
+      {
+        "success_id": "succ_High-Pressure Thermowell_20260121121625982289",
+        "product_type": "High-Pressure Thermowell",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-21T12:16:25.982333",
+        "duration_ms": 21437,
+        "sources_used": []
+      }
+    ],
+    "Protective accessories": [
+      {
+        "success_id": "succ_Protective accessories_20260121122353391098",
+        "product_type": "Protective accessories",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-21T12:23:53.391131",
+        "duration_ms": 10035,
+        "sources_used": []
+      }
+    ],
+    "Junction boxes and enclosures": [
+      {
+        "success_id": "succ_Junction boxes and enclosures_20260121122417881457",
+        "product_type": "Junction boxes and enclosures",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T12:24:17.881570",
+        "duration_ms": 15883,
+        "sources_used": []
+      }
+    ],
+    "Surface Thermocouple": [
+      {
+        "success_id": "succ_Surface Thermocouple_20260121125305513363",
+        "product_type": "Surface Thermocouple",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T12:53:05.513408",
+        "duration_ms": 51035,
+        "sources_used": []
+      },
+      {
+        "success_id": "succ_Surface Thermocouple_20260121151245977672",
+        "product_type": "Surface Thermocouple",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T15:12:45.977740",
+        "duration_ms": 40958,
+        "sources_used": []
+      }
+    ],
+    "Industrial Power Supply": [
+      {
+        "success_id": "succ_Industrial Power Supply_20260121142108048133",
+        "product_type": "Industrial Power Supply",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 0,
+        "total_fields": 60,
+        "confidence_score": 0.0,
+        "timestamp": "2026-01-21T14:21:08.048208",
+        "duration_ms": 53470,
+        "sources_used": []
+      }
+    ],
+    "Pulsation Dampener": [
+      {
+        "success_id": "succ_Pulsation Dampener_20260121151344933698",
+        "product_type": "Pulsation Dampener",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T15:13:44.933744",
+        "duration_ms": 41919,
+        "sources_used": []
+      }
+    ],
+    "Temperature Transmitter": [
+      {
+        "success_id": "succ_Temperature Transmitter_20260121151348295042",
+        "product_type": "Temperature Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T15:13:48.295076",
+        "duration_ms": 28337,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Temperature Transmitter_20260121213114730753",
+        "product_type": "Temperature Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T21:31:14.730787",
+        "duration_ms": 55299,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Temperature Transmitter_20260121221653982857",
+        "product_type": "Temperature Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T22:16:53.982914",
+        "duration_ms": 40385,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Pressure Transmitter": [
+      {
+        "success_id": "succ_Pressure Transmitter_20260121160016823567",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T16:00:16.823612",
+        "duration_ms": 47190,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Pressure Transmitter_20260121163212527015",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T16:32:12.527031",
+        "duration_ms": 36667,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Pressure Transmitter_20260121222611197005",
+        "product_type": "Pressure Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T22:26:11.197045",
+        "duration_ms": 24330,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Calibration Kits": [
+      {
+        "success_id": "succ_Calibration Kits_20260121183128332136",
+        "product_type": "Calibration Kits",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T18:31:28.332197",
+        "duration_ms": 31677,
+        "sources_used": []
+      }
+    ],
+    "Hazardous Area Junction Box": [
+      {
+        "success_id": "succ_Hazardous Area Junction Box_20260121183201544335",
+        "product_type": "Hazardous Area Junction Box",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T18:32:01.544379",
+        "duration_ms": 41695,
+        "sources_used": []
+      }
+    ],
+    "Mounting Brackets and Supports": [
+      {
+        "success_id": "succ_Mounting Brackets and Supports_20260121183706412825",
+        "product_type": "Mounting Brackets and Supports",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T18:37:06.412864",
+        "duration_ms": 48794,
+        "sources_used": []
+      },
+      {
+        "success_id": "succ_Mounting Brackets and Supports_20260121222221076467",
+        "product_type": "Mounting Brackets and Supports",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 8,
+        "total_fields": 60,
+        "confidence_score": 0.13333333333333333,
+        "timestamp": "2026-01-21T22:22:21.076496",
+        "duration_ms": 46744,
+        "sources_used": []
+      }
+    ],
+    "Flow Transmitter": [
+      {
+        "success_id": "succ_Flow Transmitter_20260121213008783390",
+        "product_type": "Flow Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T21:30:08.783431",
+        "duration_ms": 28083,
+        "sources_used": [
+          "product_template"
+        ]
+      },
+      {
+        "success_id": "succ_Flow Transmitter_20260122191426000334",
+        "product_type": "Flow Transmitter",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-22T19:14:26.000357",
+        "duration_ms": 28345,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Cables and Connectors": [
+      {
+        "success_id": "succ_Cables and Connectors_20260121213054696284",
+        "product_type": "Cables and Connectors",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T21:30:54.696322",
+        "duration_ms": 49371,
+        "sources_used": []
+      },
+      {
+        "success_id": "succ_Cables and Connectors_20260121222404750502",
+        "product_type": "Cables and Connectors",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T22:24:04.750539",
+        "duration_ms": 54053,
+        "sources_used": []
+      }
+    ],
+    "Junction boxes and Enclosures": [
+      {
+        "success_id": "succ_Junction boxes and Enclosures_20260121213133866033",
+        "product_type": "Junction boxes and Enclosures",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T21:31:33.866071",
+        "duration_ms": 41277,
+        "sources_used": []
+      }
+    ],
+    "Temperature Sensor": [
+      {
+        "success_id": "succ_Temperature Sensor_20260121213634891671",
+        "product_type": "Temperature Sensor",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 60,
+        "total_fields": 60,
+        "confidence_score": 1.0,
+        "timestamp": "2026-01-21T21:36:34.891699",
+        "duration_ms": 37960,
+        "sources_used": [
+          "product_template"
+        ]
+      }
+    ],
+    "Protective Accessories": [
+      {
+        "success_id": "succ_Protective Accessories_20260121214139302450",
+        "product_type": "Protective Accessories",
+        "prompt_hash": "b44e6b3d45afff37",
+        "prompt_preview": "[parallel generation]",
+        "fields_populated": 1,
+        "total_fields": 60,
+        "confidence_score": 0.016666666666666666,
+        "timestamp": "2026-01-21T21:41:39.302482",
+        "duration_ms": 52442,
+        "sources_used": []
+      }
     ]
   },
-  "optimized_prompts": {},
+  "optimized_prompts": {
+    "Temperature Transmitter": "[parallel generation]",
+    "Pressure Transmitter": "[parallel generation]",
+    "Flow Transmitter": "[parallel generation]",
+    "Temperature Sensor": "[parallel generation]"
+  },
   "stats": {
-    "total_failures": 0,
-    "total_successes": 3,
-    "patterns_detected": 0,
+    "total_failures": 31,
+    "total_successes": 28,
+    "patterns_detected": 1,
     "recoveries_attempted": 0,
     "recoveries_successful": 0
   },
-  "saved_at": "2026-01-20T16:35:00.349661"
+  "saved_at": "2026-01-22T22:18:56.599683"
 }

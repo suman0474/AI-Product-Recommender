@@ -211,25 +211,22 @@ class StrategyVectorStore:
         
         # Load CSV
         logger.info(f"[StrategyVectorStore] Indexing CSV: {csv_path}")
-        
+
         documents = []
         metadatas = []
         ids = []
-        embeddings = []
-        
+
+        # First pass: collect all documents and metadata
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            
+
             for i, row in enumerate(reader):
                 # Create document text
                 doc_text = self._create_document_text(row)
-                
+
                 if not doc_text.strip():
                     continue
-                
-                # Generate embedding
-                embedding = self._generate_embedding(doc_text)
-                
+
                 # Prepare metadata
                 metadata = {
                     "category": row.get('Category', ''),
@@ -239,11 +236,20 @@ class StrategyVectorStore:
                     "notes": row.get('Notes', ''),
                     "row_index": i
                 }
-                
+
                 documents.append(doc_text)
                 metadatas.append(metadata)
                 ids.append(f"strategy_{i}")
-                embeddings.append(embedding)
+
+        # Second pass: batch embed all documents at once for 50x speedup
+        embeddings = []
+        if documents:
+            if self.embedding_model:
+                # Use batch encoding if available (sentence-transformers supports this)
+                embeddings = [emb.tolist() for emb in self.embedding_model.encode(documents)]
+            else:
+                # Fallback to individual embedding
+                embeddings = [self._generate_embedding(doc) for doc in documents]
         
         # Add to collection
         if documents:

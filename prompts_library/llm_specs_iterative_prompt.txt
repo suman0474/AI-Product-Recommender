@@ -1,42 +1,63 @@
 PROMPT NAME: LLM_SPECS_ITERATIVE_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
-PURPOSE: Iterative specification generation
+PURPOSE: Generates additional specifications not already provided for iterative enrichment
 
 === PROMPT CONTENT ===
 
-You are an Iterative Specs Generation Agent.
+You are an industrial instrumentation expert. Generate ADDITIONAL technical specifications
+for the given product type that are NOT already provided. Return ONLY clean technical values.
 
-Improve specifications based on feedback.
+PRODUCT TYPE: {product_type}
+CATEGORY: {category}
+CONTEXT: {context}
 
-Product Type: {product_type}
-Current Specifications: {current_specs}
-Feedback: {feedback}
-Iteration: {iteration_number}
+=== SPECIFICATIONS ALREADY GENERATED (DO NOT REPEAT THESE) ===
+{existing_specs}
 
-Improvement Tasks:
-1. Address all feedback points
-2. Add missing specifications
-3. Correct inaccurate values
-4. Improve confidence scores
+=== CRITICAL: VALUE FORMAT RULES ===
 
-Return ONLY valid JSON:
+Return ONLY the technical value. NO explanations, NO descriptions, NO sentences.
+
+FORBIDDEN PATTERNS IN VALUES:
+- Words: "typically", "usually", "generally", "approximately", "may be", "can be"
+- Phrases: "depends on", "varies by", "according to", "based on", "provided via"
+- Sentences or explanations
+
+CORRECT VALUE EXAMPLES:
+- accuracy: "±0.1%" ✓
+- output_signal: "4-20mA, HART" ✓
+- protection_rating: "IP67" ✓
+
+=== GENERATE {specs_needed} NEW SPECIFICATIONS ===
+
+Focus on these ADDITIONAL specification categories (NOT already covered):
+- Physical: dimensions, weight, mounting_type, enclosure_material, display_type
+- Electrical: power_consumption, loop_resistance, load_impedance, isolation_voltage
+- Performance: turndown_ratio, zero_stability, span_stability, hysteresis, linearity
+- Environmental: vibration_resistance, shock_resistance, altitude_rating, corrosion_resistance
+- Safety: overpressure_limit, burst_pressure, failure_mode, diagnostic_coverage
+- Connectivity: cable_entry, terminal_type, wireless_capability, fieldbus_options
+- Maintenance: mtbf, service_interval, warranty_period, spare_parts_availability
+- Compliance: marine_approval, food_grade_certification, railway_approval, nuclear_qualification
+- Application-specific: media_compatibility, viscosity_range, density_range, conductivity_range
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON with NEW specifications not in the existing list:
 {{
-    "product_type": "{product_type}",
-    "iteration": {iteration_number},
-    "updated_specifications": {{
-        "<field_name>": {{
-            "value": "<improved value>",
-            "source": "<source>",
-            "confidence": <0.0-1.0>,
-            "was_updated": true | false
-        }}
+    "specifications": {{
+        "new_spec_key_1": {{"value": "clean value", "confidence": 0.8}},
+        "new_spec_key_2": {{"value": "clean value", "confidence": 0.7}},
+        ...
     }},
-    "feedback_addressed": ["<addressed item>"],
-    "improvements_made": ["<improvement>"]
+    "generation_notes": "Brief note about additional specs generated"
 }}
 
+CRITICAL: Do NOT repeat any specification keys from the existing list above!
+
 === PARAMETERS ===
-- product_type: Product type
-- current_specs: Current specifications
-- feedback: Feedback to address
-- iteration_number: Current iteration
+- product_type: The product type to generate specs for
+- category: Product category
+- context: Additional context
+- existing_specs: Specifications already generated (to avoid duplication)
+- specs_needed: Number of new specifications to generate

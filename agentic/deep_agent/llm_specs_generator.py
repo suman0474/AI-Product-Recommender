@@ -28,6 +28,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
 
 from llm_fallback import create_llm_with_fallback
+from ..llm_manager import get_cached_llm
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -59,6 +61,19 @@ def _get_specs_llm():
                     model=LLM_SPECS_MODEL,
                     temperature=0.3,
                     google_api_key=os.getenv("GOOGLE_API_KEY")
+                )
+                
+                # Register with GlobalResourceRegistry
+                from agentic.context_managers import GlobalResourceRegistry, ResourceMetrics, ResourceStatus
+                registry = GlobalResourceRegistry()
+                registry.register(
+                    f"llm_specs_{id(_specs_llm)}",
+                    ResourceMetrics(
+                        acquired_at=time.time(),
+                        resource_type="llm_specs",
+                        resource_id=LLM_SPECS_MODEL,
+                        status=ResourceStatus.ACTIVE
+                    )
                 )
     return _specs_llm
 
@@ -109,69 +124,7 @@ ENABLE_DYNAMIC_DISCOVERY = True
 # DYNAMIC KEY DISCOVERY PROMPT (for unknown product types)
 # =============================================================================
 
-KEY_DISCOVERY_PROMPT = """You are an industrial instrumentation expert with deep knowledge of technical specifications.
-
-TASK: Generate a COMPREHENSIVE list of 60+ relevant technical specification keys for this product type.
-The goal is to have as many specification options as possible to create rich product databases.
-
-PRODUCT TYPE: {product_type}
-CATEGORY: {category}
-CONTEXT: {context}
-
-=== MANDATORY MINIMUM: 60+ SPECIFICATION KEYS ===
-
-You MUST generate AT LEAST 60 distinct specification keys. This is not optional.
-- If you generate fewer than 60 keys, your response is incomplete.
-- Aim for 70-100+ keys for maximum database richness.
-- Include both common and specialized specs.
-
-=== DEEP REASONING INSTRUCTIONS ===
-
-Think step by step:
-1. What IS this product? (Function, purpose, typical applications)
-2. What technical parameters define this product's PERFORMANCE? (accuracy, range, response, etc.)
-3. What safety/compliance specs are REQUIRED? (certifications, standards, approvals)
-4. What physical/mechanical specs MATTER? (size, weight, materials, connections)
-5. What electrical/signal specs are RELEVANT? (voltage, current, protocols, impedance)
-6. What environmental specs APPLY? (temperature, humidity, vibration, pressure)
-7. What material specs AFFECT performance? (wetted materials, seals, coatings, hardness)
-8. What maintenance/calibration specs are NEEDED? (intervals, procedures, warranty)
-
-=== SPECIFICATION CATEGORIES TO COVER ===
-
-PERFORMANCE SPECS (15-20 keys): accuracy, repeatability, linearity, hysteresis, resolution, sensitivity, drift, stability, response_time, bandwidth
-MEASUREMENT SPECS (8-10 keys): measurement_range, span, rangeability, measuring_principle, measurement_units
-ELECTRICAL SPECS (15-20 keys): output_signal, supply_voltage, power_consumption, communication_protocol, isolation_voltage, EMC_compliance
-PHYSICAL SPECS (15-20 keys): process_connection, mounting_type, dimensions, weight, material_housing, material_wetted
-ENVIRONMENTAL SPECS (12-15 keys): temperature_range, humidity_range, protection_rating, vibration_resistance
-SAFETY & COMPLIANCE (10-15 keys): sil_rating, hazardous_area_approval, certifications, standards_compliance
-MAINTENANCE SPECS (10-12 keys): calibration_interval, warranty_period, mtbf, service_life
-
-=== OUTPUT FORMAT ===
-
-Return ONLY valid JSON. IMPORTANT: Ensure total key count (mandatory + optional + safety_critical) is AT LEAST 60:
-{{
-    "product_analysis": {{
-        "product_function": "What this product does",
-        "primary_purpose": "Main use case",
-        "typical_applications": ["app1", "app2"]
-    }},
-    "specification_keys": {{
-        "mandatory": [
-            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "e.g., ±0.1%, -40 to +85°C"}}
-        ],
-        "optional": [
-            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
-        ],
-        "safety_critical": [
-            {{"key": "spec_key_name", "description": "What this spec measures", "typical_format": "example"}}
-        ]
-    }},
-    "total_keys_generated": 60,
-    "discovery_confidence": 0.0-1.0,
-    "reasoning_notes": "Brief explanation of key selections"
-}}
-"""
+KEY_DISCOVERY_PROMPT = load_prompt("key_discovery_prompt")
 
 
 def discover_specification_keys(
@@ -258,133 +211,17 @@ def discover_specification_keys(
 
 
 # =============================================================================
-# GENERATION PROMPT
+# GENERATION PROMPT - Loaded from prompts_library
 # =============================================================================
 
-LLM_SPECS_GENERATION_PROMPT = """
-You are an industrial instrumentation expert. Generate technical specifications
-for the given product type. Return ONLY clean technical values - NO descriptions.
-
-PRODUCT TYPE: {product_type}
-CATEGORY: {category}
-CONTEXT: {context}
-
-=== CRITICAL: VALUE FORMAT RULES ===
-
-Return ONLY the technical value. NO explanations, NO descriptions, NO sentences.
-
-FORBIDDEN PATTERNS IN VALUES (NEVER include these):
-- Words: "typically", "usually", "generally", "approximately", "may be", "can be"
-- Phrases: "depends on", "varies by", "according to", "based on", "provided via"
-- Sentences: "The X is", "It has", "This should be", "A value of"
-- Explanations: "which means", "for applications", "in order to", "when used"
-- Parenthetical notes: "(typically...)", "(usually...)", "(for example...)"
-
-CORRECT VALUE EXAMPLES:
-- accuracy: "±0.1%" ✓ (NOT "The accuracy is typically ±0.1% depending on...")
-- output_signal: "4-20mA, HART" ✓ (NOT "4-20mA with optional HART protocol support")
-- protection_rating: "IP67" ✓ (NOT "IP67 protection suitable for outdoor use")
-- temperature_range: "-40 to +85°C" ✓ (NOT "Temperature range varies from -40 to +85°C")
-- communication_protocol: "HART, Modbus" ✓ (NOT "N/A (typically uses HART or Modbus)")
-
-WRONG VALUE EXAMPLES - NEVER OUTPUT THESE:
-✗ "N/A (typically a transmitter with HART will be used)" → Use "HART" or "N/A"
-✗ "SPDT Relay, 4-20mA Input" with note → Just "SPDT Relay, 4-20mA"
-✗ "±0.1% of Span (accuracy based on calibration)" → Just "±0.1% of Span"
-
-=== SPECIFICATIONS TO GENERATE ===
-
-Generate these specifications with CLEAN values:
-- accuracy, repeatability, rangeability
-- temperature_range, ambient_temperature, protection_rating, humidity_range
-- output_signal, supply_voltage, power_consumption
-- communication_protocol
-- material_wetted, material_housing, process_connection, weight
-- sil_rating, hazardous_area_approval, certifications
-- response_time, stability, calibration_interval
-
-=== OUTPUT FORMAT ===
-
-Return ONLY valid JSON with FLAT key-value structure (NO section grouping):
-{{
-    "specifications": {{
-        "accuracy": {{"value": "±0.1%", "confidence": 0.8}},
-        "output_signal": {{"value": "4-20mA, HART", "confidence": 0.9}},
-        "temperature_range": {{"value": "-40 to +85°C", "confidence": 0.8}},
-        "protection_rating": {{"value": "IP67", "confidence": 0.9}},
-        "communication_protocol": {{"value": "HART, Modbus RTU", "confidence": 0.7}},
-        "supply_voltage": {{"value": "24 VDC", "confidence": 0.9}},
-        "sil_rating": {{"value": "SIL 2", "confidence": 0.8}},
-        "material_wetted": {{"value": "316L SS", "confidence": 0.8}}
-    }},
-    "product_category": "{category}",
-    "generation_notes": "Brief note"
-}}
-
-IMPORTANT:
-1. Each value must be a CLEAN technical specification
-2. NO section headers, NO nested categories
-3. NO descriptive text or explanations in values
-4. Use "N/A" only if truly not applicable - don't add explanations
-"""
+LLM_SPECS_GENERATION_PROMPT = load_prompt("llm_specs_generation_prompt")
 
 
 # =============================================================================
-# ITERATIVE GENERATION PROMPT - For requesting additional specs
+# ITERATIVE GENERATION PROMPT - Loaded from prompts_library
 # =============================================================================
 
-LLM_SPECS_ITERATIVE_PROMPT = """
-You are an industrial instrumentation expert. Generate ADDITIONAL technical specifications
-for the given product type that are NOT already provided. Return ONLY clean technical values.
-
-PRODUCT TYPE: {product_type}
-CATEGORY: {category}
-CONTEXT: {context}
-
-=== SPECIFICATIONS ALREADY GENERATED (DO NOT REPEAT THESE) ===
-{existing_specs}
-
-=== CRITICAL: VALUE FORMAT RULES ===
-
-Return ONLY the technical value. NO explanations, NO descriptions, NO sentences.
-
-FORBIDDEN PATTERNS IN VALUES:
-- Words: "typically", "usually", "generally", "approximately", "may be", "can be"
-- Phrases: "depends on", "varies by", "according to", "based on", "provided via"
-- Sentences or explanations
-
-CORRECT VALUE EXAMPLES:
-- accuracy: "±0.1%" ✓
-- output_signal: "4-20mA, HART" ✓
-- protection_rating: "IP67" ✓
-
-=== GENERATE {specs_needed} NEW SPECIFICATIONS ===
-
-Focus on these ADDITIONAL specification categories (NOT already covered):
-- Physical: dimensions, weight, mounting_type, enclosure_material, display_type
-- Electrical: power_consumption, loop_resistance, load_impedance, isolation_voltage
-- Performance: turndown_ratio, zero_stability, span_stability, hysteresis, linearity
-- Environmental: vibration_resistance, shock_resistance, altitude_rating, corrosion_resistance
-- Safety: overpressure_limit, burst_pressure, failure_mode, diagnostic_coverage
-- Connectivity: cable_entry, terminal_type, wireless_capability, fieldbus_options
-- Maintenance: mtbf, service_interval, warranty_period, spare_parts_availability
-- Compliance: marine_approval, food_grade_certification, railway_approval, nuclear_qualification
-- Application-specific: media_compatibility, viscosity_range, density_range, conductivity_range
-
-=== OUTPUT FORMAT ===
-
-Return ONLY valid JSON with NEW specifications not in the existing list:
-{{
-    "specifications": {{
-        "new_spec_key_1": {{"value": "clean value", "confidence": 0.8}},
-        "new_spec_key_2": {{"value": "clean value", "confidence": 0.7}},
-        ...
-    }},
-    "generation_notes": "Brief note about additional specs generated"
-}}
-
-CRITICAL: Do NOT repeat any specification keys from the existing list above!
-"""
+LLM_SPECS_ITERATIVE_PROMPT = load_prompt("llm_specs_iterative_prompt")
 
 
 # =============================================================================
@@ -500,10 +337,9 @@ def _parallel_generate_specs_worker(
 
     try:
         # Create LLM instance for this thread
-        llm = create_llm_with_fallback(
+        llm = get_cached_llm(
             model=LLM_SPECS_MODEL,
-            temperature=0.4,  # Slightly higher for diversity
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=0.4  # Slightly higher for diversity
         )
 
         # Specialized prompt for this worker's focus area
@@ -530,13 +366,13 @@ Focus ONLY on {focus_area} aspects:
 - {focus_area}_param_1, {focus_area}_param_2, {focus_area}_param_3, etc.
 
 Return ONLY valid JSON:
-{{
-    "specifications": {{
-        "new_spec_1": {{"value": "clean value", "confidence": 0.8}},
-        "new_spec_2": {{"value": "clean value", "confidence": 0.7}}
-    }},
+{{{{
+    "specifications": {{{{
+        "new_spec_1": {{{{"value": "clean value", "confidence": 0.8}}}},
+        "new_spec_2": {{{{"value": "clean value", "confidence": 0.7}}}}
+    }}}},
     "focus_area": "{focus_area}"
-}}
+}}}}
 
 Do NOT repeat any existing specs! Generate ONLY NEW specifications.
 """
@@ -667,10 +503,9 @@ def generate_llm_specs(
     context_value = context or "General industrial application"
 
     try:
-        llm = create_llm_with_fallback(
+        llm = get_cached_llm(
             model=LLM_SPECS_MODEL,
-            temperature=0.3,  # Some creativity for comprehensive coverage
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+            temperature=0.3  # Some creativity for comprehensive coverage
         )
 
         # =================================================================
@@ -816,7 +651,7 @@ def generate_llm_specs_batch(
     logger.info(f"[LLM_SPECS] [FIX #4] Batch generation for {len(items)} items (batch_size={batch_size})")
 
     results = []
-    llm = create_llm_with_fallback(model=LLM_SPECS_MODEL, temperature=0.1, google_api_key=os.getenv("GOOGLE_API_KEY"), skip_test=True)
+    llm = get_cached_llm(model=LLM_SPECS_MODEL, temperature=0.1)
 
     # Process items in batches for more efficient LLM calls
     for batch_start in range(0, len(items), batch_size):
@@ -1038,58 +873,13 @@ def generate_specs_with_discovery(
 
 
 # =============================================================================
-# USER-SPECIFIED SPECIFICATIONS EXTRACTION
+# USER-SPECIFIED SPECIFICATIONS EXTRACTION - Loaded from prompts_library
 # =============================================================================
 # Merged from user_specs_extractor.py
 # Extracts EXPLICIT specifications from user input. These are MANDATORY.
 # =============================================================================
 
-USER_SPECS_EXTRACTION_PROMPT = """
-You are a specification extractor. Your task is to extract ONLY the specifications
-that are EXPLICITLY mentioned in the user's input.
-
-CRITICAL RULES:
-1. Extract ONLY what is explicitly stated - do NOT infer or assume anything
-2. If a value is not explicitly mentioned, do NOT include it
-3. Be precise with the values - use exact text from user input
-4. Convert user language to standardized specification keys
-
-USER INPUT:
-{user_input}
-
-PRODUCT TYPE: {product_type}
-
-STANDARD SPECIFICATION KEYS TO USE:
-- accuracy: Measurement accuracy (e.g., "±0.1%", "0.5% of span")
-- pressure_range: Pressure measurement range (e.g., "0-100 bar", "0-1000 psi")
-- temperature_range: Operating temperature range (e.g., "-40 to 85°C")
-- process_temperature: Process medium temperature (e.g., "0 to 350°C")
-- output_signal: Signal type (e.g., "4-20mA", "0-10V", "HART")
-- supply_voltage: Power supply (e.g., "24 VDC", "12-36 VDC")
-- protection_rating: IP rating (e.g., "IP66", "IP67", "NEMA 4X")
-- hazardous_area_approval: Zone certification (e.g., "ATEX Zone 1", "IECEx Zone 0")
-- sil_rating: Safety integrity level (e.g., "SIL 2", "SIL 3")
-- material_wetted: Wetted parts material (e.g., "SS316L", "Hastelloy C-276")
-- material_housing: Housing material (e.g., "Aluminum", "Stainless Steel 316")
-- process_connection: Connection type (e.g., "1/2 NPT", "DN50 Flange", "Tri-Clamp")
-- response_time: Response time (e.g., "< 250ms", "T90 < 5s")
-- communication_protocol: Protocol (e.g., "HART", "Modbus RTU", "Profibus PA")
-- flow_range: Flow measurement range (e.g., "0-1000 m³/h")
-- level_range: Level measurement range (e.g., "0-10m", "0-30ft")
-- display: Display type (e.g., "LCD", "LED", "No display")
-- mounting: Mounting type (e.g., "Panel mount", "Pipe mount", "Wall mount")
-
-Return ONLY valid JSON:
-{{
-    "extracted_specifications": {{
-        "specification_key": "exact value from user input"
-    }},
-    "extraction_notes": "Brief note on what was extracted",
-    "confidence": 0.0-1.0
-}}
-
-IMPORTANT: If no specifications are explicitly mentioned, return an empty specifications object.
-"""
+USER_SPECS_EXTRACTION_PROMPT = load_prompt("user_specs_extraction_prompt")
 
 
 def extract_user_specified_specs(

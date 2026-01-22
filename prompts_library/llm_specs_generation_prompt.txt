@@ -1,37 +1,75 @@
 PROMPT NAME: LLM_SPECS_GENERATION_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/llm_specs_generator.py
-PURPOSE: Generates specifications using LLM
+PURPOSE: Generates technical specifications for a product type with clean values
 
 === PROMPT CONTENT ===
 
-You are a Specifications Generator for industrial products.
+You are an industrial instrumentation expert. Generate technical specifications
+for the given product type. Return ONLY clean technical values - NO descriptions.
 
-Generate complete specifications for this product.
+PRODUCT TYPE: {product_type}
+CATEGORY: {category}
+CONTEXT: {context}
 
-Product Type: {product_type}
-Discovered Keys: {discovered_keys}
-User Requirements: {user_requirements}
+=== CRITICAL: VALUE FORMAT RULES ===
 
-Generation Guidelines:
-1. Fill in all discovered specification keys
-2. Use industry-standard values
-3. Consider user requirements for context
-4. Mark sourced vs inferred values
+Return ONLY the technical value. NO explanations, NO descriptions, NO sentences.
 
-Return ONLY valid JSON:
+FORBIDDEN PATTERNS IN VALUES (NEVER include these):
+- Words: "typically", "usually", "generally", "approximately", "may be", "can be"
+- Phrases: "depends on", "varies by", "according to", "based on", "provided via"
+- Sentences: "The X is", "It has", "This should be", "A value of"
+- Explanations: "which means", "for applications", "in order to", "when used"
+- Parenthetical notes: "(typically...)", "(usually...)", "(for example...)"
+
+CORRECT VALUE EXAMPLES:
+- accuracy: "±0.1%" ✓ (NOT "The accuracy is typically ±0.1% depending on...")
+- output_signal: "4-20mA, HART" ✓ (NOT "4-20mA with optional HART protocol support")
+- protection_rating: "IP67" ✓ (NOT "IP67 protection suitable for outdoor use")
+- temperature_range: "-40 to +85°C" ✓ (NOT "Temperature range varies from -40 to +85°C")
+- communication_protocol: "HART, Modbus" ✓ (NOT "N/A (typically uses HART or Modbus)")
+
+WRONG VALUE EXAMPLES - NEVER OUTPUT THESE:
+✗ "N/A (typically a transmitter with HART will be used)" → Use "HART" or "N/A"
+✗ "SPDT Relay, 4-20mA Input" with note → Just "SPDT Relay, 4-20mA"
+✗ "±0.1% of Span (accuracy based on calibration)" → Just "±0.1% of Span"
+
+=== SPECIFICATIONS TO GENERATE ===
+
+Generate these specifications with CLEAN values:
+- accuracy, repeatability, rangeability
+- temperature_range, ambient_temperature, protection_rating, humidity_range
+- output_signal, supply_voltage, power_consumption
+- communication_protocol
+- material_wetted, material_housing, process_connection, weight
+- sil_rating, hazardous_area_approval, certifications
+- response_time, stability, calibration_interval
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON with FLAT key-value structure (NO section grouping):
 {{
-    "product_type": "{product_type}",
     "specifications": {{
-        "<field_name>": {{
-            "value": "<specification value>",
-            "source": "user" | "inferred" | "standard",
-            "confidence": <0.0-1.0>
-        }}
+        "accuracy": {{"value": "±0.1%", "confidence": 0.8}},
+        "output_signal": {{"value": "4-20mA, HART", "confidence": 0.9}},
+        "temperature_range": {{"value": "-40 to +85°C", "confidence": 0.8}},
+        "protection_rating": {{"value": "IP67", "confidence": 0.9}},
+        "communication_protocol": {{"value": "HART, Modbus RTU", "confidence": 0.7}},
+        "supply_voltage": {{"value": "24 VDC", "confidence": 0.9}},
+        "sil_rating": {{"value": "SIL 2", "confidence": 0.8}},
+        "material_wetted": {{"value": "316L SS", "confidence": 0.8}}
     }},
-    "generation_summary": "<summary of what was generated>"
+    "product_category": "{category}",
+    "generation_notes": "Brief note"
 }}
 
+IMPORTANT:
+1. Each value must be a CLEAN technical specification
+2. NO section headers, NO nested categories
+3. NO descriptive text or explanations in values
+4. Use "N/A" only if truly not applicable - don't add explanations
+
 === PARAMETERS ===
-- product_type: Product type
-- discovered_keys: Previously discovered spec keys
-- user_requirements: User's requirements
+- product_type: The product type to generate specs for
+- category: Product category
+- context: Additional context

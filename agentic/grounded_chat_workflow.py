@@ -22,6 +22,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -150,34 +151,10 @@ def create_grounded_chat_state(
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-QUESTION_CLASSIFICATION_PROMPT = """
-You are an expert in industrial instrumentation. Classify this user question.
-
-Question: {question}
-
-Conversation Context: {conversation_context}
-
-Determine:
-1. question_type: One of ["product_inquiry", "specification_query", "comparison_query", 
-                          "troubleshooting", "general_knowledge", "follow_up", "out_of_scope"]
-2. product_type: Detected product type (e.g., "pressure transmitter", "flow meter") or null
-3. entities: List of mentioned vendors, models, standards (e.g., ["Honeywell", "SIL2", "ST800"])
-4. is_valid: true if this is a valid industrial instrumentation question
-5. needs_context: true if this is a follow-up that needs previous conversation
-
-Return ONLY valid JSON:
-{{
-    "question_type": "...",
-    "product_type": "...",
-    "entities": [...],
-    "is_valid": true/false,
-    "needs_context": true/false,
-    "reasoning": "Brief explanation"
-}}
-"""
+QUESTION_CLASSIFICATION_PROMPT = load_prompt("question_classification_prompt")
 
 
 # ============================================================================

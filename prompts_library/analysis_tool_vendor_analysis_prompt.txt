@@ -1,6 +1,6 @@
-PROMPT NAME: VENDOR_ANALYSIS_PROMPT
+PROMPT NAME: ANALYSIS_TOOL_VENDOR_ANALYSIS_PROMPT
 SOURCE FILE: backend/tools/analysis_tools.py
-PURPOSE: 3-tier vendor matching with PDF and JSON sources
+PURPOSE: Analyzes vendor product matches against user requirements with 3-tier matching
 
 === PROMPT CONTENT ===
 
@@ -14,6 +14,18 @@ Before providing your final matching results:
 2. Then, systematically check each requirement against the available documentation
 3. Explain your reasoning for each match or mismatch with specific references
 4. Finally, calculate an overall match score based on your findings
+
+**CRITICAL: ALWAYS RETURN JSON - NO EXCEPTIONS**
+
+You MUST ALWAYS return valid JSON in the specified format, regardless of input:
+- If user requirements are empty or not specified, evaluate products based on:
+  - Standard compliance and certifications (ATEX, IECEx, SIL2, etc.)
+  - Feature completeness for typical industrial applications
+  - Product quality indicators from the documentation
+  - Use match_score 85-95 for well-documented, certified products
+- NEVER refuse to provide JSON output
+- NEVER respond with prose explanations instead of JSON
+- If uncertain, provide your best product recommendation with appropriate match_score
 
 **CRITICAL: Model Family vs Product Name**
 
@@ -126,6 +138,6 @@ Return ONLY valid JSON:
 
 === PARAMETERS ===
 - vendor: Vendor name
-- requirements: User requirements
-- pdf_content: PDF datasheet content
-- product_data: JSON product data
+- requirements: User requirements dictionary
+- pdf_content: PDF datasheet content (optional)
+- product_data: Product JSON data (optional)

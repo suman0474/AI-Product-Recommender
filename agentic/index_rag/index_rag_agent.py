@@ -15,83 +15,17 @@ from dotenv import load_dotenv
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+# Import prompt loader
+from prompts_library import load_prompt
+
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-INTENT_CLASSIFICATION_PROMPT = """
-You are an industrial instrumentation product search assistant.
+INTENT_CLASSIFICATION_PROMPT = load_prompt("index_rag_intent_classification_prompt")
 
-Analyze the user's query and extract structured information for product search.
-
-User Query: {query}
-
-Extract the following:
-1. Intent: What does the user want? (search, compare, quote, specifications, general_info)
-2. Product Type: What type of instrument? (pressure_transmitter, flow_meter, temperature_sensor, level_transmitter, control_valve, analyzer, other)
-3. Vendors: Any specific vendors mentioned?
-4. Models: Any specific model numbers mentioned?
-5. Key Specifications: Any technical specs mentioned (range, accuracy, temperature, pressure, etc.)
-6. Filters: Any constraints (hazardous area, SIL level, certification, etc.)
-
-Return ONLY valid JSON:
-{{
-    "intent": "<search|compare|quote|specifications|general_info>",
-    "product_type": "<product type or null>",
-    "vendors": ["<list of vendors or empty>"],
-    "models": ["<list of models or empty>"],
-    "specifications": {{
-        "<spec_name>": "<spec_value>"
-    }},
-    "filters": {{
-        "hazardous_area": <true|false|null>,
-        "sil_level": "<SIL level or null>",
-        "certifications": ["<list of required certs>"]
-    }},
-    "confidence": <0.0-1.0>
-}}
-"""
-
-OUTPUT_STRUCTURING_PROMPT = """
-You are formatting product search results for an industrial procurement system.
-
-User Query: {query}
-
-Search Results ({result_count} products found):
-{search_results}
-
-Format these results into a structured response that's useful for procurement.
-
-Return ONLY valid JSON:
-{{
-    "summary": "<brief summary of findings>",
-    "recommended_products": [
-        {{
-            "rank": <1-based ranking>,
-            "vendor": "<vendor name>",
-            "model": "<model number>",
-            "product_type": "<product type>",
-            "match_score": <0.0-1.0>,
-            "key_specs": {{
-                "<spec>": "<value>"
-            }},
-            "compliance": {{
-                "sil_level": "<SIL level or N/A>",
-                "certifications": ["<certs>"],
-                "is_preferred_vendor": <true|false>
-            }},
-            "recommendation_reason": "<why this product matches>"
-        }}
-    ],
-    "total_found": <number>,
-    "filters_applied": {{
-        "standards": <true|false>,
-        "strategy": <true|false>
-    }},
-    "next_steps": ["<suggested actions>"]
-}}
-"""
+OUTPUT_STRUCTURING_PROMPT = load_prompt("index_rag_output_structuring_prompt")
 
 
 # ============================================================================

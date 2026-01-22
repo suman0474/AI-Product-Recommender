@@ -37,5 +37,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- product_type: Product type being extracted
-- pdf_content: PDF content to extract from
+- product_type: Product type to extract specs for
+- pdf_content: PDF datasheet content text

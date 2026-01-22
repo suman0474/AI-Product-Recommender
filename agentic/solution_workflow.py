@@ -54,6 +54,7 @@ from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from prompts_library import load_prompt
 
 # Import lock utilities
 import sys
@@ -65,83 +66,12 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # =============================================================================
 
-SOLUTION_ANALYSIS_PROMPT = """
-You are Engenie's Solution Analyzer. Analyze the user's solution description and extract:
-1. Industry domain (Oil & Gas, Chemical, Pharma, etc.)
-2. Process type (Distillation, Refining, Manufacturing, etc.)
-3. Key operational parameters (temperature, pressure, flow rates, etc.)
-4. Safety requirements (SIL levels, hazardous areas, etc.)
-5. Environmental conditions
+SOLUTION_ANALYSIS_PROMPT = load_prompt("solution_analysis_prompt")
 
-User's Solution Description:
-{solution_description}
-
-Return ONLY valid JSON:
-{{
-    "solution_name": "<descriptive name for the solution>",
-    "industry": "<industry domain>",
-    "process_type": "<type of process>",
-    "key_parameters": {{
-        "temperature_range": "<if mentioned>",
-        "pressure_range": "<if mentioned>",
-        "flow_rates": "<if mentioned>",
-        "materials": ["<materials handled>"]
-    }},
-    "safety_requirements": {{
-        "sil_level": "<SIL level if mentioned>",
-        "atex_zone": "<ATEX zone if mentioned>",
-        "hazardous_area": <true/false>
-    }},
-    "environmental": {{
-        "location": "<indoor/outdoor>",
-        "conditions": "<special conditions>"
-    }},
-    "context_for_instruments": "<summary context to help identify instruments>"
-}}
-"""
-
-SOLUTION_INSTRUMENT_LIST_PROMPT = """
-You are Engenie's Solution Instrument Presenter. Format the identified instruments and 
-accessories for user selection, specifically tailored for the solution context.
-
-Solution Analysis:
-{solution_analysis}
-
-Identified Instruments:
-{instruments}
-
-Identified Accessories:
-{accessories}
-
-Create a numbered list for user selection. Each item should have:
-- number: Sequential number (1, 2, 3, ...)
-- type: "instrument" or "accessory"
-- name: Product name
-- category: Product category  
-- quantity: How many needed
-- purpose: Why this is needed for the solution
-- key_specs: Brief specification summary based on solution requirements
-
-Return ONLY valid JSON:
-{{
-    "formatted_list": [
-        {{
-            "number": 1,
-            "type": "instrument" | "accessory",
-            "name": "<product name>",
-            "category": "<category>",
-            "quantity": <quantity>,
-            "purpose": "<why needed for this solution>",
-            "key_specs": "<specs derived from solution context>"
-        }}
-    ],
-    "total_items": <count>,
-    "solution_summary": "<brief summary of the solution and its instrument needs>"
-}}
-"""
+SOLUTION_INSTRUMENT_LIST_PROMPT = load_prompt("solution_instrument_list_prompt")
 
 
 # =============================================================================
@@ -164,25 +94,21 @@ def initialize_thread_tree_node(state: SolutionState) -> SolutionState:
     logger.info("[SOLUTION] Node 0: Initializing thread tree (using UI-provided IDs)...")
 
     try:
-        # ✅ EXPECT THREAD IDS FROM UI REQUEST
+        # ✅ EXPECT THREAD IDS FROM UI REQUEST (with fallback for backward compatibility)
         main_thread_id = state.get("main_thread_id")
         workflow_thread_id = state.get("workflow_thread_id")
         zone_str = state.get("zone", "DEFAULT")
 
-        # ✅ VALIDATE THEY'RE PROVIDED BY UI
+        # ✅ FALLBACK: Generate IDs if not provided (backward compatibility)
         if not main_thread_id:
-            logger.error("[SOLUTION] main_thread_id not provided by UI")
-            raise ValueError(
-                "main_thread_id must be provided by UI (format: main_*). "
-                "Backend no longer generates thread IDs."
-            )
+            import uuid
+            main_thread_id = f"main_{uuid.uuid4().hex[:12]}"
+            logger.warning(f"[SOLUTION] main_thread_id not provided by UI, generated fallback: {main_thread_id}")
 
         if not workflow_thread_id:
-            logger.error("[SOLUTION] workflow_thread_id not provided by UI")
-            raise ValueError(
-                "workflow_thread_id must be provided by UI. "
-                "Backend no longer generates thread IDs."
-            )
+            import uuid
+            workflow_thread_id = f"sol_{uuid.uuid4().hex[:12]}"
+            logger.warning(f"[SOLUTION] workflow_thread_id not provided by UI, generated fallback: {workflow_thread_id}")
 
         # ✅ CONVERT ZONE STRING TO ENUM
         try:
@@ -1141,7 +1067,7 @@ def create_solution_workflow() -> StateGraph:
 # WORKFLOW EXECUTION
 # =============================================================================
 
-@with_workflow_lock(session_id_param="session_id", timeout=60.0)
+@with_workflow_lock(session_id_param="workflow_thread_id", timeout=60.0)  # ✅ Lock by thread, not session
 def run_solution_workflow(
     user_input: str,
     session_id: str = "default",

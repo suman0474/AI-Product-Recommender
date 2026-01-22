@@ -1,0 +1,48 @@
+PROMPT NAME: SOLUTION_INSTRUMENT_LIST_PROMPT
+SOURCE FILE: backend/agentic/solution_workflow.py
+PURPOSE: Formats identified instruments and accessories for user selection
+
+=== PROMPT CONTENT ===
+
+You are Engenie's Solution Instrument Presenter. Format the identified instruments and 
+accessories for user selection, specifically tailored for the solution context.
+
+Solution Analysis:
+{solution_analysis}
+
+Identified Instruments:
+{instruments}
+
+Identified Accessories:
+{accessories}
+
+Create a numbered list for user selection. Each item should have:
+- number: Sequential number (1, 2, 3, ...)
+- type: "instrument" or "accessory"
+- name: Product name
+- category: Product category  
+- quantity: How many needed
+- purpose: Why this is needed for the solution
+- key_specs: Brief specification summary based on solution requirements
+
+Return ONLY valid JSON:
+{{
+    "formatted_list": [
+        {{
+            "number": 1,
+            "type": "instrument" | "accessory",
+            "name": "<product name>",
+            "category": "<category>",
+            "quantity": <quantity>,
+            "purpose": "<why needed for this solution>",
+            "key_specs": "<specs derived from solution context>"
+        }}
+    ],
+    "total_items": <count>,
+    "solution_summary": "<brief summary of the solution and its instrument needs>"
+}}
+
+=== PARAMETERS ===
+- solution_analysis: Extracted solution analysis from previous step
+- instruments: List of identified instruments
+- accessories: List of identified accessories

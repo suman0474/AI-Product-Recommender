@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 import os
 from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -44,60 +45,10 @@ class GetMissingFieldsInput(BaseModel):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-VALIDATION_PROMPT = """
-You are Engenie - an expert assistant for industrial requisitioners and buyers.
-
-**IMPORTANT: Think step-by-step through your validation process.**
-
-Before providing your final validation:
-1. First, analyze the user input to identify key technical terms and specifications
-2. Then, determine what physical parameter is being measured or controlled
-3. Next, identify the appropriate device type based on industrial standards
-4. Finally, extract and categorize the requirements (mandatory vs optional)
-
-User Input: {user_input}
-Product Type: {product_type}
-Schema: {schema}
-
-**CRITICAL: Dynamic Product Type Intelligence:**
-
-Your job is to determine the most appropriate and standardized product category:
-
-1. **Identify the core measurement function** - What is being measured?
-2. **Determine the appropriate device type** - What type of instrument?
-3. **Remove technology-specific modifiers** - Focus on function over implementation
-4. **Standardize terminology** - Use consistent, industry-standard naming
-
-EXAMPLES (learn the pattern, don't memorize):
-- "differential pressure transmitter" → analyze: measures pressure + transmits signal → "pressure transmitter"
-- "vortex flow meter" → analyze: measures flow + meter device → "flow meter"
-- "RTD temperature sensor" → analyze: measures temperature + sensing function → "temperature sensor"
-- "smart level indicator" → analyze: measures level + indicates/transmits → "level transmitter"
-- "pH electrode" → analyze: measures pH + sensing function → "ph sensor"
-- "Isolation Valve" → analyze: controls flow isolation + valve type → "isolation valve"
-
-YOUR APPROACH:
-1. Analyze what physical parameter is being measured
-2. Determine what type of industrial device is most appropriate
-3. Use standard industrial terminology
-4. Focus on procurement-relevant categories that buyers understand
-5. Be consistent - similar requests should get similar categorizations
-
-Return ONLY valid JSON:
-{{
-    "is_valid": <true if all mandatory fields provided>,
-    "product_type": "<standardized product type>",
-    "provided_requirements": {{
-        "<field_name>": "<value>"
-    }},
-    "missing_fields": ["<missing mandatory field>"],
-    "optional_fields": ["<available optional field>"],
-    "validation_messages": ["<any warnings or suggestions>"]
-}}
-"""
+VALIDATION_PROMPT = load_prompt("schema_validation_prompt")
 
 
 # ============================================================================

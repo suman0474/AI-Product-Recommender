@@ -727,9 +727,10 @@ class DeepAgenticWorkflowOrchestrator:
             }
 
             result = self.vendor_analysis_tool.analyze(
+                structured_requirements=requirements,
                 product_type=state.product_type,
-                requirements=requirements,
-                session_id=state.session_id
+                session_id=state.session_id,
+                schema=state.schema
             )
 
             state.vendor_analysis = result
@@ -758,8 +759,8 @@ class DeepAgenticWorkflowOrchestrator:
         try:
             result = self.ranking_tool.rank(
                 vendor_analysis=state.vendor_analysis,
-                requirements=state.provided_requirements,
-                product_type=state.product_type
+                session_id=state.session_id,
+                structured_requirements=state.provided_requirements
             )
 
             state.ranking_result = result

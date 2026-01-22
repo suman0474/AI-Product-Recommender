@@ -155,7 +155,7 @@ class VendorAnalysisTool:
             logger.info("[VendorAnalysisTool] Found vendors: %d - %s", len(vendors), vendors[:5] if vendors else [])
 
             if not vendors:
-                logger.warning("[VendorAnalysisTool] ⚠️ NO VENDORS FOUND - Returning empty result")
+                logger.warning("[VendorAnalysisTool] NO VENDORS FOUND - Returning empty result")
                 logger.warning("[VendorAnalysisTool] This could mean: 1) No data in Azure Blob, 2) Product type doesn't match metadata")
                 result['success'] = True
                 result['vendor_matches'] = []
@@ -176,25 +176,25 @@ class VendorAnalysisTool:
             # =================================================================
             
             # ╔══════════════════════════════════════════════════════════════╗
-            # ║           🟠 STRATEGY RAG INVOCATION STARTING 🟠             ║
+            # ║           STRATEGY RAG INVOCATION STARTING             ║
             # ╚══════════════════════════════════════════════════════════════╝
             import datetime
             strategy_rag_invocation_time = datetime.datetime.now().isoformat()
             strategy_rag_invoked = False
             
             logger.info("="*70)
-            logger.info("🟠 STRATEGY RAG INVOKED 🟠")
+            logger.info("STRATEGY RAG INVOKED")
             logger.info(f"   Timestamp: {strategy_rag_invocation_time}")
             logger.info(f"   Product Type: {product_type}")
             logger.info(f"   Vendors to Filter: {len(vendors)}")
             logger.info(f"   Session: {session_id}")
             logger.info("="*70)
-            print("\n" + "="*70)
-            print("🟠 [STRATEGY RAG] INVOCATION STARTED")
-            print(f"   Time: {strategy_rag_invocation_time}")
-            print(f"   Product: {product_type}")
-            print(f"   Vendors: {len(vendors)}")
-            print("="*70 + "\n")
+            logger.info("="*70)
+            logger.info("[STRATEGY RAG] INVOCATION STARTED")
+            logger.info(f"   Time: {strategy_rag_invocation_time}")
+            logger.info(f"   Product: {product_type}")
+            logger.info(f"   Vendors: {len(vendors)}")
+            logger.info("="*70)
             
             logger.info("[VendorAnalysisTool] Step 2.5: Applying Strategy RAG to filter/prioritize vendors")
             
@@ -205,7 +205,8 @@ class VendorAnalysisTool:
             
             try:
                 strategy_rag_invoked = True
-                from agentic.strategy_rag_enrichment import (
+                # FIX: Import from correct path (strategy_rag subdirectory, not stub)
+                from agentic.strategy_rag.strategy_rag_enrichment import (
                     get_strategy_with_auto_fallback,
                     filter_vendors_by_strategy
                 )
@@ -226,17 +227,17 @@ class VendorAnalysisTool:
                     confidence = strategy_context.get('confidence', 0.0)
                     
                     logger.info("="*70)
-                    logger.info(f"🟠 STRATEGY RAG APPLIED SUCCESSFULLY ({rag_type}) 🟠")
+                    logger.info(f"STRATEGY RAG APPLIED SUCCESSFULLY ({rag_type})")
                     logger.info(f"   Preferred vendors: {preferred}")
                     logger.info(f"   Forbidden vendors: {forbidden}")
                     logger.info(f"   Confidence: {confidence:.2f}")
                     logger.info("="*70)
-                    print("\n" + "="*70)
-                    print(f"🟠 [STRATEGY RAG] COMPLETED - Type: {rag_type}")
-                    print(f"   Preferred: {preferred}")
-                    print(f"   Forbidden: {forbidden}")
-                    print(f"   Confidence: {confidence:.2f}")
-                    print("="*70 + "\n")
+                    logger.info("="*70)
+                    logger.info(f"[STRATEGY RAG] COMPLETED - Type: {rag_type}")
+                    logger.info(f"   Preferred: {preferred}")
+                    logger.info(f"   Forbidden: {forbidden}")
+                    logger.info(f"   Confidence: {confidence:.2f}")
+                    logger.info("="*70)
                     
                     logger.info(f"[VendorAnalysisTool] Priorities: {priorities}")
                     logger.info(f"[VendorAnalysisTool] Strategy notes: {strategy_notes[:200] if strategy_notes else 'None'}...")
@@ -253,29 +254,29 @@ class VendorAnalysisTool:
                         filtered_vendors = [v['vendor'] for v in accepted]
                         vendor_priorities = {v['vendor']: v.get('priority_score', 0) for v in accepted}
                         
-                        logger.info(f"[VendorAnalysisTool] ✓ Strategy filtering: {len(filtered_vendors)} accepted, {len(excluded_vendors)} excluded")
-                        logger.info(f"[VendorAnalysisTool] ✓ Prioritized vendor order: {filtered_vendors[:5]}...")
+                        logger.info(f"[VendorAnalysisTool] Strategy filtering: {len(filtered_vendors)} accepted, {len(excluded_vendors)} excluded")
+                        logger.info(f"[VendorAnalysisTool] Prioritized vendor order: {filtered_vendors[:5]}...")
                         
                         # Log excluded vendors
                         for ex in excluded_vendors:
-                            logger.info(f"[VendorAnalysisTool] ✗ Excluded: {ex['vendor']} - {ex['reason']}")
+                            logger.info(f"[VendorAnalysisTool] Excluded: {ex['vendor']} - {ex['reason']}")
                     else:
-                        logger.warning("[VendorAnalysisTool] ⚠ No vendors passed strategy filter - using original list")
-                        print("\n" + "="*70)
-                        print("🟠 [STRATEGY RAG] WARNING: No vendors passed filter")
-                        print("="*70 + "\n")
+                        logger.warning("[VendorAnalysisTool] No vendors passed strategy filter - using original list")
+                        logger.warning("="*70)
+                        logger.warning("[STRATEGY RAG] No vendors passed filter")
+                        logger.warning("="*70)
                         filtered_vendors = vendors
                 else:
-                    logger.warning(f"[VendorAnalysisTool] ⚠ Strategy RAG returned no results: {strategy_context.get('error', 'Unknown')}")
-                    print("\n" + "="*70)
-                    print(f"🟠 [STRATEGY RAG] NO RESULTS: {strategy_context.get('error', 'Unknown')}")
-                    print("="*70 + "\n")
+                    logger.warning(f"[VendorAnalysisTool] Strategy RAG returned no results: {strategy_context.get('error', 'Unknown')}")
+                    logger.warning("="*70)
+                    logger.warning(f"[STRATEGY RAG] NO RESULTS: {strategy_context.get('error', 'Unknown')}")
+                    logger.warning("="*70)
                     
             except Exception as strategy_error:
                 logger.warning(f"[VendorAnalysisTool] ⚠ Strategy RAG failed (proceeding without): {strategy_error}")
-                print("\n" + "="*70)
-                print(f"🟠 [STRATEGY RAG] ERROR: {strategy_error}")
-                print("="*70 + "\n")
+                logger.error("="*70)
+                logger.error(f"[STRATEGY RAG] ERROR: {strategy_error}")
+                logger.error("="*70)
                 filtered_vendors = vendors
             
             # Store strategy context in result for downstream use
@@ -330,7 +331,7 @@ class VendorAnalysisTool:
                 logger.info("[VendorAnalysisTool]   - %s: %d product entries (priority: %d)", v, product_count, priority)
 
             if not products_data:
-                logger.warning("[VendorAnalysisTool] ⚠️ NO PRODUCT DATA LOADED")
+                logger.warning("[VendorAnalysisTool] NO PRODUCT DATA LOADED")
                 result['success'] = True
                 result['vendor_matches'] = []
                 result['vendor_run_details'] = []
@@ -385,7 +386,7 @@ class VendorAnalysisTool:
                            v, content_len, products_count, models_count, submodels_count, specs_count)
 
             if not vendor_payloads:
-                logger.warning("[VendorAnalysisTool] ⚠️ NO VALID VENDOR PAYLOADS")
+                logger.warning("[VendorAnalysisTool] NO VALID VENDOR PAYLOADS")
                 result['success'] = True
                 result['vendor_matches'] = []
                 result['vendor_run_details'] = []
@@ -537,13 +538,19 @@ class VendorAnalysisTool:
                     if value:
                         lines.append(f"- {key}: {value}")
 
-        # Handle flat structure
+        # FIX: Return structured guidance that instructs LLM to still return JSON
         if not lines:
-            for key, value in requirements.items():
-                if value and key not in ['productType', 'product_type', 'schema']:
-                    lines.append(f"- {self._format_field_name(key)}: {value}")
+            return """## Requirements Summary
+No specific mandatory or optional requirements have been provided for this product search.
 
-        return "\n".join(lines) if lines else "No specific requirements provided"
+## Analysis Instruction
+Analyze available products and return JSON with general recommendations based on:
+- Standard industrial specifications and certifications
+- Product feature completeness and quality
+- Typical use case suitability for this product type
+- Provide match_score based on product quality (use 85-95 range for well-documented, certified products)"""
+        
+        return "\n".join(lines)
 
     def _format_field_name(self, field: str) -> str:
         """Convert camelCase or snake_case to Title Case."""
@@ -609,16 +616,19 @@ class VendorAnalysisTool:
                     components['vendor_format_instructions']
                 )
 
-                # Convert to dict if needed
-                from chaining import to_dict_if_pydantic
+                # Convert to dict if needed and parse for robust handling
+                from chaining import to_dict_if_pydantic, parse_vendor_analysis_response
                 result = to_dict_if_pydantic(result)
+                
+                # FIX: Handle malformed responses (missing vendor_matches wrapper)
+                result = parse_vendor_analysis_response(result, vendor)
 
                 logger.info("[VendorAnalysisTool] END analysis for vendor: %s (success)", vendor)
                 return result, None
 
             except Exception as e:
                 error_msg = str(e)
-                is_rate_limit = any(x in error_msg.lower() for x in ['429', 'resource has been exhausted', 'quota'])
+                is_rate_limit = any(x in error_msg.lower() for x in ['429', 'resource has been exhausted', 'quota', '503', 'overloaded'])
 
                 if is_rate_limit and attempt < self.max_retries - 1:
                     wait_time = base_retry_delay * (2 ** attempt)

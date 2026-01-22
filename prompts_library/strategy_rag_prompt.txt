@@ -1,6 +1,6 @@
 PROMPT NAME: STRATEGY_RAG_PROMPT
 SOURCE FILE: backend/agentic/rag_components.py
-PURPOSE: Extracts procurement strategy (preferred/forbidden vendors, priorities)
+PURPOSE: Extracts procurement strategy information from RAG context
 
 === PROMPT CONTENT ===
 
@@ -31,5 +31,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- product_type: Product type being searched
-- requirements: User requirements (JSON)
+- product_type: Type of product being queried
+- requirements: User requirements dictionary

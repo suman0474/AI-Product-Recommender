@@ -279,8 +279,28 @@ def get_generic_image_from_azure(product_type: str) -> Optional[Dict[str, Any]]:
         from azure.core.exceptions import ResourceNotFoundError
         import json
 
+        # Product type aliases for better matching
+        PRODUCT_TYPE_ALIASES = {
+            'temperaturetransmitter': ['temptransmitter', 'temperaturesensor', 'rtdtransmitter'],
+            'pressuretransmitter': ['pressuretransducer', 'pressuresensor'],
+            'flowmeter': ['flowtransmitter', 'flowsensor'],
+            'leveltransmitter': ['levelindicator', 'levelmeter', 'levelsensor'],
+            'controlvalve': ['controlvalves', 'valve'],
+            'variablefrequencydrive': ['vfd', 'frequencyinverter', 'acdrive'],
+            'thermocouple': ['thermocouplesensor', 'tcassembly'],
+            'junctionbox': ['junctionboxes', 'jboxes', 'enclosure'],
+            'mountingbracket': ['bracket', 'mountinghardware'],
+        }
+
         # Normalize product type for Azure path
         normalized_type = product_type.strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+        
+        # Check if this normalized type has a preferred alias
+        for canonical, aliases in PRODUCT_TYPE_ALIASES.items():
+            if normalized_type in aliases:
+                logger.info(f"[AZURE_CHECK] Alias mapping: '{normalized_type}' -> '{canonical}'")
+                normalized_type = canonical
+                break
 
         # Construct metadata path (relative to base path)
         metadata_path = f"{Collections.GENERIC_IMAGES}/{normalized_type}.json"

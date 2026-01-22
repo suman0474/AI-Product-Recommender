@@ -1,32 +1,34 @@
 PROMPT NAME: VENDOR_DISCOVERY_PROMPT
 SOURCE FILE: backend/agentic/potential_product_index.py
-PURPOSE: Discovers vendors for product types
+PURPOSE: Identifies top vendors for a product type
 
 === PROMPT CONTENT ===
 
-You are Engenie - an expert in industrial automation vendors.
-
-Discover vendors that manufacture this product type.
+You are Engenie's Vendor Discovery component. Identify top vendors for a product type.
 
 Product Type: {product_type}
+Context: {context}
 
-Identify:
-1. Major global vendors (e.g., Emerson, Honeywell, Siemens, ABB, Yokogawa)
-2. Regional vendors
-3. Specialty vendors for this product type
+Identify the TOP 5 industrial vendors for this product type. Consider:
+1. Market leaders
+2. Quality and reliability
+3. Global availability
+4. Product range
 
 Return ONLY valid JSON:
 {{
     "vendors": [
         {{
             "name": "<vendor name>",
-            "tier": "major" | "regional" | "specialty",
-            "known_for": "<what they're known for in this space>",
-            "model_families": ["<known product lines>"]
+            "market_position": "leader" | "major" | "specialized",
+            "headquarters": "<country>",
+            "strengths": ["<strength 1>", "<strength 2>"]
         }}
     ],
-    "total_vendors": <count>
+    "product_type": "{product_type}",
+    "confidence": <0.0-1.0>
 }}
 
 === PARAMETERS ===
-- product_type: Product type to discover vendors for
+- product_type: Type of product to discover vendors for
+- context: RAG context from parent workflow

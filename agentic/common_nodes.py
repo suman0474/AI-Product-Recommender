@@ -22,6 +22,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import AgenticConfig
 
+# Import global executor manager for bounded thread pool
+from agentic.global_executor_manager import get_global_executor
+
 from tools.intent_tools import classify_intent_tool, extract_requirements_tool
 from tools.instrument_tools import identify_instruments_tool, identify_accessories_tool
 from tools.schema_tools import load_schema_tool, validate_requirements_tool
@@ -706,93 +709,95 @@ def parallel_vendor_analysis_node(
         # Phase 1: Search for PDFs and images in parallel (if enabled)
         vendor_data = {}
         if include_pdf_search or include_image_search:
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = {}
-
-                for vendor in vendors:
-                    if include_pdf_search:
-                        # Search for PDF datasheets
-                        pdf_future = executor.submit(
-                            search_pdf_datasheets_tool.invoke,
-                            {
-                                "vendor": vendor,
-                                "product_type": product_type,
-                                "model_family": None
-                            }
-                        )
-                        futures[pdf_future] = ("pdf", vendor)
-
-                    if include_image_search:
-                        # Search for product images
-                        img_future = executor.submit(
-                            search_product_images_tool.invoke,
-                            {
-                                "vendor": vendor,
-                                "product_name": product_type,
-                                "product_type": product_type
-                            }
-                        )
-                        futures[img_future] = ("image", vendor)
-
-                # Collect PDF and image results (thread-safe) with timeout
-                for future in as_completed(futures, timeout=AgenticConfig.PARALLEL_ANALYSIS_TIMEOUT):
-                    result_type, vendor = futures[future]
-                    try:
-                        result = future.result(timeout=AgenticConfig.DEFAULT_TIMEOUT)
-                        if vendor not in vendor_data:
-                            vendor_data[vendor] = {"vendor": vendor}
-
-                        if result_type == "pdf" and result.get("success"):
-                            vendor_data[vendor]["pdf_url"] = result.get("pdf_urls", [None])[0]
-                        elif result_type == "image" and result.get("success"):
-                            vendor_data[vendor]["image_url"] = result.get("images", [None])[0]
-                    except TimeoutError:
-                        logger.error(f"Search timeout for {vendor}")
-                        vendor_data_collector.add_error(TimeoutError("Search timeout"), {"vendor": vendor, "type": result_type})
-                    except Exception as e:
-                        logger.error(f"Search failed for {vendor}: {e}")
-                        vendor_data_collector.add_error(e, {"vendor": vendor, "type": result_type})
-
-        # Phase 2: Analyze each vendor in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            analyze_futures = {}
+            # Use global executor for bounded thread pool (max 16 workers globally)
+            executor = get_global_executor()
+            futures = {}
 
             for vendor in vendors:
-                analyze_futures[executor.submit(
-                    analyze_vendor_match_tool.invoke,
-                    {
-                        "vendor": vendor,
-                        "requirements": requirements,
-                        "pdf_content": None,
-                        "product_data": vendor_data.get(vendor, {})
-                    }
-                )] = vendor
-
-            for future in as_completed(analyze_futures, timeout=AgenticConfig.PARALLEL_ANALYSIS_TIMEOUT):
-                vendor = analyze_futures[future]
-                try:
-                    result = future.result(timeout=AgenticConfig.LONG_TIMEOUT)
-                    if result.get("success"):
-                        analysis_result = {
+                if include_pdf_search:
+                    # Search for PDF datasheets
+                    pdf_future = executor.submit(
+                        search_pdf_datasheets_tool.invoke,
+                        {
                             "vendor": vendor,
-                            "product_name": result.get("product_name", ""),
-                            "model_family": result.get("model_family", ""),
-                            "match_score": result.get("match_score", 0),
-                            "requirements_match": result.get("requirements_match", False),
-                            "matched_requirements": result.get("matched_requirements", {}),
-                            "unmatched_requirements": result.get("unmatched_requirements", []),
-                            "reasoning": result.get("reasoning", ""),
-                            "limitations": result.get("limitations"),
-                            "pdf_source": vendor_data.get(vendor, {}).get("pdf_url"),
-                            "image_url": vendor_data.get(vendor, {}).get("image_url")
+                            "product_type": product_type,
+                            "model_family": None
                         }
-                        analysis_collector.add_result(analysis_result)
+                    )
+                    futures[pdf_future] = ("pdf", vendor)
+
+                if include_image_search:
+                    # Search for product images
+                    img_future = executor.submit(
+                        search_product_images_tool.invoke,
+                        {
+                            "vendor": vendor,
+                            "product_name": product_type,
+                            "product_type": product_type
+                        }
+                    )
+                    futures[img_future] = ("image", vendor)
+
+            # Collect PDF and image results (thread-safe) with timeout
+            for future in as_completed(futures, timeout=AgenticConfig.PARALLEL_ANALYSIS_TIMEOUT):
+                result_type, vendor = futures[future]
+                try:
+                    result = future.result(timeout=AgenticConfig.DEFAULT_TIMEOUT)
+                    if vendor not in vendor_data:
+                        vendor_data[vendor] = {"vendor": vendor}
+
+                    if result_type == "pdf" and result.get("success"):
+                        vendor_data[vendor]["pdf_url"] = result.get("pdf_urls", [None])[0]
+                    elif result_type == "image" and result.get("success"):
+                        vendor_data[vendor]["image_url"] = result.get("images", [None])[0]
                 except TimeoutError:
-                    logger.error(f"Analysis timeout for {vendor}")
-                    analysis_collector.add_error(TimeoutError("Analysis timeout"), {"vendor": vendor})
+                    logger.error(f"Search timeout for {vendor}")
+                    vendor_data_collector.add_error(TimeoutError("Search timeout"), {"vendor": vendor, "type": result_type})
                 except Exception as e:
-                    logger.error(f"Analysis failed for {vendor}: {e}")
-                    analysis_collector.add_error(e, {"vendor": vendor})
+                    logger.error(f"Search failed for {vendor}: {e}")
+                    vendor_data_collector.add_error(e, {"vendor": vendor, "type": result_type})
+
+        # Phase 2: Analyze each vendor in parallel
+        # Use global executor for bounded thread pool (max 16 workers globally)
+        executor = get_global_executor()
+        analyze_futures = {}
+
+        for vendor in vendors:
+            analyze_futures[executor.submit(
+                analyze_vendor_match_tool.invoke,
+                {
+                    "vendor": vendor,
+                    "requirements": requirements,
+                    "pdf_content": None,
+                    "product_data": vendor_data.get(vendor, {})
+                }
+            )] = vendor
+
+        for future in as_completed(analyze_futures, timeout=AgenticConfig.PARALLEL_ANALYSIS_TIMEOUT):
+            vendor = analyze_futures[future]
+            try:
+                result = future.result(timeout=AgenticConfig.LONG_TIMEOUT)
+                if result.get("success"):
+                    analysis_result = {
+                        "vendor": vendor,
+                        "product_name": result.get("product_name", ""),
+                        "model_family": result.get("model_family", ""),
+                        "match_score": result.get("match_score", 0),
+                        "requirements_match": result.get("requirements_match", False),
+                        "matched_requirements": result.get("matched_requirements", {}),
+                        "unmatched_requirements": result.get("unmatched_requirements", []),
+                        "reasoning": result.get("reasoning", ""),
+                        "limitations": result.get("limitations"),
+                        "pdf_source": vendor_data.get(vendor, {}).get("pdf_url"),
+                        "image_url": vendor_data.get(vendor, {}).get("image_url")
+                    }
+                    analysis_collector.add_result(analysis_result)
+            except TimeoutError:
+                logger.error(f"Analysis timeout for {vendor}")
+                analysis_collector.add_error(TimeoutError("Analysis timeout"), {"vendor": vendor})
+            except Exception as e:
+                logger.error(f"Analysis failed for {vendor}: {e}")
+                analysis_collector.add_error(e, {"vendor": vendor})
 
         # Get thread-safe results
         analysis_results = analysis_collector.get_results()

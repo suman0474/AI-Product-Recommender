@@ -20,6 +20,7 @@ from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from pydantic import BaseModel, Field
 
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -106,137 +107,20 @@ class SalesAgentResponseInput(BaseModel):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-INTENT_CLASSIFIER_PROMPT = """
-You are Engenie - an intelligent assistant for industrial product procurement.
+INTENT_CLASSIFIER_PROMPT = load_prompt("sales_workflow_intent_classifier_prompt")
 
-Analyze the user's input and determine their intent within the workflow context.
+GREETING_PROMPT = load_prompt("sales_workflow_greeting_prompt")
 
-Current workflow step: {current_step}
-Current intent: {current_intent}
-User Input: "{user_input}"
+REQUIREMENTS_EXTRACTION_PROMPT = load_prompt("sales_workflow_requirements_extraction_prompt")
 
-**Intent Categories:**
-1. "greeting" - Simple greeting (hi, hello, hey)
-2. "productRequirements" - Technical specs or product requests
-3. "knowledgeQuestion" - Questions about industrial topics
-4. "confirm" - User confirms (yes, proceed, continue, ok)
-5. "reject" - User rejects (no, cancel, stop)
-6. "chitchat" - Casual conversation
-7. "other" - Unclassified
+MERGE_REQUIREMENTS_PROMPT = load_prompt("merge_requirements_prompt")
 
-Return ONLY valid JSON:
-{{
-    "intent": "<intent_type>",
-    "nextStep": "<suggested_next_workflow_step or null>",
-    "resumeWorkflow": <true if should resume after handling, false otherwise>,
-    "confidence": <0.0-1.0>
-}}
-"""
+PARAMETER_SELECTION_PROMPT = load_prompt("parameter_selection_prompt")
 
-GREETING_PROMPT = """
-You are Engenie - a professional, warm, and helpful AI sales agent for industrial automation.
-
-Generate a brief, welcoming greeting for a new customer session.
-Session ID: {search_session_id}
-
-Keep it:
-- Professional but friendly
-- Brief (1-2 sentences)
-- Inviting them to describe what they're looking for
-
-Do NOT use bullet points or lists in greeting. Keep it conversational.
-"""
-
-REQUIREMENTS_EXTRACTION_PROMPT = """
-Extract the product type and detailed specifications from this user input.
-
-User Input: "{user_input}"
-{product_type_hint}
-
-Focus on:
-- Product type (pressure transmitter, flow meter, level sensor, etc.)
-- Technical specifications (pressure range, accuracy, output signal, etc.)
-- Connection types (NPT, flanged, etc.)
-- Environmental requirements (temperature, hazardous area, etc.)
-- Certifications (ATEX, SIL, FM, etc.)
-
-Return ONLY valid JSON:
-{{
-    "product_type": "<detected product type>",
-    "specifications": {{
-        "<spec_name>": "<spec_value>"
-    }},
-    "missing_mandatory": ["<list of commonly required specs not provided>"],
-    "confidence": <0.0-1.0>
-}}
-"""
-
-MERGE_REQUIREMENTS_PROMPT = """
-Extract NEW specifications from this user input for a {product_type}.
-
-User Input: "{user_input}"
-
-Existing Requirements:
-{existing_requirements}
-
-Only include specifications that are NEW or UPDATED from this specific message.
-
-Return ONLY valid JSON:
-{{
-    "new_requirements": {{
-        "<spec_name>": "<spec_value>"
-    }},
-    "merged_requirements": {{
-        "<complete spec_name>": "<spec_value including existing and new>"
-    }},
-    "summary": "<brief description of what was added/changed>"
-}}
-"""
-
-PARAMETER_SELECTION_PROMPT = """
-Match the user's selections against available parameters for a {product_type}.
-
-Available Parameters:
-{available_parameters}
-
-User Input: "{user_input}"
-
-Identify which parameters the user is selecting and their values.
-
-Return ONLY valid JSON:
-{{
-    "selected_parameters": {{
-        "<param_name>": "<user_specified_value>"
-    }},
-    "unmatched_input": ["<any input that didn't match available params>"]
-}}
-"""
-
-SUMMARY_GENERATION_PROMPT = """
-Generate a clear, professional requirements summary.
-
-Product Type: {product_type}
-
-Core Requirements:
-{provided_requirements}
-
-Additional Specifications:
-{additional_params}
-
-Advanced Parameters:
-{advanced_params}
-
-Format the summary with:
-1. Product type header
-2. Key specifications (bullet points)
-3. Optional specifications (if any)
-4. Ask for confirmation to proceed
-
-Keep it professional and concise.
-"""
+SUMMARY_GENERATION_PROMPT = load_prompt("summary_generation_prompt")
 
 SALES_RESPONSE_PROMPTS = {
     "greeting": """

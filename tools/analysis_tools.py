@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 import os
 from dotenv import load_dotenv
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -43,164 +44,12 @@ class ExtractSpecificationsInput(BaseModel):
 
 
 # ============================================================================
-# PROMPTS
+# PROMPTS - Loaded from prompts_library
 # ============================================================================
 
-VENDOR_ANALYSIS_PROMPT = """
-You are Engenie - a meticulous procurement and technical matching expert.
-Your task is to analyze user requirements against vendor product documentation.
+VENDOR_ANALYSIS_PROMPT = load_prompt("analysis_tool_vendor_analysis_prompt")
 
-**IMPORTANT: Think step-by-step through your analysis process.**
-
-Before providing your final matching results:
-1. First, identify and list all mandatory and optional requirements from the user input
-2. Then, systematically check each requirement against the available documentation
-3. Explain your reasoning for each match or mismatch with specific references
-4. Finally, calculate an overall match score based on your findings
-
-**CRITICAL: Model Family vs Product Name**
-
-You MUST provide BOTH fields for every product match:
-
-**1. product_name** = The EXACT model you are recommending (e.g., "STD850", "3051CD", "EJA118A")
-
-**2. model_family** = The BASE series without variant suffixes (e.g., "STD800", "3051C", "EJA110")
-
-**Simple Extraction Rules:**
-
-**Rule 1: Remove the last 1-2 digits/letters from the model number**
-- STD850 → STD800 (remove "50")
-- STT850 → STT800 (remove "50")
-- 3051CD → 3051C (remove "D")
-- EJA118A → EJA110 (remove "8A")
-
-**Rule 2: For compound names, keep only the main identifier**
-- "SITRANS P DS III" → "SITRANS P" (remove variant "DS III")
-- "Rosemount 3051CD" → "Rosemount 3051C" (remove variant "D")
-
-**If unsure:** Use the product documentation's "series" or "family" name.
-
----
-
-**Vendor:** {vendor}
-
-**User Requirements:**
-{requirements}
-
-**Product Documentation (PDF Content):**
-{pdf_content}
-
-**Product Data (JSON):**
-{product_data}
-
----
-
-## Matching System
-
-**Tier 1: Mandatory & Optional Specifications (From PDF)**
-This is the primary tier and relies on the presence of a PDF document.
-
-*Scenario A: Model Selection Guide EXISTS*
-- Source: The main PDF document
-- Logic:
-  - Any specification listed within the Model Selection Guide is considered CRITICAL
-  - All other specifications found in the rest of the PDF are considered OPTIONAL/SECONDARY
-- Analysis Output: Parameter-by-parameter breakdown
-
-*Scenario B: Model Selection Guide is MISSING*
-- Source: The main PDF document
-- Logic: Intelligently identify which specifications are mandatory/critical versus optional
-  - Specifications essential for basic operation, safety, or core functionality are CRITICAL
-  - Specifications that enhance performance or provide customization are OPTIONAL
-  - Look for contextual clues: required vs available options, standard vs optional features
-- Analysis Output: Parameter-by-parameter breakdown with reasoning
-
-**Tier 2: Optional Specifications (Other Document Specs)**
-Only applicable under Tier 1's "Scenario A" (when Model Selection Guide exists).
-- Source: Specs in PDF not in Model Selection Guide
-- Logic: All requirements matching specifications are automatically OPTIONAL/SECONDARY
-
-**Tier 3: Fallback to JSON Product Summary**
-Used only when no PDF document can be found.
-- Source: The JSON product summary file
-- Logic: Match against all available JSON data
-  - CRITICAL if parameter is fundamental to product's core function
-  - Otherwise OPTIONAL
-- Analysis Output: Same parameter-by-parameter analysis as with PDFs
-
-## Parameter-Level Analysis Requirements
-
-For each parameter (mandatory or optional):
-1. Show **Parameter Name** (User Requirement)
-2. Show **Product Specification with source reference (PDF field or JSON field)**
-3. Provide a **single holistic explanation paragraph** that:
-  - Explains why the user requirement **matches** the product specification
-  - Justifies the match using **datasheet or JSON evidence**
-  - Describes how this requirement contributes to **overall suitability**
-  - Mentions interactions with **other parameters** if relevant
-  - Avoid breaking into subpoints; keep it integrated
-
-**IMPORTANT - Empty Data Handling:**
-- If BOTH PDF and JSON sources are empty or contain no valid product data, respond with:
-  {{"vendor_matches": [], "error": "No valid product data available for analysis"}}
-
-Return ONLY valid JSON:
-{{
-    "vendor": "{vendor}",
-    "product_name": "<specific product model>",
-    "model_family": "<product series/family>",
-    "match_score": <0-100>,
-    "requirements_match": <true if all mandatory requirements met>,
-    "matched_requirements": {{
-        "<requirement>": {{
-            "user_value": "<what user requested>",
-            "product_value": "<what product offers>",
-            "status": "MATCHED|PARTIAL|UNMATCHED",
-            "is_critical": <true|false>,
-            "explanation": "<detailed holistic explanation>",
-            "source_reference": "<PDF page/section or JSON field>"
-        }}
-    }},
-    "unmatched_requirements": ["<list of unmatched requirements>"],
-    "reasoning": "<overall reasoning for the match>",
-    "limitations": "<any limitations or concerns>",
-    "key_strengths": ["<list of key strengths>"]
-}}
-"""
-
-SPEC_EXTRACTION_PROMPT = """
-You are Engenie - an expert in industrial instrumentation datasheets.
-Extract all technical specifications from this PDF content.
-
-Product Type: {product_type}
-
-PDF Content:
-{pdf_content}
-
-Extract:
-- Model numbers and variants
-- Measurement ranges
-- Accuracy specifications
-- Output signals and protocols
-- Materials (wetted parts, housing)
-- Process connections
-- Environmental ratings
-- Certifications
-
-Return ONLY valid JSON:
-{{
-    "product_name": "<main product model>",
-    "model_family": "<product series>",
-    "specifications": {{
-        "<spec_name>": "<spec_value>"
-    }},
-    "available_options": {{
-        "<option_category>": ["<available options>"]
-    }},
-    "certifications": ["<list of certifications>"],
-    "key_features": ["<list of key features>"]
-}}
-"""
+SPEC_EXTRACTION_PROMPT = load_prompt("spec_extraction_prompt")
 
 
 # ============================================================================

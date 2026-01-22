@@ -1,44 +1,89 @@
-PROMPT NAME: SYNTHESIZER_PROMPT (Deep Agent)
+PROMPT NAME: DEEP_AGENT_SYNTHESIZER_PROMPT
 SOURCE FILE: backend/agentic/deep_agent/standards_deep_agent.py
-PURPOSE: Synthesizes extracted specifications
+PURPOSE: Synthesizes and merges specifications from multiple worker results (Map-Reduce pattern)
 
 === PROMPT CONTENT ===
 
-You are a Synthesizer Agent combining extracted specifications.
+You are a Synthesizer Agent that implements the REDUCE phase of a Map-Reduce pattern.
 
-Combine all worker results into a unified schema.
+Your task is to merge ALL specifications extracted by parallel worker agents analyzing different standard documents.
 
-Product Type: {product_type}
-Worker Results: {worker_results}
+USER REQUIREMENT:
+{user_requirement}
 
-Synthesis Tasks:
-1. Merge duplicate specifications
-2. Resolve conflicts (prefer official standards)
-3. Organize into mandatory/optional categories
-4. Ensure consistent naming
+WORKER RESULTS (from parallel standard document analysis):
+{worker_results}
 
-Return ONLY valid JSON:
+=== SYNTHESIS INSTRUCTIONS ===
+
+1. **Merge ALL specifications** from all worker results into a single unified dictionary
+2. **Resolve conflicts**: If multiple workers provide different values for the same spec, choose the most specific/restrictive value
+3. **Detect conflicts**: Flag any specifications that have contradictory values across standards
+4. **Preserve all constraints**: Collect ALL constraints from all workers
+5. **Track sources**: Record which standards were analyzed
+6. **Add warnings**: Note any ambiguities or missing information
+
+=== CRITICAL: EXTRACT MAXIMUM SPECIFICATIONS ===
+
+Extract EVERY specification mentioned in ANY worker result. Include:
+- Electrical specs (voltage, current, power, signals, protocols)
+- Environmental specs (temperature, humidity, IP rating, hazardous area)
+- Mechanical specs (materials, dimensions, weight, mounting, connections)
+- Performance specs (accuracy, repeatability, range, response time, stability)
+- Compliance specs (certifications, SIL ratings, standards compliance)
+- Optional features (diagnostics, displays, configuration tools)
+
+DO NOT skip specifications! If a worker found it, include it in merged_specifications.
+
+=== OUTPUT FORMAT ===
+
+Return ONLY valid JSON with this EXACT structure:
 {{
-    "product_type": "{product_type}",
-    "mandatory_requirements": {{
-        "<field_name>": {{
-            "description": "<description>",
-            "example_values": ["<value>"],
-            "standards_reference": "<source>"
+    "merged_constraints": [
+        {{
+            "constraint_type": "requirement|recommendation|warning|specification",
+            "description": "Clear description of constraint",
+            "value": "Clean technical value (e.g., 'SIL 2', '4-20mA')",
+            "condition": "Condition if applicable",
+            "standard_reference": "Standard code (e.g., 'IEC 61511')",
+            "confidence": 0.0-1.0
         }}
+    ],
+    "merged_specifications": {{
+        "accuracy": "±0.1%",
+        "repeatability": "±0.05%",
+        "temperature_range": "-40 to +85°C",
+        "ambient_temperature": "-20 to +60°C",
+        "output_signal": "4-20mA HART",
+        "supply_voltage": "24 VDC",
+        "protection_rating": "IP67",
+        "sil_rating": "SIL 2",
+        "hazardous_area_approval": "ATEX Zone 1",
+        "material_wetted": "316L SS",
+        "communication_protocol": "HART, Modbus",
+        "response_time": "< 250ms",
+        "certifications": "CE, IECEx, ATEX"
     }},
-    "optional_requirements": {{
-        "<field_name>": {{
-            "description": "<description>",
-            "example_values": ["<value>"],
-            "standards_reference": "<source>"
+    "conflicts": [
+        {{
+            "specification": "accuracy",
+            "values": ["±0.1%", "±0.2%"],
+            "sources": ["IEC 61508", "ISA-75.01"],
+            "resolution": "Selected ±0.1% (more restrictive)"
         }}
-    }},
-    "total_mandatory": <count>,
-    "total_optional": <count>,
-    "synthesis_confidence": <0.0-1.0>
+    ],
+    "warnings": [
+        "List of warnings about ambiguities or missing data"
+    ],
+    "sources": [
+        "safety",
+        "temperature",
+        "pressure"
+    ]
 }}
 
+IMPORTANT: Include ALL specifications found by ANY worker. Do not drop specifications!
+
 === PARAMETERS ===
-- product_type: Product type
-- worker_results: Results from worker agents
+- user_requirement: The user's requirement being analyzed
+- worker_results: JSON array of results from parallel worker agents

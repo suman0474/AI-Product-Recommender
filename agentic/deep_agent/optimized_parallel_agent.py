@@ -27,6 +27,10 @@ from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
 
 from llm_fallback import create_llm_with_fallback
+from prompts_library import load_prompt
+
+# Import global executor manager for bounded thread pool
+from agentic.global_executor_manager import get_global_executor
 
 # Local imports
 from .memory import (
@@ -42,16 +46,19 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# SHARED LLM INSTANCE (SINGLETON)
+# SHARED LLM INSTANCE (SINGLETON) - MANAGED
 # =============================================================================
 
-_shared_llm = None
+from agentic.langchain_context_managers import LangChainLLMClientManager
+from agentic.context_managers import GlobalResourceRegistry
+
+_llm_manager: Optional[LangChainLLMClientManager] = None
 _llm_lock = threading.Lock()
 
 
 def get_shared_llm(temperature: float = 0.1, model: str = "gemini-2.5-flash"):
     """
-    Get or create a shared LLM instance.
+    Get or create a shared LLM instance with resource tracking.
     
     This avoids the overhead of creating new LLM instances for each call.
     The LLM is initialized ONCE and reused across all operations.
@@ -60,27 +67,42 @@ def get_shared_llm(temperature: float = 0.1, model: str = "gemini-2.5-flash"):
     - Saves ~1.5s per call (no test call overhead)
     - Reduces memory usage
     - Maintains consistent temperature/model settings
+    - Automatic resource tracking and metric collection
     """
-    global _shared_llm
+    global _llm_manager
     
     with _llm_lock:
-        if _shared_llm is None:
-            logger.info("[SHARED_LLM] Creating shared LLM instance (first time)...")
-            _shared_llm = create_llm_with_fallback(
-                model=model,
-                temperature=temperature,
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-                skip_test=True  # Skip test call - saves ~1.5s
+        if _llm_manager is None:
+            logger.info("[SHARED_LLM] Creating shared managed LLM instance (first time)...")
+            # Use managed context manager
+            _llm_manager = LangChainLLMClientManager(
+                model_name=model,
+                max_retries=3,
+                timeout_seconds=150
             )
-            logger.info("[SHARED_LLM] Shared LLM instance created successfully")
-        return _shared_llm
+            # Initialize it
+            _llm_manager.__enter__()
+            logger.info("[SHARED_LLM] Shared managed LLM instance created successfully")
+            
+        # Ensure it's active
+        if not _llm_manager._is_active:
+             _llm_manager.__enter__()
+             
+        # Create a proxy or return the inner client?
+        # LangChainLLMClientManager wraps the client in .llm_client
+        # But existing code expects an LLM object with .invoke()
+        
+        # We return the inner client, but keep the manager alive
+        return _llm_manager.llm_client
 
 
 def reset_shared_llm():
     """Reset the shared LLM instance (useful for testing or config changes)."""
-    global _shared_llm
+    global _llm_manager
     with _llm_lock:
-        _shared_llm = None
+        if _llm_manager:
+            _llm_manager.__exit__(None, None, None)
+            _llm_manager = None
         logger.info("[SHARED_LLM] Shared LLM instance reset")
 
 
@@ -88,33 +110,7 @@ def reset_shared_llm():
 # USER SPECS EXTRACTION (Uses Shared LLM)
 # =============================================================================
 
-USER_SPECS_PROMPT = """
-You are a specification extractor. Extract ONLY explicitly stated specifications.
-
-CRITICAL: Extract ONLY what is explicitly stated - do NOT infer or assume anything.
-
-USER INPUT:
-{user_input}
-
-PRODUCT TYPE: {product_type}
-
-STANDARD SPECIFICATION KEYS TO USE:
-- accuracy, pressure_range, temperature_range, process_temperature
-- output_signal, supply_voltage, protection_rating
-- hazardous_area_approval, sil_rating
-- material_wetted, material_housing, process_connection
-- response_time, communication_protocol, flow_range, level_range, display, mounting
-
-Return ONLY valid JSON:
-{{
-    "extracted_specifications": {{
-        "specification_key": "exact value from user input"
-    }},
-    "confidence": 0.0-1.0
-}}
-
-Return empty specifications object if nothing is explicitly mentioned.
-"""
+USER_SPECS_PROMPT = load_prompt("user_specs_prompt")
 
 
 def extract_user_specs_with_shared_llm(
@@ -174,92 +170,186 @@ def extract_user_specs_with_shared_llm(
 # LLM SPECS GENERATION (Uses Shared LLM)
 # =============================================================================
 
-LLM_SPECS_PROMPT = """
-You are an industrial instrumentation expert. Generate technical specifications
-for the given product type. Return ONLY clean technical values - NO descriptions.
-
-PRODUCT TYPE: {product_type}
-CATEGORY: {category}
-CONTEXT: {context}
-
-CRITICAL: Return ONLY the technical value. NO explanations, NO descriptions.
-
-Generate these specifications with CLEAN values:
-- accuracy, repeatability, rangeability
-- temperature_range, ambient_temperature, protection_rating, humidity_range
-- output_signal, supply_voltage, power_consumption, communication_protocol
-- material_wetted, material_housing, process_connection, weight
-- sil_rating, hazardous_area_approval, certifications
-- response_time, stability, calibration_interval
-
-Return ONLY valid JSON with FLAT key-value structure:
-{{
-    "specifications": {{
-        "accuracy": {{"value": "±0.1%", "confidence": 0.8}},
-        "output_signal": {{"value": "4-20mA, HART", "confidence": 0.9}}
-    }}
-}}
-"""
+LLM_SPECS_PROMPT = load_prompt("llm_specs_prompt")
 
 
 def generate_llm_specs_with_shared_llm(
     product_type: str,
     category: Optional[str] = None,
     context: Optional[str] = None,
-    llm: Optional[Any] = None
+    llm: Optional[Any] = None,
+    min_specs: int = 30  # Enforce minimum spec count
 ) -> Dict[str, Any]:
     """
-    Generate LLM specs using shared LLM instance.
+    Generate LLM specs using shared LLM instance with ITERATIVE LOOP.
+    
+    FIXED: Now iterates until minimum spec count (30) is reached,
+    matching the behavior of llm_specs_generator.generate_llm_specs().
     
     Args:
         product_type: Product type name
         category: Optional category
         context: Optional context
         llm: Optional LLM instance (uses shared if None)
+        min_specs: Minimum number of specs to generate (default 30)
     
     Returns:
         Dict with generated specifications
     """
     llm = llm or get_shared_llm(temperature=0.3)
+    category_value = category or "Industrial Instrument"
+    context_value = context or "General industrial application"
+    
+    all_specs = {}
+    iteration = 0
+    max_iterations = 5
     
     try:
+        # =====================================================================
+        # ITERATION 1: Initial generation
+        # =====================================================================
+        iteration = 1
+        logger.info(f"[LLM_SPECS_ITER] Iteration {iteration}: Initial generation for {product_type}...")
+        
         prompt = ChatPromptTemplate.from_template(LLM_SPECS_PROMPT)
         parser = JsonOutputParser()
         chain = prompt | llm | parser
         
         result = chain.invoke({
             "product_type": product_type,
-            "category": category or "Industrial Instrument",
-            "context": context or "General industrial application"
+            "category": category_value,
+            "context": context_value
         })
         
         raw_specs = result.get("specifications", {})
+        clean_specs = _clean_and_flatten_specs(raw_specs)
+        all_specs.update(clean_specs)
         
-        # Flatten and clean specs
-        clean_specs = {}
-        for key, value in raw_specs.items():
-            if isinstance(value, dict):
+        logger.info(f"[LLM_SPECS_ITER] Iteration {iteration}: Got {len(clean_specs)} specs, total: {len(all_specs)}")
+        
+        # =====================================================================
+        # ITERATIVE LOOP: Continue until minimum is reached
+        # =====================================================================
+        while len(all_specs) < min_specs and iteration < max_iterations:
+            iteration += 1
+            specs_needed = min_specs - len(all_specs) + 5  # Request a few extra
+            
+            logger.info(f"[LLM_SPECS_ITER] Iteration {iteration}: Need {min_specs - len(all_specs)} more, requesting {specs_needed}...")
+            
+            # Build iterative prompt as plain text (avoid ChatPromptTemplate variable issues)
+            existing_keys = list(all_specs.keys())
+            iterative_prompt_text = f"""You are generating additional specifications for a {product_type}.
+
+Previous specifications already generated:
+{existing_keys}
+
+Generate {specs_needed} NEW and DIFFERENT specifications not in the list above.
+Focus on:
+- Performance specifications (accuracy, repeatability, response time)
+- Environmental specifications (temperature range, humidity, IP rating)
+- Compliance and certifications (SIL, ATEX, CE, UL)
+- Physical specifications (weight, dimensions, materials)
+- Electrical specifications (supply voltage, power consumption, output signal)
+- Process specifications (connection type, wetted materials, pressure rating)
+
+Context: {context_value}
+
+Return ONLY valid JSON with this exact format:
+{{
+    "specifications": {{
+        "new_spec_key": {{"value": "spec_value", "confidence": 0.7}}
+    }}
+}}"""
+            
+            try:
+                # Direct LLM invocation (avoid ChatPromptTemplate variable interpretation)
+                from langchain_core.messages import HumanMessage
+                
+                response = llm.invoke([HumanMessage(content=iterative_prompt_text)])
+                response_text = response.content if hasattr(response, 'content') else str(response)
+                
+                # Parse JSON from response
+                import json
+                import re
+                
+                # Extract JSON from response
+                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                if json_match:
+                    iter_result = json.loads(json_match.group())
+                    iter_specs = iter_result.get("specifications", {})
+                    clean_iter_specs = _clean_and_flatten_specs(iter_specs)
+                    
+                    # Add only new specs
+                    new_count = 0
+                    for key, value in clean_iter_specs.items():
+                        if key not in all_specs:
+                            all_specs[key] = value
+                            new_count += 1
+                    
+                    logger.info(f"[LLM_SPECS_ITER] Iteration {iteration}: Added {new_count} new specs, total: {len(all_specs)}")
+                    
+                    if new_count == 0:
+                        logger.warning(f"[LLM_SPECS_ITER] No new specs in iteration {iteration}, breaking")
+                        break
+                else:
+                    logger.warning(f"[LLM_SPECS_ITER] Iteration {iteration}: No JSON found in response")
+                    break
+                    
+            except Exception as e:
+                logger.error(f"[LLM_SPECS_ITER] Iteration {iteration} failed: {e}")
+                break
+        
+        logger.info(f"[LLM_SPECS_ITER] Completed: {len(all_specs)} specs after {iteration} iterations")
+        
+        return {
+            "specifications": all_specs,
+            "source": "llm_generated",
+            "iterations": iteration,
+            "target_reached": len(all_specs) >= min_specs
+        }
+    
+    except Exception as e:
+        logger.error(f"[LLM_SPECS_ITER] Generation failed for {product_type}: {e}")
+        return {"specifications": {}, "source": "llm_generated", "error": str(e)}
+
+
+def _clean_and_flatten_specs(raw_specs: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Clean and flatten specifications from LLM response.
+    
+    Handles nested structures and filters out N/A values.
+    """
+    clean_specs = {}
+    
+    for key, value in raw_specs.items():
+        # Skip internal/metadata keys
+        if key.startswith('_'):
+            continue
+            
+        if isinstance(value, dict):
+            # Check if it's a spec with value/confidence
+            if 'value' in value:
                 clean_specs[key] = {
                     "value": value.get("value", str(value)),
                     "confidence": value.get("confidence", 0.7)
                 }
             else:
-                clean_specs[key] = {"value": str(value), "confidence": 0.7}
-        
-        # Filter out N/A values
-        clean_specs = {
-            k: v for k, v in clean_specs.items()
-            if v.get("value") and str(v.get("value")).lower() not in ["null", "none", "n/a"]
-        }
-        
-        return {
-            "specifications": clean_specs,
-            "source": "llm_generated"
-        }
+                # Flatten nested dict
+                for nested_key, nested_value in value.items():
+                    if isinstance(nested_value, dict) and 'value' in nested_value:
+                        clean_specs[nested_key] = nested_value
+                    elif nested_value and str(nested_value).lower() not in ["null", "none", "n/a"]:
+                        clean_specs[nested_key] = {"value": str(nested_value), "confidence": 0.7}
+        else:
+            clean_specs[key] = {"value": str(value), "confidence": 0.7}
     
-    except Exception as e:
-        logger.error(f"[LLM_SPECS] Generation failed for {product_type}: {e}")
-        return {"specifications": {}, "source": "llm_generated", "error": str(e)}
+    # Filter out N/A values
+    clean_specs = {
+        k: v for k, v in clean_specs.items()
+        if v.get("value") and str(v.get("value")).lower() not in ["null", "none", "n/a", ""]
+    }
+    
+    return clean_specs
 
 
 # =============================================================================
@@ -460,35 +550,36 @@ def run_optimized_parallel_enrichment(
     # ==========================================================================
     # PHASE 2: Process all products in PARALLEL (user specs + LLM specs)
     # ==========================================================================
-    
+
     phase2_start = time.time()
     user_specs_results = {}
     llm_specs_results = {}
-    
+
     logger.info(f"[OPT_PARALLEL] Phase 2: Processing {len(items)} products in parallel...")
-    
-    with ThreadPoolExecutor(max_workers=max_parallel_products) as executor:
-        future_to_item = {
-            executor.submit(
-                process_single_product,
-                item,
-                user_input,
-                llm
-            ): item
-            for item in items
-        }
-        
-        for future in as_completed(future_to_item):
-            item = future_to_item[future]
-            try:
-                item_name, user_specs, llm_specs = future.result()
-                user_specs_results[item_name] = user_specs
-                llm_specs_results[item_name] = llm_specs
-            except Exception as e:
-                item_name = item.get("name", "Unknown")
-                logger.error(f"[OPT_PARALLEL] Failed for {item_name}: {e}")
-                user_specs_results[item_name] = {}
-                llm_specs_results[item_name] = {}
+
+    # Use global executor for bounded thread pool (max 16 workers globally)
+    executor = get_global_executor()
+    future_to_item = {
+        executor.submit(
+            process_single_product,
+            item,
+            user_input,
+            llm
+        ): item
+        for item in items
+    }
+
+    for future in as_completed(future_to_item):
+        item = future_to_item[future]
+        try:
+            item_name, user_specs, llm_specs = future.result()
+            user_specs_results[item_name] = user_specs
+            llm_specs_results[item_name] = llm_specs
+        except Exception as e:
+            item_name = item.get("name", "Unknown")
+            logger.error(f"[OPT_PARALLEL] Failed for {item_name}: {e}")
+            user_specs_results[item_name] = {}
+            llm_specs_results[item_name] = {}
     
     phase2_time = time.time() - phase2_start
     logger.info(f"[OPT_PARALLEL] Phase 2: All products done in {phase2_time:.2f}s")
@@ -573,16 +664,39 @@ def run_optimized_parallel_enrichment(
         # [FIX #1] Mark as phase3_optimized so validation can skip RAG re-run (saves 2000+ seconds!)
         enriched_item["enrichment_source"] = "phase3_optimized"
         enriched_item["combined_specifications"] = {k: v for k, v in merged_specs.items()}
-        enriched_item["specifications"] = {
-            k: v.get("value", v) if isinstance(v, dict) else v
-            for k, v in merged_specs.items()
-        }
+        
+        # ✅ FIX: Include source labels in specifications output
+        # Format: "value (SOURCE)" for display, e.g., "±0.1% (LLM)" or "SIL 2 (USER)"
+        enriched_item["specifications"] = {}
+        for k, v in merged_specs.items():
+            if isinstance(v, dict):
+                value = v.get("value", v)
+                source = v.get("source", "unknown")
+                # Normalize source name for display
+                source_label = {
+                    "user_specified": "USER",
+                    "standards": "STANDARDS", 
+                    "llm_generated": "LLM"
+                }.get(source, source.upper())
+                enriched_item["specifications"][k] = f"{value} ({source_label})"
+            elif hasattr(v, 'value') and hasattr(v, 'source'):
+                # SpecificationSource dataclass
+                source_label = {
+                    "user_specified": "USER",
+                    "standards": "STANDARDS",
+                    "llm_generated": "LLM"
+                }.get(v.source, v.source.upper())
+                enriched_item["specifications"][k] = f"{v.value} ({source_label})"
+            else:
+                enriched_item["specifications"][k] = str(v)
+        
         enriched_item["standards_info"] = {
             "enrichment_status": "success",
             "sources_used": ["user_specified", "llm_generated", "standards"],
             "user_specs_count": len(user_specs),
             "llm_specs_count": len(llm_specs),
-            "standards_specs_count": len(standards_specs)
+            "standards_specs_count": len(standards_specs),
+            "total_specs_count": len(merged_specs)  # Add total count
         }
         
         enriched_items.append(enriched_item)

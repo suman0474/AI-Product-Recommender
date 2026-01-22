@@ -1,6 +1,6 @@
 PROMPT NAME: QUESTION_CLASSIFICATION_PROMPT
 SOURCE FILE: backend/agentic/grounded_chat_workflow.py
-PURPOSE: Classifies questions for grounded chat workflow
+PURPOSE: Classifies user questions for the grounded chat workflow
 
 === PROMPT CONTENT ===
 
@@ -29,5 +29,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- question: User's question
-- conversation_context: Previous conversation context
+- question: User's question text
+- conversation_context: Previous conversation context for follow-up detection

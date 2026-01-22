@@ -163,14 +163,109 @@ class SchemaCache:
         logger.info(f"[SCHEMA_CACHE] ❌ Cache MISS for {product_type} (will generate)")
         return None
 
-    def set(self, product_type: str, schema: Dict[str, Any], ttl_hours: Optional[int] = None):
+    def _is_schema_valid_for_caching(self, schema: Dict[str, Any]) -> bool:
+        """
+        Validate that a schema has meaningful content before caching.
+
+        A schema is valid for caching if:
+        1. It has specifications/fields populated
+        2. At least some fields have real values (not all "Not specified")
+
+        Args:
+            schema: Schema dictionary to validate
+
+        Returns:
+            True if schema should be cached, False otherwise
+        """
+        if not schema:
+            return False
+
+        # Check for population metadata
+        population_info = schema.get("_deep_agent_population", {})
+        fields_populated = population_info.get("fields_populated", 0)
+        total_fields = population_info.get("total_fields", 0)
+
+        # If we have population metadata, check if enough fields were populated
+        if total_fields > 0:
+            population_rate = fields_populated / total_fields
+            if population_rate < 0.1:  # Less than 10% populated
+                logger.warning(
+                    f"[SCHEMA_CACHE] Rejecting schema - low population rate: "
+                    f"{fields_populated}/{total_fields} ({population_rate:.1%})"
+                )
+                return False
+
+        # Check specification count
+        spec_count = schema.get("specification_count", 0)
+        if spec_count == 0:
+            # Try to count specifications manually
+            specs = schema.get("specifications", {})
+            if isinstance(specs, dict):
+                spec_count = len(specs)
+
+        if spec_count == 0:
+            logger.warning("[SCHEMA_CACHE] Rejecting schema - no specifications found")
+            return False
+
+        # Check for too many "Not specified" values
+        not_specified_count = 0
+        total_values = 0
+
+        def count_not_specified(obj):
+            nonlocal not_specified_count, total_values
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if key.startswith("_"):
+                        continue
+                    if isinstance(value, str):
+                        total_values += 1
+                        if value.lower() in ["not specified", "", "n/a", "none"]:
+                            not_specified_count += 1
+                    elif isinstance(value, dict):
+                        # Check for value field in metadata dict
+                        if "value" in value:
+                            total_values += 1
+                            val = value.get("value", "")
+                            if isinstance(val, str) and val.lower() in ["not specified", "", "n/a", "none"]:
+                                not_specified_count += 1
+                        else:
+                            count_not_specified(value)
+
+        count_not_specified(schema)
+
+        if total_values > 0:
+            not_specified_rate = not_specified_count / total_values
+            if not_specified_rate > 0.9:  # More than 90% "Not specified"
+                logger.warning(
+                    f"[SCHEMA_CACHE] Rejecting schema - too many empty values: "
+                    f"{not_specified_count}/{total_values} ({not_specified_rate:.1%})"
+                )
+                return False
+
+        return True
+
+    def set(self, product_type: str, schema: Dict[str, Any], ttl_hours: Optional[int] = None, force: bool = False):
         """
         🔥 FIX #15: Store schema in cache (both L1 and L2)
 
         Stores in both memory (instant) and Redis (persistent)
+
+        Args:
+            product_type: Product type identifier
+            schema: Schema dictionary to cache
+            ttl_hours: Time-to-live in hours
+            force: If True, skip validation and cache anyway
         """
         if ttl_hours is None:
             ttl_hours = self.default_ttl_hours
+
+        # 🔥 FIX: Validate schema before caching to prevent empty results
+        if not force and not self._is_schema_valid_for_caching(schema):
+            logger.warning(
+                f"[SCHEMA_CACHE] Skipping cache for {product_type} - "
+                "schema failed validation (insufficient data)"
+            )
+            return  # Don't cache empty/invalid schemas
 
         cache_key = self.get_cache_key(product_type)
 

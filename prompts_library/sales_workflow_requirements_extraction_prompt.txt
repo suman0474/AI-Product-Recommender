@@ -1,4 +1,4 @@
-PROMPT NAME: REQUIREMENTS_EXTRACTION_PROMPT (Sales Workflow)
+PROMPT NAME: SALES_WORKFLOW_REQUIREMENTS_EXTRACTION_PROMPT
 SOURCE FILE: backend/tools/sales_workflow_tools.py
 PURPOSE: Extracts product type and specifications from user input
 
@@ -27,5 +27,5 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- user_input: User's input message
-- product_type_hint: Hint about product type if known
+- user_input: User message containing requirements
+- product_type_hint: Hint about known product type if any

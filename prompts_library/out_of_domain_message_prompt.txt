@@ -1,0 +1,21 @@
+PROMPT NAME: INTENT_ROUTING_CONFIG
+SOURCE FILE: backend/agentic/intent_classification_routing_agent.py
+PURPOSE: Configuration and messages for Intent Classification Routing Agent
+
+=== PROMPT CONTENT ===
+
+# OUT OF DOMAIN MESSAGE
+# This message is shown when user asks something unrelated to industrial automation
+
+I'm EnGenie, your industrial automation and procurement assistant.
+
+I can help you with:
+• **Instrument Identification** - Finding sensors, transmitters, valves, and accessories
+• **Solution Design** - Complete instrumentation systems for your process needs
+• **Product Information** - Specifications, datasheets, and comparisons
+• **Standards & Compliance** - IEC, ISO, SIL, ATEX, and other certifications
+
+Please ask a question related to industrial automation or procurement.
+
+=== PARAMETERS ===
+- None (static message)

@@ -1407,41 +1407,27 @@ def instrument_identifier():
     if not data:
          return api_response(False, error="No data provided", status_code=400)
 
-    # ✅ EXTRACT THREAD IDS FROM UI REQUEST
+    # Extract optional thread IDs from UI request (if provided)
+    # If not provided, workflows will generate them automatically
     main_thread_id = data.get('main_thread_id')
     workflow_thread_id = data.get('workflow_thread_id')
-    zone = data.get('zone', 'DEFAULT')
+    zone = data.get('zone')  # Optional - backend will detect if not provided
     session_id = data.get('session_id') or get_session_id()
-
-    # ✅ VALIDATE THREAD IDS ARE PROVIDED
-    if not main_thread_id or not workflow_thread_id:
-        return api_response(
-            False,
-            error="main_thread_id and workflow_thread_id must be provided by UI",
-            status_code=400
-        )
+    user_id = data.get('user_id') or current_user.id
 
     # Frontend sends 'message', check for it, fallback to 'requirements'
     message = data.get('message') or data.get('requirements')
     if not message:
         return api_response(False, error="Message or requirements is required", status_code=400)
 
-    # ✅ CREATE INITIAL STATE WITH UI-PROVIDED THREAD IDS
-    initial_state = {
-        'user_input': message,
-        'session_id': session_id,
-        'main_thread_id': main_thread_id,        # ← From UI
-        'workflow_thread_id': workflow_thread_id, # ← From UI
-        'zone': zone,                             # ← From UI
-    }
-
-    # ✅ RUN WORKFLOW WITH UI-PROVIDED THREAD IDS
+    # Run workflow - it will generate thread IDs if not provided
     result = run_instrument_identifier_workflow(
         user_input=message,
         session_id=session_id,
-        main_thread_id=main_thread_id,        # ← Pass UI-provided ID
-        workflow_thread_id=workflow_thread_id, # ← Pass UI-provided ID
-        zone=zone                              # ← Pass zone
+        main_thread_id=main_thread_id,        # Optional - workflow generates if None
+        workflow_thread_id=workflow_thread_id, # Optional - workflow generates if None
+        zone=zone,                              # Optional - workflow detects if None
+        user_id=user_id                         # For thread ID generation
     )
 
     # ✅ INCLUDE THREAD INFO IN RESPONSE
@@ -1509,19 +1495,13 @@ def solution_workflow_endpoint():
     if not data:
         return api_response(False, error="No data provided", status_code=400)
 
-    # ✅ EXTRACT THREAD IDS FROM UI REQUEST
+    # Extract optional thread IDs from UI request (if provided)
+    # If not provided, workflows will generate them automatically
     main_thread_id = data.get('main_thread_id')
     workflow_thread_id = data.get('workflow_thread_id')
-    zone = data.get('zone', 'DEFAULT')
+    zone = data.get('zone')  # Optional - backend will detect if not provided
     session_id = data.get('session_id') or get_session_id()
-
-    # ✅ VALIDATE THREAD IDS ARE PROVIDED
-    if not main_thread_id or not workflow_thread_id:
-        return api_response(
-            False,
-            error="main_thread_id and workflow_thread_id must be provided by UI",
-            status_code=400
-        )
+    user_id = data.get('user_id') or current_user.id
 
     # Get the message/requirements
     message = data.get('message') or data.get('requirements') or data.get('user_input')
@@ -1532,27 +1512,19 @@ def solution_workflow_endpoint():
     import logging
     logger = logging.getLogger(__name__)
     logger.info(f"[SOLUTION_API] Invoking solution workflow for session: {session_id}")
-    logger.info(f"[SOLUTION_API] Main Thread ID: {main_thread_id}")
-    logger.info(f"[SOLUTION_API] Workflow Thread ID: {workflow_thread_id}")
-    logger.info(f"[SOLUTION_API] Zone: {zone}")
+    logger.info(f"[SOLUTION_API] Main Thread ID: {main_thread_id or 'Will be generated'}")
+    logger.info(f"[SOLUTION_API] Workflow Thread ID: {workflow_thread_id or 'Will be generated'}")
+    logger.info(f"[SOLUTION_API] Zone: {zone or 'Will be detected'}")
     logger.info(f"[SOLUTION_API] Input preview: {message[:100]}...")
 
-    # ✅ CREATE INITIAL STATE WITH UI-PROVIDED THREAD IDS
-    initial_state = {
-        'user_input': message,
-        'session_id': session_id,
-        'main_thread_id': main_thread_id,        # ← From UI
-        'workflow_thread_id': workflow_thread_id, # ← From UI
-        'zone': zone,                             # ← From UI
-    }
-
-    # ✅ RUN WORKFLOW WITH UI-PROVIDED THREAD IDS
+    # Run workflow - it will generate thread IDs if not provided
     result = run_solution_workflow(
         user_input=message,
         session_id=session_id,
-        main_thread_id=main_thread_id,        # ← Pass UI-provided ID
-        workflow_thread_id=workflow_thread_id, # ← Pass UI-provided ID
-        zone=zone                              # ← Pass zone
+        main_thread_id=main_thread_id,        # Optional - workflow generates if None
+        workflow_thread_id=workflow_thread_id, # Optional - workflow generates if None
+        zone=zone,                              # Optional - workflow detects if None
+        user_id=user_id                         # For thread ID generation
     )
 
     # ✅ INCLUDE THREAD INFO IN RESPONSE

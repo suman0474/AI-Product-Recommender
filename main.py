@@ -199,15 +199,28 @@ app.register_blueprint(engenie_chat_bp)
 logging.info("EnGenie Chat API blueprint registered at /api/engenie-chat")
 
 # --- Import and Register Tools API Blueprint ---
+# --- Import and Register Tools API Blueprint ---
 from tools_api import tools_bp
 app.register_blueprint(tools_bp)
 logging.info("Tools API blueprint registered at /api/tools")
 
 
+# --- Import and Register Session API Blueprints ---
+from agentic.session_api import register_session_blueprints
+register_session_blueprints(app)
+logging.info("Session and Instance blueprints registered")
+
+
 # =========================================================================
 # === HELPER FUNCTIONS AND UTILITIES ===
 # =========================================================================
-# Import our updated functions from test.py
+# --- Import and Register Resource Monitoring Blueprint ---
+try:
+    from agentic.resource_monitoring_api import resource_bp
+    app.register_blueprint(resource_bp)
+    logging.info("Resource Monitoring blueprint registered at /api/resources")
+except ImportError:
+    logging.warning("Resource Monitoring API not available")
 from test import (
     extract_data_from_pdf,
     send_to_language_model,

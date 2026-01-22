@@ -1,6 +1,6 @@
 PROMPT NAME: SALES_AGENT_PROMPT
 SOURCE FILE: backend/tools/sales_agent_tools.py
-PURPOSE: Handles user interaction in product search workflow
+PURPOSE: Handles user interaction in product search workflow with step-based responses
 
 === PROMPT CONTENT ===
 

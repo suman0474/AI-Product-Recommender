@@ -1,6 +1,6 @@
 PROMPT NAME: VALIDATOR_PROMPT
 SOURCE FILE: backend/agentic/shared_agents.py
-PURPOSE: 5-dimensional validation (relevance, accuracy, grounding, citations, hallucination)
+PURPOSE: Validates response quality for grounding and accuracy
 
 === PROMPT CONTENT ===
 
@@ -34,6 +34,6 @@ Return ONLY valid JSON:
 }}
 
 === PARAMETERS ===
-- question: User's question
+- question: User's original question
 - response: Generated response to validate
-- context: Available context
+- context: Available context that response should be grounded in

@@ -32,6 +32,9 @@ from datetime import datetime
 from .llm_specs_generator import MIN_LLM_SPECS_COUNT
 from .standards_deep_agent import MIN_STANDARDS_SPECS_COUNT
 
+# Import global executor manager for bounded thread pool
+from agentic.global_executor_manager import get_global_executor
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,20 +145,20 @@ def batch_coordinator(
     start_time = time.time()
     all_item_states = {i: BatchItemState(i, item) for i, item in enumerate(items)}
 
-    # Process items in parallel
-    with ThreadPoolExecutor(max_workers=max_parallel_items) as executor:
-        future_to_index = {
-            executor.submit(_process_single_item, index, state):
-            index for index, state in all_item_states.items()
-        }
+    # Process items in parallel using global executor (bounded to 16 workers globally)
+    executor = get_global_executor()
+    future_to_index = {
+        executor.submit(_process_single_item, index, state):
+        index for index, state in all_item_states.items()
+    }
 
-        for future in as_completed(future_to_index):
-            index = future_to_index[future]
-            try:
-                enriched_item = future.result()
-                logger.info(f"[BATCH-COORDINATOR] Item {index} ({all_item_states[index].name}): Processing complete")
-            except Exception as exc:
-                logger.error(f"[BATCH-COORDINATOR] Item {index} generated exception: {exc}")
+    for future in as_completed(future_to_index):
+        index = future_to_index[future]
+        try:
+            enriched_item = future.result()
+            logger.info(f"[BATCH-COORDINATOR] Item {index} ({all_item_states[index].name}): Processing complete")
+        except Exception as exc:
+            logger.error(f"[BATCH-COORDINATOR] Item {index} generated exception: {exc}")
 
     # Compile results
     processing_time = int((time.time() - start_time) * 1000)
@@ -194,19 +197,19 @@ def _process_single_item(index: int, state: BatchItemState) -> Dict[str, Any]:
     """
     logger.info(f"[ITEM-{index}] Processing: {state.name}")
 
-    # Run LLM and Standards in parallel
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        llm_future = executor.submit(
-            _enrich_item_with_llm,
-            state.name, state.category, state.sample_input
-        )
-        standards_future = executor.submit(
-            _enrich_item_with_standards,
-            state.name, state.category, state.sample_input
-        )
+    # Run LLM and Standards in parallel using global executor
+    executor = get_global_executor()
+    llm_future = executor.submit(
+        _enrich_item_with_llm,
+        state.name, state.category, state.sample_input
+    )
+    standards_future = executor.submit(
+        _enrich_item_with_standards,
+        state.name, state.category, state.sample_input
+    )
 
-        # Wait for results
-        llm_result = llm_future.result()
+    # Wait for results
+    llm_result = llm_future.result()
         standards_result = standards_future.result()
 
     # Update state
