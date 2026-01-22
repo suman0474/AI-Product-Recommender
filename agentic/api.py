@@ -56,42 +56,49 @@ agentic_bp = Blueprint('agentic', __name__, url_prefix='/api/agentic')
 
 
 # ============================================================================
-# SERVER-SIDE WORKFLOW STATE STORAGE
+# SERVER-SIDE WORKFLOW STATE STORAGE (BOUNDED WITH AUTO-CLEANUP)
 # Replaces Flask session to fix concurrent tab issues (cookie overwrite)
+# Phase 4 Optimization: Bounded memory with automatic cleanup
 # ============================================================================
-_workflow_states: Dict[str, Dict[str, Any]] = {}
-_workflow_states_lock = threading.Lock()
-_WORKFLOW_STATE_TTL = 3600  # 1 hour
+from .workflow_state_manager import get_workflow_state_manager
+
+# Get bounded state manager (auto-starts cleanup thread)
+_state_manager = get_workflow_state_manager(
+    max_states=10000,      # Max 10,000 concurrent states
+    ttl_seconds=3600       # 1 hour TTL
+)
 
 
 def get_workflow_state(thread_id: str) -> Dict[str, Any]:
-    """Get workflow state for a thread (thread-safe)."""
-    with _workflow_states_lock:
-        state = _workflow_states.get(thread_id, {})
-        if state:
-            logger.debug(f"[WORKFLOW_STATE] Retrieved state for {thread_id}: phase={state.get('phase')}")
-        return state.copy() if state else {}
+    """Get workflow state for a thread (thread-safe, bounded)."""
+    state = _state_manager.get(thread_id)
+    if state:
+        logger.debug(f"[WORKFLOW_STATE] Retrieved state for {thread_id}: phase={state.get('phase')}")
+    return state
 
 
 def set_workflow_state(thread_id: str, state: Dict[str, Any]) -> None:
-    """Save workflow state for a thread (thread-safe)."""
-    with _workflow_states_lock:
-        state['_last_updated'] = time_module.time()
-        _workflow_states[thread_id] = state.copy()
-        logger.debug(f"[WORKFLOW_STATE] Saved state for {thread_id}: phase={state.get('phase')}")
+    """Save workflow state for a thread (thread-safe, bounded with LRU eviction)."""
+    _state_manager.set(thread_id, state)
+    logger.debug(f"[WORKFLOW_STATE] Saved state for {thread_id}: phase={state.get('phase')}")
 
 
 def cleanup_expired_workflow_states() -> int:
-    """Remove states older than TTL. Returns count removed."""
-    with _workflow_states_lock:
-        now = time_module.time()
-        expired = [k for k, v in _workflow_states.items() 
-                   if now - v.get('_last_updated', 0) > _WORKFLOW_STATE_TTL]
-        for k in expired:
-            del _workflow_states[k]
-        if expired:
-            logger.info(f"[WORKFLOW_STATE] Cleaned up {len(expired)} expired states")
-        return len(expired)
+    """
+    Manual cleanup trigger (automatic cleanup runs in background).
+
+    Returns count of manually triggered cleanup attempts.
+    Note: Automatic cleanup happens every 5 minutes in background.
+    """
+    # Trigger immediate cleanup if needed
+    stats = _state_manager.get_stats()
+    usage = stats.get("usage_percent", 0)
+
+    if usage > 80:
+        logger.info(f"[WORKFLOW_STATE] Usage at {usage}%, triggering cleanup...")
+        _state_manager._cleanup_expired_states()
+
+    return 1
 
 
 # ============================================================================
@@ -2607,13 +2614,16 @@ def product_search():
         zone = data.get('zone', 'DEFAULT')
         session_id = data.get('session_id') or data.get('search_session_id')
 
-        # ✅ VALIDATE THREAD IDS ARE PROVIDED
+        # ✅ VALIDATE THREAD IDS - Generate fallback if not provided (for backward compatibility)
         if not main_thread_id or not workflow_thread_id:
-            return api_response(
-                False,
-                error="main_thread_id and workflow_thread_id must be provided by UI",
-                status_code=400
-            )
+            # Generate fallback IDs for backward compatibility during transition
+            import uuid
+            if not main_thread_id:
+                main_thread_id = f"main_legacy_{uuid.uuid4().hex[:12]}"
+                logger.warning(f"[PRODUCT_SEARCH] main_thread_id not provided by UI, using fallback: {main_thread_id}")
+            if not workflow_thread_id:
+                workflow_thread_id = f"product_search_legacy_{uuid.uuid4().hex[:12]}"
+                logger.warning(f"[PRODUCT_SEARCH] workflow_thread_id not provided by UI, using fallback: {workflow_thread_id}")
 
         # Extract other parameters
         user_input = data.get('user_input') or data.get('message', '')

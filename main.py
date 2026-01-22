@@ -5923,9 +5923,19 @@ if __name__ == "__main__":
     except Exception as e:
         logging.warning(f"Failed to initialize session cleanup: {e}")
 
-    # Register shutdown handler for graceful cleanup (Phase 3 improvement)
+    # Initialize bounded workflow state management (Phase 4 improvement)
+    # Prevents OOM crashes from unbounded state accumulation
+    try:
+        from agentic.workflow_state_manager import stop_workflow_state_manager
+
+        logging.info("Workflow state manager initialized with bounded memory and auto-cleanup")
+    except Exception as e:
+        logging.warning(f"Failed to initialize workflow state manager: {e}")
+
+    # Register shutdown handler for graceful cleanup (Phase 3-4 improvements)
     def shutdown_cleanup():
-        """Graceful shutdown handler for session cleanup."""
+        """Graceful shutdown handler for all background managers."""
+        # Stop session cleanup (Phase 3)
         if session_cleanup_manager:
             try:
                 logging.info("[SHUTDOWN] Stopping session cleanup manager...")
@@ -5933,6 +5943,14 @@ if __name__ == "__main__":
                 logging.info("[SHUTDOWN] Session cleanup manager stopped successfully")
             except Exception as e:
                 logging.error(f"[SHUTDOWN] Error stopping session cleanup: {e}")
+
+        # Stop workflow state manager (Phase 4)
+        try:
+            logging.info("[SHUTDOWN] Stopping workflow state manager...")
+            stop_workflow_state_manager()
+            logging.info("[SHUTDOWN] Workflow state manager stopped successfully")
+        except Exception as e:
+            logging.error(f"[SHUTDOWN] Error stopping workflow state manager: {e}")
 
     app.teardown_appcontext(lambda exc: shutdown_cleanup() if exc is None else None)
 
