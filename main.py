@@ -38,7 +38,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 from chaining import setup_langchain_components, create_analysis_chain
-import prompts
+import prompts  # Using compatibility shim (prompts.py) - TODO: Refactor to use sales_agent_tools.py
 from loading import load_requirements_schema, build_requirements_schema_from_web
 from flask import Flask, session
 from flask_session import Session
@@ -490,6 +490,7 @@ def api_intent():
     from agentic.intent_classification_routing_agent import (
         get_workflow_memory, 
         should_exit_workflow,
+        is_knowledge_question,  # NEW: Detect knowledge questions
         EXIT_PHRASES,
         GREETING_PHRASES
     )
@@ -499,15 +500,21 @@ def api_intent():
     # Check if user wants to exit workflow
     wants_to_exit = should_exit_workflow(user_input)
     
-    # If user wants to exit, clear workflow state
-    if wants_to_exit:
+    # NEW: Check if user is asking a knowledge question (should break workflow lock)
+    is_knowledge_q = is_knowledge_question(user_input)
+    
+    # If user wants to exit OR is asking a knowledge question, clear workflow state
+    if wants_to_exit or is_knowledge_q:
         workflow_memory.clear_workflow(search_session_id)
-        logging.info(f"[INTENT_API] Clearing workflow state - user requested exit")
+        if is_knowledge_q:
+            logging.info(f"[INTENT_API] Clearing workflow state - detected KNOWLEDGE QUESTION: {user_input[:50]}...")
+        else:
+            logging.info(f"[INTENT_API] Clearing workflow state - user requested exit")
     
     # Check WORKFLOW LOCK from backend memory (single source of truth)
     current_workflow = workflow_memory.get_workflow(search_session_id)
     
-    if current_workflow and not wants_to_exit:
+    if current_workflow and not wants_to_exit and not is_knowledge_q:
         logging.info(f"[INTENT_API] WORKFLOW LOCK: User is in '{current_workflow}' workflow - staying in workflow")
         
         # Map workflow to intent
@@ -5882,5 +5889,51 @@ def create_db():
 if __name__ == "__main__":
     create_db()
     import os
+
+    # Initialize automatic checkpoint cleanup (Phase 1 improvement)
+    # Prevents unbounded memory growth from checkpoint accumulation
+    try:
+        from agentic.checkpointing import CheckpointManager, start_auto_checkpoint_cleanup
+
+        # Create checkpoint manager and start automatic cleanup
+        checkpoint_manager = CheckpointManager("sqlite")
+        start_auto_checkpoint_cleanup(
+            checkpoint_manager,
+            cleanup_interval=300,  # Run cleanup every 5 minutes
+            ttl=72  # Remove checkpoints older than 72 hours
+        )
+        logging.info("Automatic checkpoint cleanup initialized successfully")
+    except Exception as e:
+        logging.warning(f"Failed to initialize checkpoint cleanup: {e}")
+
+    # Initialize automatic session cleanup (Phase 2 improvement)
+    # Prevents memory leaks from accumulated session files
+    session_cleanup_manager = None
+    try:
+        from agentic.session_cleanup_manager import SessionCleanupManager
+
+        session_dir = app.config.get("SESSION_FILE_DIR", "/tmp/flask_session")
+        session_cleanup_manager = SessionCleanupManager(
+            session_dir=session_dir,
+            cleanup_interval=600,  # Run cleanup every 10 minutes
+            max_age_hours=24  # Remove sessions older than 24 hours
+        )
+        session_cleanup_manager.start()
+        logging.info("Automatic session cleanup initialized successfully with proper lifecycle")
+    except Exception as e:
+        logging.warning(f"Failed to initialize session cleanup: {e}")
+
+    # Register shutdown handler for graceful cleanup (Phase 3 improvement)
+    def shutdown_cleanup():
+        """Graceful shutdown handler for session cleanup."""
+        if session_cleanup_manager:
+            try:
+                logging.info("[SHUTDOWN] Stopping session cleanup manager...")
+                session_cleanup_manager.stop()
+                logging.info("[SHUTDOWN] Session cleanup manager stopped successfully")
+            except Exception as e:
+                logging.error(f"[SHUTDOWN] Error stopping session cleanup: {e}")
+
+    app.teardown_appcontext(lambda exc: shutdown_cleanup() if exc is None else None)
 
     app.run(debug=True, host="0.0.0.0", port=5000, threaded=True, use_reloader=False)

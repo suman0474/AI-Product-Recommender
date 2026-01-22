@@ -18,6 +18,8 @@ from datetime import datetime
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
+from .embedding_batch_processor import get_batch_processor
+from .embedding_cache_manager import get_embedding_cache
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -138,7 +140,11 @@ class PineconeDocumentStore(BaseDocumentStore):
             
             chunks = self.text_splitter.split_text(content)
             namespace = self._get_namespace(collection_type)
-            
+
+            # Batch embed all chunks for better performance
+            processor = get_batch_processor(self.embeddings)
+            chunk_embeddings = processor.embed_documents_batch(chunks)
+
             vectors = []
             for i, chunk in enumerate(chunks):
                 chunk_id = f"{doc_id}_chunk_{i}"
@@ -146,9 +152,9 @@ class PineconeDocumentStore(BaseDocumentStore):
                 chunk_metadata["chunk_index"] = i
                 chunk_metadata["total_chunks"] = len(chunks)
                 chunk_metadata["text"] = chunk
-                
-                embedding = self.embeddings.embed_query(chunk)
-                
+
+                embedding = chunk_embeddings[i]
+
                 vectors.append({
                     "id": chunk_id,
                     "values": embedding,
@@ -177,10 +183,16 @@ class PineconeDocumentStore(BaseDocumentStore):
     
     def search(self, collection_type: str, query: str, top_k: int = 5,
                filter_metadata: Optional[Dict] = None) -> Dict:
-        """Search for documents in Pinecone."""
+        """Search for documents in Pinecone with embedding caching."""
         try:
             namespace = self._get_namespace(collection_type)
-            query_embedding = self.embeddings.embed_query(query)
+
+            # Check cache first, then compute if needed
+            cache = get_embedding_cache()
+            query_embedding = cache.get(query)
+            if query_embedding is None:
+                query_embedding = self.embeddings.embed_query(query)
+                cache.put(query, query_embedding)
             
             results = self.index.query(
                 namespace=namespace,
